@@ -1,0 +1,13 @@
+# Site settings
+title: Ironic Blog
+email: nercury@gmail.com
+description: >
+  The irony is that it is not really ironic.
+baseurl: "" # the subpath of your site, e.g. /blog/
+url: "http://yourdomain.com" # the base hostname & protocol for your site
+twitter_username: nercury
+github_username:  Nercury
+
+# Build settings
+markdown: kramdown
+highlighter: pygments
