@@ -171,7 +171,7 @@ fn main() {
     let mut maybe = MaybeValue::new(Val::new(333));
     let result = maybe.rob::<Val>();
     match result {
-        Some(val) => println!("Has robed value {}", val.value),
+        Some(val) => println!("Has robbed value {}", val.value),
         None => println!("No robing!")
     }
 }
@@ -181,7 +181,7 @@ Prints:
 
 {% highlight console %}
 create 333
-Has robed value 333
+Has robbed value 333
 destroyed 333
 {% endhighlight %}
 
@@ -193,7 +193,7 @@ fn main() {
     for _ in range(0i, 2i) { // Do it twice:
         let result = maybe.rob::<Val>();
         match result {
-            Some(val) => println!("Has robed value {}", val.value),
+            Some(val) => println!("Has robbed value {}", val.value),
             None => println!("No robing!")
         }
     }
@@ -204,7 +204,7 @@ Prints:
 
 {% highlight console %}
 create 333
-Has robed value 333
+Has robbed value 333
 destroyed 333
 No robing!
 {% endhighlight %}
