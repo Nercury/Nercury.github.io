@@ -1,12 +1,12 @@
 ---
 layout: post
-title:  "Building dependency injection container in Rust - A naive start"
+title:  "Dependency injection container - Figuring out the design - A naive start"
 date:   2014-11-02
 categories: rust di
 ---
 
-- __Part 1__ - A naive start;
-- [Part 2][part-2] - Learning the ropes.
+- __Part 1__ - Figuring out the design - A naive start;
+- [Part 2][part-2] - Learning the ropes in Rust.
 
 ### What is dependency injection?
 
@@ -152,12 +152,15 @@ Quick search lends me some nice hits on
 [overloading based on argument type][stack-overflow-rust-overloading] and
 [unboxed closure trait objects][closure-type]. I _think_ it _might_ be possible.
 
-### Two months later
+__FADE OUT__
 
 Well, I wrote the above, went to implement it, and then... 2 months passed.
-Read the follow up in [part 2][part-2].
 
-[part-2]: /part-2
+### Two months later
+
+Read the follow up in [__part 2__][part-2].
+
+[part-2]: /rust/di/2014/11/02/dependency-injection-learning-rust.html
 [stack-overflow-what-is-dependency-injection]: http://stackoverflow.com/a/130862/1187538
 [tuple-crazyness]: http://doc.rust-lang.org/std/tuple/trait.Tuple12.html
 [stack-overflow-rust-overloading]: http://stackoverflow.com/questions/24857831/is-there-any-downside-to-overloading-functions-in-rust-using-a-trait-generic-f
