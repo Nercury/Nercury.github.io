@@ -1,9 +1,12 @@
 ---
 layout: post
-title:  "Building dependency injection container in Rust"
+title:  "Building dependency injection container in Rust - A naive start"
 date:   2014-11-02
-categories: rust dependency-injection
+categories: rust di
 ---
+
+- __Part 1__ - A naive start;
+- [Part 2][part-2] - Learning the ropes.
 
 ### What is dependency injection?
 
@@ -55,24 +58,6 @@ factory methods:
 
 {% highlight rust %}
 let mut container = di::Container::new();
-container.define::<Bricks>(|container| {
-    Bricks::new()
-});
-container.define::<House>(|container| {
-    House::new(container.get::<Bricks>())
-});
-
-let house = container.get::<House>(); // Yay, got house!
-{% endhighlight %}
-
-I posted the example above, because it is easy to understand. However,
-there is a problem: There is only one source of "Bricks" and "House".
-What if we need several House builders?
-
-Let's try to give our own names for container items:
-
-{% highlight rust %}
-let mut container = di::Container::new();
 container.define("bricks", |container| {
     Bricks::new()
 });
@@ -84,8 +69,8 @@ let house: House = container.get("house");
 {% endhighlight %}
 
 Yuck, a string hashmap based solution. I would prefer to avoid
-going over hashmap for every object instantiation. But we are
-going to fix this in a moment.
+going over hashmap for every object instantiation. But we might
+be able to fix this in a moment.
 
 Also, passing the "container", or even simply using the "container" in
 factory function looks no more better than using a global. Factory
@@ -163,33 +148,16 @@ registry.define("house", |bricks: Bricks| {
 {% endhighlight %}
 
 Can I find out the argument type and count and _do the right thing_?
-Quick search lends me some nice hits on [Tuple<A, B, C...> crazyness][tuple-crazyness],
+Quick search lends me some nice hits on
 [overloading based on argument type][stack-overflow-rust-overloading] and
 [unboxed closure trait objects][closure-type]. I _think_ it _might_ be possible.
 
-### Building the Registry
+### Two months later
 
-The _Registry_, basics are easy - it is just a container:
+Well, I wrote the above, went to implement it, and then... 2 months passed.
+Read the follow up in [part 2][part-2].
 
-{% highlight rust %}
-use std::collections::HashMap;
-
-struct Definition;
-
-pub struct Registry {
-    items: HashMap<&'static str, Definition>,
-}
-impl Registry {
-    pub fn new() -> Registry {
-        Registry {
-            items: HashMap::new(),
-        }
-    }
-}
-{% endhighlight %}
-
-
-
+[part-2]: /part-2
 [stack-overflow-what-is-dependency-injection]: http://stackoverflow.com/a/130862/1187538
 [tuple-crazyness]: http://doc.rust-lang.org/std/tuple/trait.Tuple12.html
 [stack-overflow-rust-overloading]: http://stackoverflow.com/questions/24857831/is-there-any-downside-to-overloading-functions-in-rust-using-a-trait-generic-f

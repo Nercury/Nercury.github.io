@@ -4,13 +4,9 @@ title: About Me
 permalink: /about/
 ---
 
-I am a software engineer living in Vilnius, Lithuania.
+I am a software engineer from Vilnius, Lithuania, working with
+Backbone.js, node.js, PHP frameworks, and my latest hobby
+is Rust.
 
-Currently I am hacking javascript, Backbone or node.js.
-
-Previously I used to code in PHP, Python, C++, C#, F#, Java, UnrealScript, Delphi and even Visual Basic 6.
-I love investigating new promising technologies, and my current passion is Rust.
-
-If you find some stupid enough English mistake in this blog, you can [fix
-it with a pull request](https://github.com/Nercury/Nercury.github.io/tree/master/_posts),
-and for that I would be extremely grateful.
+Previously I used to code in (reverse order) Python, C++, C#, F#, Java,
+Delphi, and it all started with Visual Basic 6.
