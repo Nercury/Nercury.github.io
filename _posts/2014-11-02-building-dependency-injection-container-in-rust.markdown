@@ -160,7 +160,7 @@ Well, I wrote the above, went to implement it, and then... 2 months passed.
 
 Read the follow up in [__part 2__][part-2].
 
-[part-2]: /rust/di/2014/11/02/dependency-injection-learning-rust.html
+[part-2]: /rust/di/2015/01/02/dependency-injection-learning-rust.html
 [stack-overflow-what-is-dependency-injection]: http://stackoverflow.com/a/130862/1187538
 [tuple-crazyness]: http://doc.rust-lang.org/std/tuple/trait.Tuple12.html
 [stack-overflow-rust-overloading]: http://stackoverflow.com/questions/24857831/is-there-any-downside-to-overloading-functions-in-rust-using-a-trait-generic-f

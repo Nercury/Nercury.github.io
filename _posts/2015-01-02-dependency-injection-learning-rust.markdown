@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Dependency injection container - Learning the ropes in Rust"
-date:   2014-11-02
+date:   2015-01-02
 categories: rust di
 ---
 
