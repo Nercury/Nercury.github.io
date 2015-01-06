@@ -47,3 +47,23 @@ $on-laptop:        800px;
         "layout",
         "syntax-highlighting"
 ;
+
+.header-link {
+  position: absolute;
+  float: left;
+  margin-left: -38px;
+  width: 38px;
+  opacity: 0;
+  font-size: 0.9;
+}
+
+h1:hover .header-link,
+h2:hover .header-link,
+h3:hover .header-link,
+h4:hover .header-link,
+h5:hover .header-link,
+h6:hover .header-link {
+  opacity: 0.6;
+  text-decoration: none;
+  color: black;
+}

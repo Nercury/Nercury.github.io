@@ -8,8 +8,11 @@
 
     <link rel="stylesheet" href="{{ "/css/main.css" | prepend: site.baseurl }}">
     <link rel="stylesheet" href="{{ "/css/pygments/default.css" | prepend: site.baseurl }}">
+    <link rel="stylesheet" href="{{ "/css/font-awesome.css" | prepend: site.baseurl }}">
     <link rel="canonical" href="{{ page.url | replace:'index.html','' | prepend: site.baseurl | prepend: site.url }}">
+    <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
 
+    <script src="{{ "/js/jquery.min.js" | prepend: site.baseurl }}"></script>
     {% if (site.GH_ENV == "gh_pages") %}
     <script>
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -22,4 +25,17 @@
       ga('send', 'pageview');
     </script>
     {% endif %}
+    <script>
+        $(function() {
+          return $("h1, h2, h3, h4, h5, h6").each(function(i, el) {
+            var $el, icon, id;
+            $el = $(el);
+            id = $el.attr('id');
+            icon = '<i class="fa fa-link"></i>';
+            if (id) {
+              return $el.prepend($("<a />").addClass("header-link").attr("href", "#" + id).html(icon));
+            }
+          });
+        });
+    </script>
 </head>
