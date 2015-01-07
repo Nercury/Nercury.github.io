@@ -9,6 +9,17 @@ categories: rust csharp tutorial
 
 Let's not waste any time then and get up to speed in Rust.
 
+# Functions
+
+Functions can live outside of classes. A function that takes an
+integer and returns a boolean looks like this:
+
+{% highlight rust %}
+fn is_big(value: i32) -> bool {
+    return value > 30;
+}
+{% endhighlight %}
+
 # Strings and string slices
 
 `String` is a dynamically allocated string that is owned. Its small cousin,

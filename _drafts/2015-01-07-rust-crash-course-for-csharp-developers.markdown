@@ -137,13 +137,13 @@ impl Cell {
 }
 {% endhighlight %}
 
-- We write a separate `impl` for `Cell`, just bellow the `struct`.
+- An `impl` for `Cell` is needed to declare methods for struct. We add it just bellow the `struct` in file.
 - Any `static` method (without `self` as first argument) can be a
 constructor. By convention, we use a name `new`. Construction method
 returns a new `Cell` for us.
 - When constructing a cell, we can specify all non-pub members of it
-because the non-pub members are visible if the module is the same,
-like `internal`.
+because the non-pub members are visible in the same module,
+like `internal` in C#.
 
 We are going to use a __string slice__ `&str` for constructor argument,
 and convert it to a new `String` with `to_string` method.
@@ -154,9 +154,105 @@ strings inside structures like `Cell` are owned `String`s. Like the
 `Vec<Monster>`, our `name` in `Cell` will be cleaned up when
 parent `Cell` cleans up.
 
+In C#, we can make `Cell` printable by overriding a `ToString` method:
 
+{% highlight csharp %}
+public class Cell {
+    // ...
+
+    public override string ToString() {
+        return name;
+    }
+}
+{% endhighlight %}
+
+And then print it in console with `WriteLine` statement:
+
+{% highlight csharp %}
+public class Program
+{
+    public static void Main()
+    {
+        var cell = new Cell("Hello");
+        Console.WriteLine("Cell is {0}", cell);
+    }
+}
+{% endhighlight %}
+
+In Rust, we can achieve the same by implementing `Show`
+trait for `Cell`:
+
+{% highlight rust %}
+use std::fmt;
+
+impl fmt::Show for Cell {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        return write!(f, "{0}", self.name);
+    }
+}
+{% endhighlight %}
+
+- The `Show` trait exists in standard library module `fmt`, which
+is imported into current scope with `use std::fmt` statement. Anything
+in `fmt` can then be used with a `fmt` prefix.
+_[Read more about modules][modules]_.
+- To implement a trait, we define a new `impl` for it with the trait
+methods only. Trait methods can access any other `Cell` methods in
+other `impl`s. _[Read more about implementing traits][implementing-traits]_.
+- In implementation body, we return formatted result using the
+`write!` macro. In addition to formatter, we need to pass
+format string, which initially may be very similar to C# format
+string and the number of parameters that match parameters in format
+string. [Read more about formatting][string-formatting].
+
+And then print it in console with `println!` macro:
+
+{% highlight rust %}
+fn main() {
+    let cell = Cell::new("Hello");
+    println!("Cell is {0}", cell);
+}
+{% endhighlight %}
+
+- The entry point of rust executable is a function named `main`.
+- The `let` keyword initialises a slot for a new variable, the type of which is automatically inferred based on the right side expression,
+similarly to `var`.
+- We use `println!` macro to format output string.
+
+I wrote several things C#-way to make them more recognisable at
+the first glance. We are going to rewrite them in more idiomatic
+Rust now.
+
+The last statement in a function is special: if it is missing
+a semicolon, it will automatically return the result. So,
+return statements are usually written like this:
+
+{% highlight rust %}
+fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "{0}", self.name) // no "return" + no semicolon
+}
+{% endhighlight %}
+
+Then, the format arguments do not need to contain numbers in them.
+If they come in sequence `{0}`, `{1}`, etc., they can be written
+simply as `{}` and `{}`. So, we can change our `{0}` in both
+`write!` and `println!` to `{}`:
+
+{% highlight rust %}
+write!(f, "{}", self.name)
+{% endhighlight %}
+
+{% highlight rust %}
+println!("Cell is {}", cell);
+{% endhighlight %}
+
+- Interesting: in case of argument mismatch, Rust will produce a
+compilation error, while C# will fail with a run-time exception.
 
 [reddit-post-about-abstract-class]: http://www.reddit.com/r/rust/comments/29ywdu/what_you_dont_love_about_rust/ciq4m20
+[string-formatting]: http://doc.rust-lang.org/std/fmt/
+[modules]: /todo
+[implementing-traits]: /todo
 [strings-and-slices]: /rust/csharp/tutorial/2015/01/06/rust-reference-for-csharp-developers.html#strings-and-string-slices
 [trait-objects]: /todo
 [ownership]: /todo
