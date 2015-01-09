@@ -5,7 +5,25 @@ date:   2015-01-07
 categories: rust csharp tutorial
 ---
 
-## The agenda
+## Introduction
+
+If you want to learn Rust at the usual pace, [the book][rust-book] is a
+great place to start. However, I think there is a great potential
+to re-use existing knowledge from other languages, greatly speed up
+learning and flatten the learning curve considerably.
+
+For example, there is a guide [for functional programmers][rust-for-functional-programmers],
+reusing knowledge of __OCaml__ and __Haskell__. If you are a __F#__
+wizard, you should definatelly investigate it.
+
+There is also a very popular albeit a bit outdated 
+[guide for rubyists][rustforrubyists], and a quite [recent entry in
+similar style targeted for Clojure developers].
+
+[rust-book]: http://doc.rust-lang.org/book/
+[rust-for-functional-programmers]: http://science.raphael.poss.name/rust-for-functional-programmers.html
+[rustforrubyists]: http://www.rustforrubyists.com/
+[rustforclojure]: https://gist.github.com/oakes/4af1023b6c5162c6f8f0
 
 We are going to implement a small simulation in both C# and Rust.
 In the process, we will get familiar with a good chunk of Rust

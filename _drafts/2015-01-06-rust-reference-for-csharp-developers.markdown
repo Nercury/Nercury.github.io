@@ -9,6 +9,8 @@ categories: rust csharp tutorial
 
 Let's not waste any time then and get up to speed in Rust.
 
+trait objects: http://huonw.github.io/blog/2015/01/peeking-inside-trait-objects/
+
 # Functions
 
 Functions can live outside of classes. A function that takes an
