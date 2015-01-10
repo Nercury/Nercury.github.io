@@ -16,7 +16,7 @@ For example, there is a guide [for functional programmers][rust-for-functional-p
 reusing knowledge of __OCaml__ and __Haskell__. If you are a __F#__
 wizard, you should definatelly investigate it.
 
-There is also a very popular albeit a bit outdated 
+There is also a very popular albeit a bit outdated
 [guide for rubyists][rustforrubyists], and a quite [recent entry in
 similar style targeted for Clojure developers].
 
