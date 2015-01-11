@@ -8,10 +8,10 @@ categories: rust guide
 This guide assumes that you know basic syntax and building blocks of Rust
 but still don't quite grasp how the __ownership__ and __borrowing__ works.
 
-We will gradually increase complexity at slow pace, explaining
-and discussing every new bit of detail. This guide will not try to
-be clever or assume any particular knowledge. We will build
-it from scratch.
+We will gradually increase complexity at a slow pace, explaining
+and discussing every new bit of detail. This guide will assume
+basic familiarity with `let`, `fn`, `struct`, `trait` and
+`impl` constructs.
 
 In the end, you should be able to design a new Rust program
 and not hit any walls related to ownership or borrowing.
@@ -116,8 +116,64 @@ Any type that is not copyable is required to follow these ownership
 rules. They ensure that at any point, for a singe created instance,
 there is only one owner that can __change__ this data.
 
-Therefore, if a function is reponsible for deleting this data,
+Therefore, if a function is responsible for deleting this data,
 it can be sure that there are no other users that will try to
 access, change or delete it in future.
 
 [book-ownership]: http://doc.rust-lang.org/book/ownership.html
+
+### Say hello to Bob, our brave dummy structure
+
+To demonstrate how the data is moving around, we will create
+a new struct and call it `Bob`.
+
+{% highlight rust %}
+struct Bob {
+    name: String,
+}
+{% endhighlight %}
+
+In Bob constructor `new`, we will announce that it was created:
+
+{% highlight rust %}
+impl Bob {
+    fn new(name: &str) -> Bob {
+        println!("new bob {}", name); // announce
+        Bob { name: name.to_string() }
+    }
+}
+{% endhighlight %}
+
+When Bob gets destroyed (sorry, Bob!), we will print its name
+by implementing `Drop` trait:
+
+{% highlight rust %}
+impl Drop for Bob {
+    fn drop(&mut self) {
+        println!("del bob {}", self.name);
+    }
+}
+{% endhighlight %}
+
+And to print bob's at any time, we will make it printable
+by implementing `Show` trait.
+
+{% highlight rust %}
+impl fmt::Show for Bob {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "bob {}", self.name)
+    }
+}
+{% endhighlight %}
+
+When we create Bob in the `main` function, we get a predictable
+result:
+
+{% highlight rust %}
+fn main() {
+    Bob::new("A");
+}
+{% endhighlight %}
+
+    new bob A
+    del bob A
