@@ -9,7 +9,7 @@ This guide assumes that you know basic syntax and building blocks of Rust
 but still don't quite grasp how the __ownership__ and __borrowing__ works.
 
 We will gradually increase complexity at a slow pace, explaining
-and discussing every new bit of detail. This guide will assume
+and discussing every new bit of detail. This guide will assume _very_
 basic familiarity with `let`, `fn`, `struct`, `trait` and
 `impl` constructs.
 
