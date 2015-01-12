@@ -58,7 +58,7 @@ The `Copy` trait is used when the data can be copied automatically
 by compiler without any modification. Implementing it allows your
 data to be freely copied like a built-in integer.
 
-The built-in machine type `i64` (one kind of `int`) implements this
+The built-in machine type `i64` (one kind of integer) implements this
 trait, like [many others][copy-trait].
 
 [copy-trait]: http://doc.rust-lang.org/std/marker/trait.Copy.html
@@ -132,30 +132,30 @@ In Bob constructor `new`, we will announce that it was created:
 {% highlight rust %}
 impl Bob {
     fn new(name: &str) -> Bob {
-        println!("new bob {}", name); // announce
+        println!("new bob {:?}", name); // announce
         Bob { name: name.to_string() }
     }
 }
 {% endhighlight %}
 
 When Bob gets destroyed (sorry, Bob!), we will print its name
-by implementing `Drop::drop` trait method:
+by implementing built-in `Drop::drop` trait method:
 
 {% highlight rust %}
 impl Drop for Bob {
     fn drop(&mut self) {
-        println!("del bob {}", self.name);
+        println!("del bob {:?}", self.name);
     }
 }
 {% endhighlight %}
 
-And to output bob value to console at any time, we will
-implement `Show::fmt` trait.
+And to make bob value format-able when outputing to console,
+we will implement the built-in `Show::fmt` trait.
 
 {% highlight rust %}
 impl fmt::Show for Bob {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "bob {}", self.name)
+        write!(f, "bob {:?}", self.name)
     }
 }
 {% endhighlight %}
@@ -171,8 +171,8 @@ fn main() {
 }
 {% endhighlight %}
 
-    new bob A
-    del bob A
+    new bob "A"
+    del bob "A"
 
 OK, it got deleted somehow - but when exactly?
 
@@ -185,8 +185,8 @@ fn main() {
 }
 {% endhighlight %}
 
-    new bob A
-    del bob A
+    new bob "A"
+    del bob "A"
     end is near
 
 It was deleted __before__ the end of function. The return
@@ -202,9 +202,9 @@ fn main() {
 }
 {% endhighlight %}
 
-    new bob A
+    new bob "A"
     end is near
-    del bob A
+    del bob "A"
 
 With `let`, it was deleted __at the end__ of function - at the
 end of variable scope. So the compiler simply __destroys
@@ -232,9 +232,9 @@ fn main() {
 }
 {% endhighlight %}
 
-    new bob A
-    imminent shrinkage bob A
-    del bob A
+    new bob "A"
+    imminent shrinkage bob "A"
+    del bob "A"
     end is near
 
 [Try it yourself!](http://is.gd/hOd53m)
@@ -313,8 +313,8 @@ fn main() {
 }
 {% endhighlight %}
 
-    new bob A
-    del bob mutant
+    new bob "A"
+    del bob "mutant"
 
 We created it with name "A", but deleted a "mutant".
 
@@ -333,8 +333,8 @@ fn main() {
 }
 {% endhighlight %}
 
-    new bob A
-    del bob mutant
+    new bob "A"
+    del bob "mutant"
 
 But in Rust, function arguments work the same as `let` slots.
 We can bind value as `mut` immediately in an argument definition:
@@ -349,5 +349,5 @@ fn main() {
 }
 {% endhighlight %}
 
-    new bob A
-    del bob mutant
+    new bob "A"
+    del bob "mutant"
