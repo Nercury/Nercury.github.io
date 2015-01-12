@@ -112,7 +112,7 @@ Therefore, if a function is responsible for deleting this data,
 it can be sure that there are no other users that will try to
 access, change or delete it in future.
 
-But enough of this abstract stuff, let's get into real examples!
+But enough of this abstract stuff, let's get into some real examples!
 
 [book-ownership]: http://doc.rust-lang.org/book/ownership.html
 
@@ -212,13 +212,13 @@ bound values at the end of scope__.
 
 ### Destroyed unless moved
 
-There is a catch though - the variables can be __moved__
+There is a catch though - the values can be __moved__
 somewhere else - and if they get moved, they won't get destroyed!
 
-How to move a variable? Well, simply pass it __as a value__ to
+How to move them? Well, simply pass them __as values__ to
 another function.
 
-Let's pass it to a function named `black_hole`:
+Let's pass our bob value to a function named `black_hole`:
 
 {% highlight rust %}
 fn black_hole(bob: Bob) {
@@ -265,8 +265,8 @@ and explains nicely what happened.
 ### There is no magic
 
 To implement "memory safety without garbage collection", compiler
-does need to go chasing your values around the code. It can
-decide what variables are destroyed in a function simply by _looking_
+does not need to go chasing your values around the code. It can
+decide what is destroyed in a function simply by _looking_
 at the function body.
 
 You can easily do that too, if you know the rules. So far, we saw
@@ -281,13 +281,73 @@ a single owner of a value.
 
 However, the `let` binding we talked about is __immutable__ - and
 the rules get slightly more complicated when the value
-can be changed.
+can be _changed_.
 
 Also, a bit later we will look into big __borrowing__ topic - because
-often we do not want to _move_ value to another place just to
+often we do __not__ want to _move_ value to another place just to
 temporarily read or modify it.
 
 But first, we need to talk about this word __binding__ I keep using
 when talking about that `let` statement. Why not say _assignment_?
 
 ## "Let" bindings
+
+Well, because `let` can do much more than an imperative language
+assignment.
+
+Think of `let` as a __slot__ for holding a __view__ of some
+memory location.
+
+### Mutable slots
+
+When written as `let x =`, the `x` holds an immutable view
+of the exact thing that is on the right side.
+
+When we prefix this slot with a `mut` keyword, we can change
+the value here. For example, we can mutate the name of our `Bob`:
+
+{% highlight rust %}
+fn main() {
+    let mut bob = Bob::new("A");
+    bob.name = String::from_str("mutant");
+}
+{% endhighlight %}
+
+    new bob A
+    del bob mutant
+
+We created it with name "A", but deleted a "mutant".
+
+What if we wanted to change a name of bob in another `mutate` function?
+We can pass the bob to that function, bind it to a mutable
+variable `bob`, and then mutate it:
+
+{% highlight rust %}
+fn mutate(value: Bob) {
+    let mut bob = value;
+    bob.name = String::from_str("mutant");
+}
+
+fn main() {
+    mutate(Bob::new("A"));
+}
+{% endhighlight %}
+
+    new bob A
+    del bob mutant
+
+But in Rust, function arguments work the same as `let` slots.
+We can bind value as `mut` immediately in an argument definition:
+
+{% highlight rust %}
+fn mutate(mut value: Bob) {
+    value.name = String::from_str("mutant");
+}
+
+fn main() {
+    mutate(Bob::new("A"));
+}
+{% endhighlight %}
+
+    new bob A
+    del bob mutant
