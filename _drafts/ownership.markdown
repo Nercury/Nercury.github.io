@@ -271,7 +271,7 @@ fn main() {
 Simple! Compiler makes sure that we can not move moved values,
 and explains nicely what happened.
 
-### There is no Magic
+### There is no Magic - just some rules
 
 To implement "memory safety without garbage collection", compiler
 does not need to go chasing your values around the code. It can
@@ -299,7 +299,8 @@ temporarily read or modify it.
 ## Mutable Ownership
 
 All the owned values can be mutated: we just need to put them to
-__mut__ slot with __let__:
+__mut__ slot with __let__. For example, we can mutate some
+part of bob, like a `name`:
 
 {% highlight rust %}
 fn main() {
@@ -330,22 +331,17 @@ fn main() {
     new bob "A"
     del bob "mutant"
 
-The function arguments can also be `mut` slots, because they
-behave the same as `let`. So function from previous example
-can be shortened:
+So, it is possible to make an owned value mutable at any time.
+
+Just a small side note: the function arguments can also be `mut`
+slots, because they behave the same way as `let`. So function from
+previous example can be shortened:
 
 {% highlight rust %}
-fn mutate(mut value: Bob) {
+fn mutate(mut value: Bob) { // use mut directly before arg name
     value.name = String::from_str("mutant");
 }
-
-fn main() {
-    mutate(Bob::new("A"));
-}
 {% endhighlight %}
-
-    new bob "A"
-    del bob "mutant"
 
 ### Replacing a value in mutable slot
 
@@ -378,10 +374,23 @@ fn main() {
 
     del bob "C"
 
+The old value gets deleted. A new value will be deleted
+at the end of scope, if not moved or overwritten again.
+
 ### Mutable Ownership rules
 
-So, there is one additional rule for mutable slot:
+So, there is one additional rule, for mutable slots:
 
-- __Replaced value is destroyed__.
+- Unused return values are destroyed.
+- All values bound with `let` are destroyed at the end of
+function, unless they are moved.
+- __Replaced values are destroyed__.
+
+Kind of obvious. The point is, in Rust, we are __sure__
+nothing else owns or references them - so it is possible to
+do that.
+
+All the rest of the language bends over backwards to make
+these ownership rules valid and safe at all times.
 
 ## Borrowing
