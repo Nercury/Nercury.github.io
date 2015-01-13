@@ -5,16 +5,25 @@ date:   2015-01-11
 categories: rust guide
 ---
 
-This guide assumes that you know basic syntax and building blocks of Rust
-but still don't quite grasp how the __ownership__ and __borrowing__ works.
+This guide assumes that reader knows basic syntax and building blocks
+of Rust but still don't quite grasp how the __ownership__ and
+__borrowing__ works.
 
-We will gradually increase complexity at a slow pace, explaining
-and discussing every new bit of detail. This guide will assume _very_
+It will start _very_ simple, and then gradually increase
+complexity at a slow pace, explaining and discussing every new bit
+of detail. This guide will assume a _very_
 basic familiarity with `let`, `fn`, `struct`, `trait` and
 `impl` constructs.
 
-In the end, you should be able to design a new Rust program
+The goal is to learn how to design a new Rust program
 and not hit any walls related to ownership or borrowing.
+
+#### Contents
+
+- After short [Introduction](#prerequisites---what-you-already-know)
+- we will learn about [Copy Trait](#copy-trait)s, and then
+- about [Immutable](#ownership)
+- and [Mutable](#mutable-ownership) ownership rules.
 
 ### Prerequisites - What you already know
 
@@ -48,7 +57,7 @@ __it will not affect__ the value in `main`.
 
 The value __gets copied__ at the call of `foo(i)`.
 
-### How Rust does it
+## Copy Trait
 
 When you shape a new type into existence, you can define
 many rules that should be followed when using it. One of them
@@ -160,7 +169,7 @@ impl fmt::Show for Bob {
 }
 {% endhighlight %}
 
-### Let's put it to the test!
+### Let's put it to the Test!
 
 When we create Bob in the `main` function, we get a predictable
 result:
@@ -210,7 +219,7 @@ With `let`, it was deleted __at the end__ of function - at the
 end of variable scope. So the compiler simply __destroys
 bound values at the end of scope__.
 
-### Destroyed unless moved
+### Destroyed Unless Moved
 
 There is a catch though - the values can be __moved__
 somewhere else - and if they get moved, they won't get destroyed!
@@ -262,7 +271,7 @@ fn main() {
 Simple! Compiler makes sure that we can not move moved values,
 and explains nicely what happened.
 
-### There is no magic
+### There is no Magic
 
 To implement "memory safety without garbage collection", compiler
 does not need to go chasing your values around the code. It can
@@ -279,7 +288,7 @@ function, unless they are moved__.
 Here you go, memory safety based on the fact that there can only be
 a single owner of a value.
 
-However, the `let` binding we talked about is __immutable__ - and
+However, so far we talked only about __immutable__ `let` binding -
 the rules get slightly more complicated when the value
 can be _changed_.
 
@@ -287,24 +296,10 @@ Also, a bit later we will look into big __borrowing__ topic - because
 often we do __not__ want to _move_ value to another place just to
 temporarily read or modify it.
 
-But first, we need to talk about this word __binding__ I keep using
-when talking about that `let` statement. Why not say _assignment_?
+## Mutable Ownership
 
-## "Let" bindings
-
-Well, because `let` can do much more than an imperative language
-assignment.
-
-Think of `let` as a __slot__ for holding a __view__ of some
-memory location.
-
-### Mutable slots
-
-When written as `let x =`, the `x` holds an immutable view
-of the exact thing that is on the right side.
-
-When we prefix this slot with a `mut` keyword, we can change
-the value here. For example, we can mutate the name of our `Bob`:
+All the owned values can be mutated: we just need to put them to
+__mut__ slot with __let__:
 
 {% highlight rust %}
 fn main() {
@@ -318,9 +313,8 @@ fn main() {
 
 We created it with name "A", but deleted a "mutant".
 
-What if we wanted to change a name of bob in another `mutate` function?
-We can pass the bob to that function, bind it to a mutable
-variable `bob`, and then mutate it:
+If we give this value to another function `mutate`, we can also
+assign it to `mut` slot there:
 
 {% highlight rust %}
 fn mutate(value: Bob) {
@@ -336,8 +330,9 @@ fn main() {
     new bob "A"
     del bob "mutant"
 
-But in Rust, function arguments work the same as `let` slots.
-We can bind value as `mut` immediately in an argument definition:
+The function arguments can also be `mut` slots, because they
+behave the same as `let`. So function from previous example
+can be shortened:
 
 {% highlight rust %}
 fn mutate(mut value: Bob) {
@@ -351,3 +346,42 @@ fn main() {
 
     new bob "A"
     del bob "mutant"
+
+### Replacing a value in mutable slot
+
+What happens if we try to overwrite value in `mut` slot? Let's see:
+
+{% highlight rust %}
+fn main() {
+    let mut bob = Bob::new("A");
+    println!("");
+    for &name in ["B", "C"].iter() {
+        println!("before overwrite");
+        bob = Bob::new(name);
+        println!("after overwrite");
+        println!("");
+    }
+}
+{% endhighlight %}
+
+    new bob "A"
+
+    before overwrite
+    new bob "B"
+    del bob "A"
+    after overwrite
+
+    before overwrite
+    new bob "C"
+    del bob "B"
+    after overwrite
+
+    del bob "C"
+
+### Mutable Ownership rules
+
+So, there is one additional rule for mutable slot:
+
+- __Replaced value is destroyed__.
+
+## Borrowing
