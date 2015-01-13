@@ -375,7 +375,7 @@ fn main() {
     del bob "C"
 
 The old value gets deleted. A new value will be deleted
-at the end of scope, if not moved or overwritten again.
+at the end of scope, unless it is moved or overwritten, again.
 
 ### Mutable Ownership rules
 
