@@ -27,6 +27,8 @@ and not hit any walls related to ownership or borrowing.
 
 ### Prerequisites - What you already know
 
+The most intuitive memory management is scope/stack based memory management.
+
 What happens to `i` at the end of the `main` function?
 
 {% highlight rust %}
@@ -41,13 +43,13 @@ If we pass this `i` to another function `foo`, how
 many times will it "die"?
 
 {% highlight rust %}
-fn main() {
-    let i = 5;
-    foo(i);
+fn foo(i: i64) { // another function foo
+    // something
 }
 
-fn foo(i: i64) {
-    // something
+fn main() {
+    let i = 5;
+    foo(i); // call function foo
 }
 {% endhighlight %}
 
@@ -57,15 +59,21 @@ __it will not affect__ the value in `main`.
 
 The value __gets copied__ at the call of `foo(i)`.
 
+In Rust, like in C++ (and some other languages), it is possible to use
+your own type instead of integer. The value will be allocated on current stack
+and it will be destroyed (the destructor will be called) when it goes
+out of scope.
+
+However, the Rust compiler follows different _ownership_ rules, unless
+type implements a `Copy` trait. Therefore we need to talk about the `Copy`
+trait first, and get it out of the way.
+
 ## Copy Trait
 
-When you shape a new type into existence, you can define
-many rules that should be followed when using it. One of them
-is a `Copy` trait.
-
-The `Copy` trait is used when the data can be copied automatically
-by compiler without any modification. Implementing it allows your
-data to be freely copied like a built-in integer.
+The `Copy` trait makes the type to behave in a
+very familiar way: its bits will be copied to another
+location for every assignment or use as function argument.
+Implementing it allows your data to be used like a built-in integer.
 
 The built-in machine type `i64` (one kind of integer) implements this
 trait, like [many others][copy-trait].
@@ -79,7 +87,7 @@ If we have a struct `Info`, we can make it copy-able by implementing
 struct Info {
     value: i64,
 }
-impl Copy for Info {} // no member function
+impl Copy for Info {}
 {% endhighlight %}
 
 Or, equivalently, add `#[derive(Copy)]` attribute for it:
@@ -91,20 +99,8 @@ struct Info {
 }
 {% endhighlight %}
 
-### Why did we need to talk about it?
-
-We needed to get the copyable types out-of-the-way because
-by their own nature they are not very useful when demonstrating how
-ownership works in Rust.
-
-For example, the [official ownership guide][book-ownership], uses
-`i64` type in a `Box` to demonstrate ownership, because `Box` is
-not copyable.
-
-> We will talk about `Box` much, much later.
-
-Simply put, copyable types work like primitive types in other
-languages and are not really different.
+The types __without__ this trait will be __always moved__ to another
+location and will follow the _ownership_ rules.
 
 ## Ownership
 
@@ -333,19 +329,19 @@ fn main() {
 
 So, it is possible to make an owned value mutable at any time.
 
-Just a small side note: the function arguments can also be `mut`
-slots, because they behave the same way as `let`. So function from
-previous example can be shortened:
+Useful to know: the function arguments can also be upgraded to _mutable_,
+because they are also bindable slots that work the same way as a `let` slot.
+So function from previous example can be shortened:
 
 {% highlight rust %}
-fn mutate(mut value: Bob) { // use mut directly before arg name
+fn mutate(mut value: Bob) { // use mut directly before the arg name
     value.name = String::from_str("mutant");
 }
 {% endhighlight %}
 
 ### Replacing a value in mutable slot
 
-What happens if we try to overwrite value in `mut` slot? Let's see:
+What happens if we try to overwrite value in a `mut` slot? Let's see:
 
 {% highlight rust %}
 fn main() {
@@ -374,8 +370,8 @@ fn main() {
 
     del bob "C"
 
-The old value gets deleted. A new value will be deleted
-at the end of scope, unless it is moved or overwritten, again.
+The old value gets deleted. The newly assigned value will be deleted
+at the end of scope - unless it is moved or overwritten again.
 
 ### Mutable Ownership rules
 
@@ -393,4 +389,4 @@ do that.
 All the rest of the language bends over backwards to make
 these ownership rules valid and safe at all times.
 
-## Borrowing
+## Reference Poisoning
