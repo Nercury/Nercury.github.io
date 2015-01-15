@@ -433,8 +433,9 @@ was called, which subsequently called the `drop` on the `Bob`, as well
 as cleaned up the memory on the heap.
 
 The triviality of this implementation is a big deal. If we compare this
-to the solutions in other languages, they do one of two things.
-They either leave it to you to clean up the memory, or rely on
+to the solutions in other languages, they do one of the two things.
+They either leave it up to you to clean up the memory (with some horrible
+`delete` statement someone will forget or call twice), or rely on
 some garbage collection mechanism that tracks memory pointers and
 cleans up memory when the value is no longer used.
 
@@ -444,3 +445,101 @@ is obviously very limited. However, surprisingly often it is quite sufficient.
 When it is not sufficient, there are other tools that can help with that.
 
 ### Garbage Collection
+
+Rust is sufficiently low-level for garbage collection (GC) to be implemented as
+a library. The simplest kind of it already exists in Rust: the
+reference-counted GC.
+
+For example, we can make a bob instance managed by `Rc` wrapper this way:
+
+{% highlight rust %}
+use std::rc::Rc;
+
+fn main() {
+    let bob = Rc::new(Bob::new("A"));
+    println!("{:?}", bob);
+}
+{% endhighlight %}
+
+    new bob A
+    Rc(bob A)
+    del bob A
+
+[Try it here!](http://is.gd/LFKS2A)
+
+We can change our `black_hole` function to accept `Rc<Bob>` and check if it is
+destroyed by it. But first, just for convenience, we are going to rewrite
+our `black_hole` function to accept __any__ type `T` that implements `Show`
+trait (so we can print it).
+We are going to make it _generic_:
+
+{% highlight rust %}
+fn black_hole<T>(value: T) where T: fmt::Show {
+    println!("imminent shrinkage {:?}", value);
+}
+{% endhighlight %}
+
+Works the same, and we will not need to change it for every new type change.
+
+Now, back to sending `Rc<Bob>` to black hole!
+
+{% highlight rust %}
+fn main() {
+    let bob = Rc::new(Bob::new("A"));
+    black_hole(bob.clone()); // clone call
+    println!("{:?}", bob);
+}
+{% endhighlight %}
+
+    new bob A
+    imminent shrinkage Rc(bob A)
+    Rc(bob A)
+    del bob A
+
+[Try it here!](http://is.gd/A5YrX9)
+
+It survived the black hole! Great! How does this work?
+
+Once wrapped by `Rc`, bob will live as long as there is a live `Rc` __clone__
+somewhere. `Rc` internally uses `Box` to place new value in heap memory,
+together with reference count (RC).
+
+Every time a new clone is created (by calling `clone` on `Rc`), the RC
+is increased, and when it reaches end of life, decreased. When
+RC reaches zero, the object itself is dropped and memory is deallocated.
+
+Note, that `Rc` above is not mutable. If the contents of `Bob` need to be mutated,
+it can be additionally wrapped in the `RefCell` type which allows a mutable
+borrow of a reference to our single bob instance. In this example it will be
+mutated it in the `mutate` function.
+
+{% highlight rust %}
+fn mutate(bob: Rc<RefCell<Bob>>) {
+    bob.borrow_mut().name = String::from_str("mutant");
+}
+
+fn main() {
+    let bob = Rc::new(RefCell::new(Bob::new("A")));
+    mutate(bob.clone());
+    println!("{:?}", bob);
+}
+{% endhighlight %}
+
+    new bob A
+    Rc(RefCell { value: bob mutant })
+    del bob mutant
+
+This demonstrates how different low-level utilities can be combined to
+achieve precisely what is needed with minimal overhead.
+
+For example, `Rc` can only be used in the same thread. But there is a
+`Arc` type for _atomic_ RC usable between threads. A mutable `Rc` might
+create cycles, in cases where multiple objects reference each other. However,
+`Rc` can be cloned into a `Weak` reference which does not participate
+in reference-counting. More information can be found in the
+[official documentation](http://doc.rust-lang.org/std/rc/).
+
+Most importantly, more advanced garbage collection mechanism can, and will,
+be implemented later, and they can be done as libraries.
+
+### I/O Resources
