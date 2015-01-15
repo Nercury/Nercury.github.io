@@ -27,7 +27,8 @@ and not hit any walls related to ownership or borrowing.
 
 ### Prerequisites - What you already know
 
-The most intuitive memory management is scope/stack based memory management.
+Scope/stack based memory management is quite intuitive, because we are very
+familiar with it.
 
 What happens to `i` at the end of the `main` function?
 
@@ -104,13 +105,8 @@ location and will follow the _ownership_ rules.
 
 ## Ownership
 
-The [official guide][book-ownership] explains ownership _well_ as a tool
-for managing resources and memory. I won't repeat much of it here.
-
-Instead, we will concentrate on learning ownership __rules__.
-
-Any type that is not copyable is required to follow these
-rules. They ensure that at any point, for a single created instance,
+Any type that is not copyable follows the _ownership
+rules_. The rules ensure, that at any point, for a single created instance,
 there is only one owner that can __change__ this data.
 
 Therefore, if a function is responsible for deleting this data,
@@ -118,8 +114,6 @@ it can be sure that there are no other users that will try to
 access, change or delete it in future.
 
 But enough of this abstract stuff, let's get into some real examples!
-
-[book-ownership]: http://doc.rust-lang.org/book/ownership.html
 
 ### Say hello to Bob, our brave new dummy structure
 
@@ -264,7 +258,7 @@ fn main() {
     <anon>:34     black_hole(bob);
                              ^~~
 
-Simple! Compiler makes sure that we can not move moved values,
+Simple! Compiler makes sure that we can not use moved values,
 and explains nicely what happened.
 
 ### There is no Magic - just some rules
@@ -287,10 +281,6 @@ a single owner of a value.
 However, so far we talked only about __immutable__ `let` binding -
 the rules get slightly more complicated when the value
 can be _changed_.
-
-Also, a bit later we will look into big __borrowing__ topic - because
-often we do __not__ want to _move_ value to another place just to
-temporarily read or modify it.
 
 ## Mutable Ownership
 
@@ -339,7 +329,7 @@ fn mutate(mut value: Bob) { // use mut directly before the arg name
 }
 {% endhighlight %}
 
-### Replacing a value in mutable slot
+### Replacing value in a mutable slot
 
 What happens if we try to overwrite value in a `mut` slot? Let's see:
 
@@ -375,7 +365,7 @@ at the end of scope - unless it is moved or overwritten again.
 
 ### Mutable Ownership rules
 
-So, there is one additional rule, for mutable slots:
+So, there is one additional rule, for the mutable slots:
 
 - Unused return values are destroyed.
 - All values bound with `let` are destroyed at the end of
@@ -386,7 +376,71 @@ Kind of obvious. The point is, in Rust, we are __sure__
 nothing else owns or references them - so it is possible to
 do that.
 
-All the rest of the language bends over backwards to make
-these ownership rules valid and safe at all times.
+<!-- All the rest of the language bends over backwards to make
+these ownership rules valid and safe at all times. -->
 
-## Reference Poisoning
+## The power of Ownership
+
+Let's think for a moment about these Ownership rules.
+
+They might seem a bit limiting at first, but only because we are used
+to the different set of rules. They do not limit what is actually possible, they
+simply give us different foundations for building higher-level constructions.
+
+Some of these constructions are way harder to make safe in other
+languages that do not have these foundations.
+
+### Memory Allocation
+
+So far we talked about integer-like values, that live on a __stack__.
+Our test dummy `Bob` was such a value. While some popular languages can _also_
+keep values only on a stack (`struct` in C#, or
+value instantiation without `new` in C++), many do not.
+
+Instead, a newly constructed object instance (in many languages - with a `new`
+operator) is created in what is called the __heap__ memory.
+
+The heap memory has some advantages. First, it is not limited by a stack size.
+Placing a huge structure on the a stack might simply overflow it.
+Second, its memory location does not change, unlike the location of a stack
+value. Every time a stack-allocated value is moved or copied, the actual
+bits need to be copied from one place of the stack to another.
+While it is very efficient for a small structure
+(the values are always "nearby"), it can become slower if the structure
+grows bigger.
+
+__Box__ solves this by moving our created value to the __heap__, while
+wrapping a small pointer to the heap location on the __stack__.
+
+For example, we can create our `Bob` in the heap memory like this:
+
+{% highlight rust %}
+fn main() {
+    let bob = Box::new(Bob::new("A"));
+}
+{% endhighlight %}
+
+    new bob A
+    del bob A
+
+The type of value `bob` returned from Box::new is `Box<Bob>`.
+This _generic_ type makes the `Bob` lifecycle managed by this `Box<Bob>`
+wrapper and deleted when the `Box` is deleted.
+
+`Box` is not copyable, and follows the same ownership rules discussed
+previously. When it reached the end of life on the stack, its destructor `drop`
+was called, which subsequently called the `drop` on the `Bob`, as well
+as cleaned up the memory on the heap.
+
+The triviality of this implementation is a big deal. If we compare this
+to the solutions in other languages, they do one of two things.
+They either leave it to you to clean up the memory, or rely on
+some garbage collection mechanism that tracks memory pointers and
+cleans up memory when the value is no longer used.
+
+While `Box` can be used as garbage collection mechanism, it
+is obviously very limited. However, surprisingly often it is quite sufficient.
+
+When it is not sufficient, there are other tools that can help with that.
+
+### Garbage Collection
