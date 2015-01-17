@@ -1,16 +1,16 @@
 ---
 layout: post
-title:  "Simple ownership and borrowing guide"
+title:  "Exploring ownership and borrowing"
 date:   2015-01-11
 categories: rust guide
 ---
 
 This guide assumes that reader knows basic syntax and building blocks
-of Rust but still don't quite grasp how the __ownership__ and
+of __Rust__ but still don't quite grasp how the __ownership__ and
 __borrowing__ works.
 
 It will start _very_ simple, and then gradually increase
-complexity at a slow pace, explaining and discussing every new bit
+complexity at a slow pace, exploring and discussing every new bit
 of detail. This guide will assume a _very_
 basic familiarity with `let`, `fn`, `struct`, `trait` and
 `impl` constructs.
@@ -436,17 +436,17 @@ The triviality of this implementation is a big deal. If we compare this
 to the solutions in other languages, they do one of the two things.
 They either leave it up to you to clean up the memory (with some horrible
 `delete` statement someone will forget or call twice), or rely on
-some garbage collection mechanism that tracks memory pointers and
-cleans up memory when the value is no longer used.
+garbage collection to track memory pointers and
+clean up memory when those pointers are no longer referenced.
 
-While `Box` can be used as garbage collection mechanism, it
-is obviously very limited. However, surprisingly often it is quite sufficient.
+Instead, Rust provides a very simple memory deallocation mechanism
+which is safe and quite often sufficient.
 
 When it is not sufficient, there are other tools that can help with that.
 
 ### Garbage Collection
 
-Rust is sufficiently low-level for garbage collection (GC) to be implemented as
+Rust has enough low-level tools for garbage collection (GC) to be implemented as
 a library. The simplest kind of it already exists in Rust: the
 reference-counted GC.
 
@@ -468,9 +468,8 @@ fn main() {
 [Try it here!](http://is.gd/LFKS2A)
 
 We can change our `black_hole` function to accept `Rc<Bob>` and check if it is
-destroyed by it. But first, just for convenience, we are going to rewrite
-our `black_hole` function to accept __any__ type `T` that implements `Show`
-trait (so we can print it).
+destroyed by it. But instead it would be more convenient to make it
+accept __any__ type `T` that implements `Show` trait (so we can print it).
 We are going to make it _generic_:
 
 {% highlight rust %}
@@ -510,8 +509,8 @@ RC reaches zero, the object itself is dropped and memory is deallocated.
 
 Note, that `Rc` above is not mutable. If the contents of `Bob` need to be mutated,
 it can be additionally wrapped in the `RefCell` type which allows a mutable
-borrow of a reference to our single bob instance. In this example it will be
-mutated it in the `mutate` function.
+borrow of a reference to our single bob instance. In the following example
+it will be mutated it in the `mutate` function.
 
 {% highlight rust %}
 fn mutate(bob: Rc<RefCell<Bob>>) {
@@ -539,7 +538,7 @@ create cycles, in cases where multiple objects reference each other. However,
 in reference-counting. More information can be found in the
 [official documentation](http://doc.rust-lang.org/std/rc/).
 
-Most importantly, more advanced garbage collection mechanism can, and will,
+Most importantly, more advanced garbage collection mechanisms can (and will)
 be implemented later, and they can be done as libraries.
 
 ### I/O Resources
