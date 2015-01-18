@@ -21,13 +21,13 @@ and not hit any walls related to ownership or borrowing.
 #### Contents
 
 - After short [Introduction](#prerequisites---what-you-already-know)
-- we will learn about [Copy Trait](#copy-trait)s, and then
-- about [Immutable](#ownership)
+- we will learn about the [Copy Trait](#copy-trait)s, and then
+- about the [Immutable](#ownership)
 - and [Mutable](#mutable-ownership) ownership rules.
-- Then we will see the [Power of Ownership](#the-power-of-ownership) system
+- Then we will see the [Power of Ownership system](#the-power-of-ownership-system)
 - in [Memory management](#memory-allocation),
 - [Garbage Collection](#garbage-collection)
-- and [Concurency](#concurrency).
+- and [Concurrency](#concurrency).
 
 ### Prerequisites - What you already know
 
@@ -380,19 +380,17 @@ Kind of obvious. The point is, in Rust, we are __sure__
 nothing else owns or references them - so it is possible to
 do that.
 
-<!-- All the rest of the language bends over backwards to make
-these ownership rules valid and safe at all times. -->
+## The power of Ownership system
 
-## The power of Ownership
-
-Let's think for a moment about these Ownership rules.
-
-They might seem a bit limiting at first, but only because we are used
-to the different set of rules. They do not limit what is actually possible, they
-simply give us different foundations for building higher-level constructions.
+These ownership rules might seem a bit limiting at first, but
+only because we are used to the different set of rules. They
+do not limit what is actually possible, they simply give us different foundation for building higher-level constructions.
 
 Some of these constructions are way harder to make safe in other
-languages that do not have these foundations.
+languages, and even if built, are far from providing compile-time
+safety guarantees.
+
+We will now overview some of the tools available in standard library.
 
 ### Memory Allocation
 
@@ -549,36 +547,65 @@ be implemented later, and they can be done as libraries.
 
 It is interesting to see how Rust changes the way we work with threads.
 The default mode here is no data races. It is not because there are some
-kind of safety walls around threads, no. In principle, you could build
-your own threading library and it will have the exact same safety properties,
-simply because the ownership model is in itself thread-safe.
+special safety walls around threads, no. In principle, you could build
+your own threading library and with similar safety properties, simply because the ownership model is in itself thread-safe.
 
 Consider what happens when we send two values into a new Rust thread, a
-bob value (movable) and an integer (copyable):
+`Bob` (movable) and an integer (copyable):
 
 {% highlight rust %}
 use std::thread::Thread;
 
 fn main() {
     let bob = Bob::new("A");
-    let value : i64 = 12;
-    Thread::scoped(move || {
-        println!("Hello, {:?} and {:?}!", bob, value);
+    let i : i64 = 12;
+    let guard = Thread::scoped(move || {
+        println!("From thread, {:?} and {:?}!", bob, i);
     });
+    println!("waiting for thread to end");
 }
 {% endhighlight %}
 
     new bob A
-    Hello, bob A and 12i64!
+    waiting for thread to end
+    From thread, bob A and 12i64!
     del bob A
 
-The value `bob` gets __moved__ into the thread and will be destroyed
-at the end of _closure scope_ there, unless it is moved somewhere else.
-We can not use `bob` again, without creating another `Bob` or cloning it.
+[Try it here!](http://is.gd/bxhDVZ)
 
-The integer implements the `Copy` trait, and will be __copied__ into the
-closure scope.
+What is happening there? First, we create two values:
+`bob` and `i`. Then we create a new thread with `Thread::scoped`
+and pass a _closure_ for it to execute. This closure is going to
+_capture_ our variables `bob` as `i` simply because it _uses_ them.
 
-These two ways of passing values into threads happen at the start
-of thread and do now allow for data races, because at all points all
-variables have a single owner.
+_Capturing_ means different thing for `bob` and `i`. The `bob` will get
+__moved__ into closure (and will not be usable outside the thread),
+while `i` will be __copied__ into it, and will remain usable outside
+the thread and in the thread itself.
+
+Our current, main thread will stop and wait for spawned thread
+to finish when the returned `guard` will reach the end of its life
+(in this case - at the end of our `main` function).
+
+One could say that this does not change much the way we used to work
+with threads - we know not to share same memory location
+between threads without some kind of synchronisation. The difference
+here is that Rust can enforce these rules at compile-time.
+
+Of course, it is possible to get returned result for `guard`,
+as well as create `channels` for sending and receiving data
+between threads in safe and synchronised way. More is available in
+[official threading documentation](http://doc.rust-lang.org/std/thread/),
+[channel documentation](http://doc.rust-lang.org/std/sync/mpsc/), and
+[the book](http://doc.rust-lang.org/book/threads.html).
+
+### What Else?
+
+We got familiar with ownership system in Rust to the point where
+we almost seem comfortable to jump in, browse the docs, and create
+great and safe programs with it.
+
+But we completely glossed over the other topic, the _borrowing_.
+
+In the second part of this guide, we will learn why the borrowing
+is needed and how best to use it.
