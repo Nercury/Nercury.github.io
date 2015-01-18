@@ -1,13 +1,13 @@
 ---
 layout: post
-title:  "Explore ownership and borrowing in Rust"
-date:   2015-01-18
+title:  "Explore ownership system in Rust"
+date:   2015-01-19
 categories: rust guide
 ---
 
-This guide assumes that reader knows basic syntax and building blocks
-of __Rust__ but still don't quite grasp how the __ownership__ and
-__borrowing__ works.
+This two-part guide is for a reader who knows basic syntax and
+building blocks of __Rust__ but does not quite grasp how the
+__ownership__ and __borrowing__ works.
 
 It will start _very_ simple, and then gradually increase
 complexity at a slow pace, exploring and discussing every new bit
@@ -15,10 +15,10 @@ of detail. This guide will assume a _very_
 basic familiarity with `let`, `fn`, `struct`, `trait` and
 `impl` constructs.
 
-The goal is to learn how to design a new Rust program
+Our goal is to learn how to write a new Rust program
 and not hit any walls related to ownership or borrowing.
 
-#### Contents
+#### In this first, _ownership_ part:
 
 - After short [Introduction](#prerequisites---what-you-already-know)
 - we will learn about the [Copy Traits](#copy-trait), and then
@@ -109,11 +109,10 @@ location and will follow the _ownership_ rules.
 
 ## Ownership
 
-Any type that is __not__ copyable follows the _ownership
-rules_. The rules ensure, that at any point, for a single created
-instance, there is only one owner that can __change__ this data.
+Ownership rules ensure, that at any point, for a single non-copyable
+value, there is only one owner that can __change__ it.
 
-Therefore, if a function is responsible for deleting this data,
+Therefore, if a function is responsible for deleting this value,
 it can be sure that there are no other users that will try to
 access, change or delete it in future.
 
@@ -153,7 +152,7 @@ impl Drop for Bob {
 {% endhighlight %}
 
 And to make bob value format-able when outputing to console,
-we will implement the built-in `Show::fmt` trait.
+we will implement the built-in `Show::fmt` trait method:
 
 {% highlight rust %}
 impl fmt::Show for Bob {
@@ -611,8 +610,3 @@ But the other side was glossed over completely: the _borrowing system_.
 
 In the second part of this guide, we will learn why the borrowing
 is needed and how best to use it.
-
-## Borrowing
-
-Borrowing is needed to access or change a memory location
-without moving or copying it.
