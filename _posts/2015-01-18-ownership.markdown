@@ -109,9 +109,9 @@ location and will follow the _ownership_ rules.
 
 ## Ownership
 
-Any type that is not copyable follows the _ownership
-rules_. The rules ensure, that at any point, for a single created instance,
-there is only one owner that can __change__ this data.
+Any type that is __not__ copyable follows the _ownership
+rules_. The rules ensure, that at any point, for a single created
+instance, there is only one owner that can __change__ this data.
 
 Therefore, if a function is responsible for deleting this data,
 it can be sure that there are no other users that will try to
@@ -384,7 +384,8 @@ do that.
 
 These ownership rules might seem a bit limiting at first, but
 only because we are used to the different set of rules. They
-do not limit what is actually possible, they simply give us different foundation for building higher-level constructions.
+do not limit what is actually possible, they simply give us
+different foundation for building higher-level constructions.
 
 Some of these constructions are way harder to make safe in other
 languages, and even if built, are far from providing compile-time
@@ -548,7 +549,8 @@ be implemented later, and they can be done as libraries.
 It is interesting to see how Rust changes the way we work with threads.
 The default mode here is no data races. It is not because there are some
 special safety walls around threads, no. In principle, you could build
-your own threading library and with similar safety properties, simply because the ownership model is in itself thread-safe.
+your own threading library and with similar safety properties, simply
+because the ownership model is in itself thread-safe.
 
 Consider what happens when we send two values into a new Rust thread, a
 `Bob` (movable) and an integer (copyable):
