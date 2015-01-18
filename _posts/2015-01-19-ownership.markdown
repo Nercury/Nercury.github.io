@@ -382,15 +382,15 @@ do that.
 ## The power of Ownership system
 
 These ownership rules might seem a bit limiting at first, but
-only because we are used to the different set of rules. They
-do not limit what is actually possible, they simply give us
+only because we are used to a different set of rules. They
+do not limit what is actually possible, they simply give us a
 different foundation for building higher-level constructions.
 
 Some of these constructions are way harder to make safe in other
-languages, and even if built, are far from providing compile-time
-safety guarantees.
+languages. Even if they are made safe, they do not necessarily
+provide compile-time safety guarantees.
 
-We will now overview some of the tools available in standard library.
+We will now overview some of them, available in the standard library.
 
 ### Memory Allocation
 
