@@ -9,7 +9,7 @@ This two-part guide is for a reader who knows basic syntax and
 building blocks of __Rust__ but does not quite grasp how the
 __ownership__ and __borrowing__ works.
 
-It will start _very_ simple, and then gradually increase
+We will start _very_ simple, and then gradually increase
 complexity at a slow pace, exploring and discussing every new bit
 of detail. This guide will assume a _very_
 basic familiarity with `let`, `fn`, `struct`, `trait` and
