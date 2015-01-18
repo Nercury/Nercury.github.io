@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Exploring ownership and borrowing"
-date:   2015-01-11
+date:   2015-01-18
 categories: rust guide
 ---
 
@@ -24,6 +24,10 @@ and not hit any walls related to ownership or borrowing.
 - we will learn about [Copy Trait](#copy-trait)s, and then
 - about [Immutable](#ownership)
 - and [Mutable](#mutable-ownership) ownership rules.
+- Then we will see the [Power of Ownership](#the-power-of-ownership) system
+- in [Memory management](#memory-allocation),
+- [Garbage Collection](#garbage-collection)
+- and [Concurency](#concurrency).
 
 ### Prerequisites - What you already know
 
@@ -541,4 +545,40 @@ in reference-counting. More information can be found in the
 Most importantly, more advanced garbage collection mechanisms can (and will)
 be implemented later, and they can be done as libraries.
 
-### I/O Resources
+### Concurrency
+
+It is interesting to see how Rust changes the way we work with threads.
+The default mode here is no data races. It is not because there are some
+kind of safety walls around threads, no. In principle, you could build
+your own threading library and it will have the exact same safety properties,
+simply because the ownership model is in itself thread-safe.
+
+Consider what happens when we send two values into a new Rust thread, a
+bob value (movable) and an integer (copyable):
+
+{% highlight rust %}
+use std::thread::Thread;
+
+fn main() {
+    let bob = Bob::new("A");
+    let value : i64 = 12;
+    Thread::scoped(move || {
+        println!("Hello, {:?} and {:?}!", bob, value);
+    });
+}
+{% endhighlight %}
+
+    new bob A
+    Hello, bob A and 12i64!
+    del bob A
+
+The value `bob` gets __moved__ into the thread and will be destroyed
+at the end of _closure scope_ there, unless it is moved somewhere else.
+We can not use `bob` again, without creating another `Bob` or cloning it.
+
+The integer implements the `Copy` trait, and will be __copied__ into the
+closure scope.
+
+These two ways of passing values into threads happen at the start
+of thread and do now allow for data races, because at all points all
+variables have a single owner.

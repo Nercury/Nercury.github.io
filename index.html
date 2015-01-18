@@ -8,6 +8,9 @@ layout: default
 
   <ul class="post-list">
     {% for post in site.posts %}
+      {% if post.url == "/rust/guide/2015/01/18/ownership.html" %}
+        {% continue; %}
+      {% endif %}
       <li>
         <span class="post-meta">{{ post.date | date: "%b %-d, %Y" }}</span>
 
