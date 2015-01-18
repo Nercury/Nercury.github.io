@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Exploring ownership and borrowing"
+title:  "Explore ownership and borrowing in Rust"
 date:   2015-01-18
 categories: rust guide
 ---
@@ -21,10 +21,10 @@ and not hit any walls related to ownership or borrowing.
 #### Contents
 
 - After short [Introduction](#prerequisites---what-you-already-know)
-- we will learn about the [Copy Trait](#copy-trait)s, and then
+- we will learn about the [Copy Traits](#copy-trait), and then
 - about the [Immutable](#ownership)
 - and [Mutable](#mutable-ownership) ownership rules.
-- Then we will see the [Power of Ownership system](#the-power-of-ownership-system)
+- Then we will look at the [Power of Ownership system](#the-power-of-ownership-system)
 - in [Memory management](#memory-allocation),
 - [Garbage Collection](#garbage-collection)
 - and [Concurrency](#concurrency).
@@ -605,7 +605,12 @@ We got familiar with ownership system in Rust to the point where
 we almost seem comfortable to jump in, browse the docs, and create
 great and safe programs with it.
 
-But we completely glossed over the other topic, the _borrowing_.
+But the other side was glossed over completely: the _borrowing system_.
 
 In the second part of this guide, we will learn why the borrowing
 is needed and how best to use it.
+
+## Borrowing
+
+Borrowing is needed to access or change a memory location
+without moving or copying it.
