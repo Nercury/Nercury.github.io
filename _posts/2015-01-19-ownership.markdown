@@ -452,9 +452,18 @@ When it is not sufficient, there are other tools that can help with that.
 
 Rust has enough low-level tools for garbage collection (GC) to be implemented as
 a library. The simplest kind of it already exists in Rust: the
-reference-counted GC.
+reference-counting GC.
 
-For example, we can make a bob instance managed by `Rc` wrapper this way:
+While reference-counting solution is small and easy to implement, it
+is not as good as full-fledged garbage collector that we
+have in mind when we say words "Garbage Collector".
+
+Therefore in Rust we have a better name for it: _shared ownership_.
+The `std::rc` library provides a way to __share__ ownership of the
+same value between different `Rc` _handles_. The value remains alive
+as long as there is least one handle for it.
+
+For example, we can make a bob instance managed by `Rc` handle this way:
 
 {% highlight rust %}
 use std::rc::Rc;
@@ -503,11 +512,11 @@ fn main() {
 
 It survived the black hole! Great! How does this work?
 
-Once wrapped by `Rc`, bob will live as long as there is a live `Rc` __clone__
-somewhere. `Rc` internally uses `Box` to place new value in heap memory,
+Once wrapped by `Rc` handle, bob will live as long as there is a live `Rc` __clone__
+somewhere. `Rc` handle internally uses `Box` to place new value in heap memory,
 together with reference count (RC).
 
-Every time a new clone is created (by calling `clone` on `Rc`), the RC
+Every time a new handle clone is created (by calling `clone` on `Rc`), the RC
 is increased, and when it reaches end of life, decreased. When
 RC reaches zero, the object itself is dropped and memory is deallocated.
 
@@ -536,9 +545,9 @@ This demonstrates how different low-level utilities can be combined to
 achieve precisely what is needed with minimal overhead.
 
 For example, `Rc` can only be used in the same thread. But there is a
-`Arc` type for _atomic_ RC usable between threads. A mutable `Rc` might
-create cycles, in cases where multiple objects reference each other. However,
-`Rc` can be cloned into a `Weak` reference which does not participate
+`Arc` type for _atomic_ RC usable between threads. A
+mutable `Rc` might create cycles when multiple objects reference each other.
+However, `Rc` can be cloned into a `Weak` reference which does not participate
 in reference-counting. More information can be found in the
 [official documentation](http://doc.rust-lang.org/std/rc/).
 
