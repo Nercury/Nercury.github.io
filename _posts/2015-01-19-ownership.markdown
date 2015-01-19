@@ -442,7 +442,7 @@ garbage collection to track memory pointers and
 clean up memory when those pointers are no longer referenced.
 
 In Rust, ownership tracking has no runtime penalty and is ensured to be
-correct at compile-time. This simple memory deallocation mechanism
+correct at compile-time. This simple memory deallocation over `Box`
 builds directly on ownership tracking, is small, safe and quite often
 sufficient.
 
