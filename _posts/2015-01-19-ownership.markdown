@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Explore ownership system in Rust"
+title:  "Explore the ownership system in Rust"
 date:   2015-01-19
 categories: rust guide
 ---
@@ -435,14 +435,16 @@ was called, which subsequently called the `drop` on the `Bob`, as well
 as cleaned up the memory on the heap.
 
 The triviality of this implementation is a big deal. If we compare this
-to the solutions in other languages, they do one of the two things.
+to the solutions in other languages, they mostly do one of the two things.
 They either leave it up to you to clean up the memory (with some horrible
 `delete` statement someone will forget or call twice), or rely on
 garbage collection to track memory pointers and
 clean up memory when those pointers are no longer referenced.
 
-Instead, Rust provides a very simple memory deallocation mechanism
-which is safe and quite often sufficient.
+In Rust, ownership tracking has no runtime penalty and is ensured to be
+correct at compile-time. This simple memory deallocation mechanism
+builds directly on ownership tracking, is small, safe and quite often
+sufficient.
 
 When it is not sufficient, there are other tools that can help with that.
 
@@ -548,7 +550,7 @@ be implemented later, and they can be done as libraries.
 It is interesting to see how Rust changes the way we work with threads.
 The default mode here is no data races. It is not because there are some
 special safety walls around threads, no. In principle, you could build
-your own threading library and with similar safety properties, simply
+your own threading library with similar safety properties, simply
 because the ownership model is in itself thread-safe.
 
 Consider what happens when we send two values into a new Rust thread, a
