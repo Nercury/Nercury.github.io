@@ -190,8 +190,8 @@ namespace!
 
 These two cases are not as different as it might seem:
 
-- __NeoShopProductModule__/ExportController
-- ProductModule/__NeoShop__/ExportController
+- __NeoShopProduct__ / ExportController
+- Product / __NeoShop__ / ExportController
 
 We might even choose to move ProductModule/__NeoShop__ to its own
 separate module named __NeoShopProductModule__.
@@ -205,22 +205,22 @@ on the disk:
 
 If we choose to keep it inside our own __Product__ module:
 
-    __Product__ / __NeoShop__ / ...
+- __Product__ / __NeoShop__ / ...
 
 If we choose to move this code into separate module, just for export:
 
-    __NeoShopProduct__ / ...
+- __NeoShopProduct__ / ...
 
 or:
 
-    __ProductNeoShop__ / ...
+- __ProductNeoShop__ / ...
 
 We can go further. We can choose to create a separate module that
 contains anything that is related to __NeoShop__. However, the
 same rule should follow: the namespace should have _Product_ in it,
 because now the __NeoShop__ depends on our module!
 
-    __NeoShop__ / __Product__ / ...
+- __NeoShop__ / __Product__ / ...
 
 In this case the structure of this new module after inversion looks
 like this:
@@ -232,6 +232,27 @@ like this:
                     - Fetch from DB      <-- Because we need to fetch it from DB!
                     - Convert to output structure
                     - Convert structure to XML
+
+## Use by Symfony or Zend
+
+Let's consider why we add _Module_ or _Bundle_ suffix to our "modules".
+
+- __ProductBundle__ / ...
+
+or:
+
+- __ProductModule__ / ...
+
+We do that to explicitly communicate that the code in our module
+or bundle _will not work without Symfony or Zend_.
+
+However, we are free to do the same trick and move framework-dependant
+code into its own namespace, and free the space for framework-independant
+component:
+
+- __Product__ / __Bundle__ / ... (Symfony framewok-dependant code)
+- __Product__ / __Module__ / ... (Zend framewok-dependant code)
+- __Product__ / __Component__ / ... (framework independent lib)
 
 ### Examples - What are successful examples of separated concerns?
 
