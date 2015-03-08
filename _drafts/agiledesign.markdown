@@ -100,15 +100,21 @@ __B__ is flaky! However, the fact that your code needs __B__ to
 work correctly _by definition_ means that you can not be _less_
 flaky than __B__!
 
+Also, consider what stability means: stable might be good,
+but it is _hard to change_. If we want some part of our system
+to be easy to modify and change, we should make sure that nothing
+depends on it!
+
 ### Naming
 
 The method `/api/products` is lying. If someone who does not know
-better looks at it, he might get an idea to use it for something else!
+better looks at it, he might get an idea to use it for any product export!
 However, the output of it is designed for the _NeoShop_.
 
-There is a similar problem with `getList` method - nowhere does it
-mention the caveat that exported products might not be quite what you
-expect.
+When we update this output based on new _NeoShop_ requirements,
+we would break anyone else using it. For example, consider the case
+where we trimmed the description - but other clients might need the
+full description!
 
 ### Reusability
 
@@ -116,7 +122,10 @@ If we want to reuse ProductModule in other project that does not need
 _NeoShop_ export, we would have to go in and remove this export
 controller.
 
-## Correct name experiment
+This inhibits the module reusability. Clearly, we must take the
+_NeoShop_ stuff and separate it. But how to do it correctly?
+
+## Dependent name experiment
 
 I suggest a simple rule: include in your module's name all the names it
 depends on. For example, let's say __P__ depends on __N__. In that case,
@@ -147,6 +156,82 @@ __NeoShopProduct__ module!
 But wait, this is crazy, right? No one is going to do that, the names
 would become too long!
 
+## JustBearWithMe
+
+Let's follow the rule and try to modify our project based on it.
+We propagate the name prefix to anything that has a dependency on this
+_NeoShop_ stuff.
+
+    NeoShopProductModule <-- Explicitly declare this as "NeoShop"
+        ExportController
+            getList(Request) -> Response
+                - Fetch from DB
+                - Convert to output structure
+                - Convert structure to XML
+
+Ok, our module has received the _NeoShop_ prefix, because it depends on
+_NeoShop_ stuff. However, that would likely mean that __anything__ inside
+this module is related to _NeoShop_ in some way, which is wrong.
+
+We need to move _NeoShop_ into its own subdir.
+
+For example, a submodule named _NeoShop_!
+
+    ProductModule
+        NeoShop <-- Move prefix into "NeoShop" subdir
+            ExportController
+                getList(Request) -> Response
+                    - Fetch from DB
+                    - Convert to output structure
+                    - Convert structure to XML
+
+The point is, the _ExportController_ now has name _NeoShop_ in its
+namespace!
+
+These two cases are not as different as it might seem:
+
+- __NeoShopProductModule__/ExportController
+- ProductModule/__NeoShop__/ExportController
+
+We might even choose to move ProductModule/__NeoShop__ to its own
+separate module named __NeoShopProductModule__.
+
+## Submodule naming
+
+There are two core concerns: our __Product__ and __NeoShop__ product.
+When we create something that involves both, the namespace
+should contain __both__. We can choose where to put it physically
+on the disk:
+
+If we choose to keep it inside our own __Product__ module:
+
+    __Product__ / __NeoShop__ / ...
+
+If we choose to move this code into separate module, just for export:
+
+    __NeoShopProduct__ / ...
+
+or:
+
+    __ProductNeoShop__ / ...
+
+We can go further. We can choose to create a separate module that
+contains anything that is related to __NeoShop__. However, the
+same rule should follow: the namespace should have _Product_ in it,
+because now the __NeoShop__ depends on our module!
+
+    __NeoShop__ / __Product__ / ...
+
+In this case the structure of this new module after inversion looks
+like this:
+
+    NeoShopModule
+        Product <-- We specify that we depend on Product
+            ExportController
+                getList(Request) -> Response
+                    - Fetch from DB      <-- Because we need to fetch it from DB!
+                    - Convert to output structure
+                    - Convert structure to XML
 
 ### Examples - What are successful examples of separated concerns?
 
