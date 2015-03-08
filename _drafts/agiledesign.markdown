@@ -25,8 +25,8 @@ into some guidelines anyone could follow.
 
 # Product Export Study
 
-__Someone wants to receive products in XML format by accessing site
-over some url, like `/api/products`.__
+Someone called _NeoShop_ wants to receive products in XML format
+by accessing site over some url, like _/api/products_.
 
 The action list is quite clear.
 
@@ -38,11 +38,9 @@ The action list is quite clear.
 If we are using some kind of web framework,
 a typical structure our application might look like this:
 
-```
-ProductModule
-    ExportController
-        getList(Request) -> Response
-```
+    ProductModule
+        ExportController
+            getList(Request) -> Response
 
 Our framework has already took care of first concern: receiving a request and
 sending the response.
@@ -55,13 +53,11 @@ sending the response.
 We now have to simply "fill the gap". When first implementing it,
 we can write everything in the controller method.
 
-```
-ProductModule
-    ExportController
-        getList(Request) -> Response
-            - Fetch from DB
-            - Transform to output
-```
+    ProductModule
+        ExportController
+            getList(Request) -> Response
+                - Fetch from DB
+                - Transform to output
 
 Let's say it has happened. A programmer wrote the implementation in an hour
 and business has reaped the benefits quickly.
@@ -80,27 +76,76 @@ Which part of our mechanism needs a change?
 Requirement DOC is a good indication that anything related to
 it must be in its own function/file/module/etc.
 
-```
-ProductModule
-    ExportController
-        getList(Request) -> Response
-            - Fetch from DB
-            - Convert to output structure <-- NeoShop
-            - Convert structure to XML
-```
+
+    ProductModule
+        ExportController
+            getList(Request) -> Response
+                - Fetch from DB
+                - Convert to output structure <-- NeoShop
+                - Convert structure to XML
+
 
 But this structure is lying! The `getList` method works __only__ in
-case the exported products are in NeoShop format!
+case the exported products are in _NeoShop_ format!
 
 ## Let's put the feeling why "this is bad" into words
 
+### Dependencies
 
+Consider this assertion: if module __A__ has a dependency on __B__,
+module __A__ is _less_ stable than __B__.
 
+You might complain that no, __A__ is super stable, it is just that
+__B__ is flaky! However, the fact that your code needs __B__ to
+work correctly _by definition_ means that you can not be _less_
+flaky than __B__!
 
+### Naming
 
+The method `/api/products` is lying. If someone who does not know
+better looks at it, he might get an idea to use it for something else!
+However, the output of it is designed for the _NeoShop_.
 
+There is a similar problem with `getList` method - nowhere does it
+mention the caveat that exported products might not be quite what you
+expect.
 
+### Reusability
 
+If we want to reuse ProductModule in other project that does not need
+_NeoShop_ export, we would have to go in and remove this export
+controller.
+
+## Correct name experiment
+
+I suggest a simple rule: include in your module's name all the names it
+depends on. For example, let's say __P__ depends on __N__. In that case,
+we should call it not a __P__, but __NP__.
+
+    P -> N
+
+Actual name:
+
+    NP -> N
+
+In similar way, if __N__ depends on __A__ and __B__, we add all the names to
+its name too, making it __ABN__.
+
+    N -> A
+    N -> B
+
+Actual name:
+
+    ABN -> A
+    ABN -> B
+
+And that name should be updated for __P__ too, making it __ABNP__.
+
+So if our module __Product__ depends on __NeoShop__, it should be called
+__NeoShopProduct__ module!
+
+But wait, this is crazy, right? No one is going to do that, the names
+would become too long!
 
 
 ### Examples - What are successful examples of separated concerns?
