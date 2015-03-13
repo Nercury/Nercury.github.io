@@ -254,6 +254,23 @@ component:
 - __Product__ / __Module__ / ... (Zend framewok-dependant code)
 - __Product__ / __Component__ / ... (framework independent lib)
 
+## Layers
+
+It is commonly known adage used for many parts of a system: a class,
+object or function should to only __one__ thing.
+
+But how is that possible?
+
+When talking about __one__ thing, we are having in mind some level of
+abstraction. Obviously, it gets higher when we go from function, to class,
+and then to module.
+
+However, functions or classes should always operate at dedicated abstraction
+level and avoid crossing it.
+
+If they do, it is a good sign that function or class needs to be
+extracted into its own place, so it continues to do _one thing_.
+
 ### Examples - What are successful examples of separated concerns?
 
 - Semantics and Presentation - HTML/CSS.
