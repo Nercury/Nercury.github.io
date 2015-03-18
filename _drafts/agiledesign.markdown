@@ -7,6 +7,41 @@ categories: presentation
 
 # [Won't publish](http://slides.com/nercury/agiledesign/live)
 
+# Agile Software Design
+
+# The need to be agile
+
+- Software changes
+- If software does not change, it becomes useless
+- Many areas: business situation
+- Laws
+- Money, taxes
+- Operating systems
+
+# Like a building
+
+> Image of a building with green stable foundation, walls in less green,
+> roof a bit yellow, door and windows in red.
+
+We build software like a building. We intuitively understand that
+we must have foundation, the walls depend on foundation, roof and windows
+depend on walls.
+
+# Except software is not a building
+
+- Buildings rarely change. When they do, the change is carefully planned and
+executed by great orchestration.
+- In buildings, we know we can change the red parts easily, and changing the
+green stuff is the most expensive. We know the cost. Cost is defined by
+dependencies.
+- However, in software we can create a mess. There is no gravity or laws
+of physics to put everything in place.
+
+
+
+
+
+
 ## Spaghetti code
 
 You know how it goes. It starts simple. Some module __A__ needs to ask module
@@ -270,6 +305,10 @@ level and avoid crossing it.
 
 If they do, it is a good sign that function or class needs to be
 extracted into its own place, so it continues to do _one thing_.
+
+## Single responsibility principle
+
+
 
 ### Examples - What are successful examples of separated concerns?
 
