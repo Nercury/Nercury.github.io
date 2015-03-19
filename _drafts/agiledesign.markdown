@@ -9,7 +9,7 @@ categories: presentation
 
 # Agile Software Design
 
-# The need to be agile
+# The problem - The need to be agile
 
 - Software changes
 - If software does not change, it becomes useless
@@ -18,7 +18,7 @@ categories: presentation
 - Money, taxes
 - Operating systems
 
-# Like a building
+## Like a building
 
 > Image of a building with green stable foundation, walls in less green,
 > roof a bit yellow, door and windows in red.
@@ -27,7 +27,7 @@ We build software like a building. We intuitively understand that
 we must have foundation, the walls depend on foundation, roof and windows
 depend on walls.
 
-# Except software is not a building
+## Except software is not a building
 
 - Buildings rarely change. When they do, the change is carefully planned and
 executed by great orchestration.
@@ -35,7 +35,78 @@ executed by great orchestration.
 green stuff is the most expensive. We know the cost. Cost is defined by
 dependencies.
 - However, in software we can create a mess. There is no gravity or laws
-of physics to put everything in place.
+of physics to put everything in place. Nothing stops us to make foundation
+depend on roof.
+
+## Consider the cost
+
+> Same house picture
+
+- Intuitively, we know that when many things depend on something (i.e. the
+foundation), then the cost and effort of changing it is high.
+- However, we still create _circular_ dependencies, like, making foundation
+depend on roof on windows. A building is wrong example for this, but
+in software we can make foundation to be another roof for roof and window for
+window.
+
+> Crappy picture where foundation is the window and the roof at the same time.
+
+Question: what is the cost of changing that?
+
+There are two options: when changing it, first untangle the mess! Or...:
+
+> Another picture where we decorate the mess with red parts so much that it
+becomes green.
+
+Extend the mess! Make more things depend on mess. What does this do?
+
+It makes mess even _harder_ to change! Look, now our roof-foundation
+masterpiece has so many dependencies that it is _stable_. If we need to
+change it _now_, we must untangle _even bigger_ mess!
+
+## Symptoms 1
+
+- When we turn on car radio the gearbox falls out.
+- We can only think of engineers as completely incompetent.
+
+## Symptoms 2
+
+- As the project development continues, the cost of simple change keeps
+increasing.
+- Tenfold, then again tenfold.
+- Engineers say they can't keep up and project needs rewrite.
+- But who wrote it? Them!
+- We can only think of them as incompetent.
+
+## Why it is not happening in real world?
+
+Why don't real world engineers do similar crazy things as often as
+software engineers?
+
+- Software does not have gravity or other laws of physics.
+- In real world there is a distance between things like gearbox and radio!
+
+All laws can be broken in many cool and interesting ways.
+
+> Picture of matrix.
+
+## But what can we do?
+
+Discipline.
+
+- We need to follow some kind of rules.
+- But it is boring to follow the rules!
+- So they must be really, really good to be worth following!
+
+It is possible to build our own useful laws of software physics!
+
+# Definitions - Let's talk about dependencies
+
+What is a _dependency_ exactly in software?
+
+
+
+
 
 
 
