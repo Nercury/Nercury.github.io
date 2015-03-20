@@ -13,7 +13,9 @@ categories: presentation
 
 - Software changes
 - If software does not change, it becomes useless
-- Many areas: business situation
+
+Many areas:
+- Business situation
 - Laws
 - Money, taxes
 - Operating systems
@@ -100,11 +102,24 @@ Discipline.
 
 It is possible to build our own useful laws of software physics!
 
-# Definitions - Let's talk about dependencies
+# What we want
 
-What is a _dependency_ exactly in software?
+Minimize complexity explosion as the code size increases:
 
+- Understand any line of code
+- Make correct changes fast
+- Redesign quickly
 
+_Be Agile_.
+
+# Let's talk dependencies
+
+They cause 2 things:
+
+- Makes some code stable
+- Makes some code unstable
+
+They _distribute_ stability in the system.
 
 
 
