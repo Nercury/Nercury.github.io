@@ -7,9 +7,9 @@ categories: presentation
 
 # [Won't publish](http://slides.com/nercury/agiledesign/live)
 
-# Agile Software Design
+## Agile Software Design
 
-# The problem - The need to be agile
+## The problem - The need to be agile
 
 - Software changes
 - If software does not change, it becomes useless
@@ -20,7 +20,7 @@ Many areas:
 - Money, taxes
 - Operating systems
 
-## Like a building
+### Like a building
 
 > Image of a building with green stable foundation, walls in less green,
 > roof a bit yellow, door and windows in red.
@@ -29,7 +29,7 @@ We build software like a building. We intuitively understand that
 we must have foundation, the walls depend on foundation, roof and windows
 depend on walls.
 
-## Except software is not a building
+### Except software is not a building
 
 - Buildings rarely change. When they do, the change is carefully planned and
 executed by great orchestration.
@@ -40,7 +40,7 @@ dependencies.
 of physics to put everything in place. Nothing stops us to make foundation
 depend on roof.
 
-## Consider the cost
+### Consider the cost
 
 > Same house picture
 
@@ -66,12 +66,12 @@ It makes mess even _harder_ to change! Look, now our roof-foundation
 masterpiece has so many dependencies that it is _stable_. If we need to
 change it _now_, we must untangle _even bigger_ mess!
 
-## Symptoms 1
+### Symptoms 1
 
 - When we turn on car radio the gearbox falls out.
 - We can only think of engineers as completely incompetent.
 
-## Symptoms 2
+### Symptoms 2
 
 - As the project development continues, the cost of simple change keeps
 increasing.
@@ -80,7 +80,7 @@ increasing.
 - But who wrote it? Them!
 - We can only think of them as incompetent.
 
-## Why it is not happening in real world?
+### Why it is not happening in real world?
 
 Why don't real world engineers do similar crazy things as often as
 software engineers?
@@ -92,7 +92,7 @@ All laws can be broken in many cool and interesting ways.
 
 > Picture of matrix.
 
-## But what can we do?
+### But what can we do?
 
 Discipline.
 
@@ -102,7 +102,7 @@ Discipline.
 
 It is possible to build our own useful laws of software physics!
 
-# What we want
+## What we want
 
 Minimize complexity explosion as the code size increases:
 
@@ -112,7 +112,7 @@ Minimize complexity explosion as the code size increases:
 
 _Be Agile_.
 
-# Let's talk dependencies
+### Let's talk dependencies
 
 They cause 2 things:
 
@@ -121,8 +121,31 @@ They cause 2 things:
 
 They _distribute_ stability in the system.
 
+This might seem simplistic, but it is useful to consider code design
+from this point of view.
 
+### Stability is double-edged sword
 
+- It is hard to change stable things
+- It is easy to change unstable things
+
+Therefore, if we want to create code that is easy to change, it
+must be... __unstable__!
+
+_WAIT._
+
+__WHAT??__
+
+### The Trio of Agile Design
+
+Dependencies, Stability, Agility - can't have them all!
+
+But we have just found the secret sauce:
+
+- If we want stable, we should not _have dependencies_.
+- If we want agile, we should not _be a dependency_.
+
+Dependency management is _really_ important.
 
 
 
