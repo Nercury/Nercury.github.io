@@ -15,6 +15,7 @@ categories: presentation
 - If software does not change, it becomes useless
 
 Many areas:
+
 - Business situation
 - Laws
 - Money, taxes
@@ -146,6 +147,102 @@ But we have just found the secret sauce:
 - If we want agile, we should not _be a dependency_.
 
 Dependency management is _really_ important.
+
+## Frameworks are not evil, dependencies on them are
+
+> Framework in the center, green. Modules around - yellow. More modules
+around - red.
+
+The usual approach: we take the framework, we build some modules on top of
+it, we separate them based on the function.
+
+Then, we need to do more stuff: so we create even more modules on top
+that depend on our "core" modules.
+
+The problem is, by definition, those outer modules are really, really
+unstable. If anything in the middle changes, the effect cascades to
+all the dependencies.
+
+And we are even excluding the case of circular dependencies.
+
+> Picture where yellow stuff depends on red which makes everything red.
+
+In fact, we should ask a question: what is more important,
+the framework, or our stuff?
+
+Well, _both are_.
+
+In fact, our project is mostly the red stuff. But it is even more important
+than our framework!
+
+Wouldn't it be good if we invert the dependencies, and keep the things that
+are the most important to our project under our own control?
+
+> Yellow layer depends on both framework and outer stuff.
+
+That's where our architecture __is__. It is not the MVC, ORM, DI - these are
+just some tools to plug our things into the framework - they are the
+yellow layer.
+
+And we should keep that layer small. We should know how to
+_invert dependencies_.
+
+## We need to understand that a dependency is
+
+Most simplified: a state of the world the component requires.
+
+> Picture "component" and "world". The "dependencies" are subset of the "world"
+required for "component" to work as designed.
+
+Dependencies range from lowest levels, like CPU, Protocols, System APIs to
+higher levels like languages, libraries and frameworks.
+
+We expect most of this stuff to be stable. But if we think about it, most of
+it is not!
+
+_There is a layer of abstraction everywhere_.
+
+## Open File
+
+For example, take a simple function that opens a file.
+
+> open("file.md", "r")
+
+To run this code, we do not need to know
+about things like filesystem format, or hard disk vendor.
+
+But at some level deep down, these things are required. However, for our
+purposes, the required "subset of the world" is reduced to absolute minimum.
+
+This is achieved by using a dynamic dispatch mechanism. There are many
+familiar forms of it!
+
+### Dynamic dispatch
+
+Simply put - callbacks. There is some driver deep in OS that actually
+knows how to work with the hardware - it is responsible for setting correct
+execution path for "open file".
+
+### Events
+
+Events are simply extended version of the dynamic dispatch - instead of
+one callback, we have a list of callbacks.
+
+### Polymorphism
+
+And, of course, the same mechanism in object-oriented disguise:
+
+- Interface or abstract class: list of possible callbacks for caller
+- Implemented class to replace all callbacks at once
+
+## Dynamic execution path
+
+In all of these forms, the dependency inversion relies on
+construction of _dynamic execution path_.
+
+
+
+
 
 
 
