@@ -9,7 +9,7 @@ This two-part guide is for a reader who knows basic syntax and
 building blocks of __Rust__ but does not quite grasp how the
 __ownership__ and __borrowing__ works.
 
-We will start _very_ simple, and then gradually increase
+We will start _very_ simple, and then will gradually increase
 complexity at a slow pace, exploring and discussing every new bit
 of detail. This guide will assume a _very_
 basic familiarity with `let`, `fn`, `struct`, `trait` and
@@ -48,13 +48,13 @@ If we pass this `i` to another function `foo`, how
 many times will it "die"?
 
 {% highlight rust %}
-fn foo(i: i64) { // another function foo
-    // something
-}
-
 fn main() {
     let i = 5;
     foo(i); // call function foo
+}
+
+fn foo(i: i64) { // another function foo
+    // something
 }
 {% endhighlight %}
 
@@ -75,30 +75,21 @@ trait first, and get it out of the way.
 
 ## Copy Trait
 
-The `Copy` trait makes the type to behave in a
-very familiar way: its bits will be copied to another
-location for every assignment or use as function argument.
-Implementing it allows your data to be used like a built-in integer.
+The [`Copy` trait][copy-trait] makes your type to behave in a very familiar way:
+its bits will be copied to another location when assigned, or when
+used as a function argument. Exactly like a built-in integer.
 
-The built-in machine type `i64` (one kind of integer) implements this
-trait, like [many others][copy-trait].
+This trait is one of the [_marker_ traits][marker-traits]. Rust will implement
+it for your type _automatically_ when all your type members _also_
+implementing the `Copy`, has no mutable references,
+and no `Drop` implementation (we will use this last bit soon).
 
 [copy-trait]: http://doc.rust-lang.org/std/marker/trait.Copy.html
+[marker-traits]: http://doc.rust-lang.org/std/marker/index.html
 
-If we have a struct `Info`, we can make it copy-able by implementing
-`Copy` this way:
-
-{% highlight rust %}
-struct Info {
-    value: i64,
-}
-impl Copy for Info {}
-{% endhighlight %}
-
-Or, equivalently, add `#[derive(Copy)]` attribute for it:
+For example, this simple struct will be copy-able by default:
 
 {% highlight rust %}
-#[derive(Copy)]
 struct Info {
     value: i64,
 }
@@ -106,6 +97,9 @@ struct Info {
 
 The types __without__ this trait will be __always moved__ to another
 location and will follow the _ownership_ rules.
+
+Since we are interested in them, from now on we will concentrate on
+non-`Copy` types!
 
 ## Ownership
 
@@ -152,15 +146,20 @@ impl Drop for Bob {
 {% endhighlight %}
 
 And to make bob value format-able when outputing to console,
-we will implement the built-in `Show::fmt` trait method:
+we will implement the built-in `Debug::fmt` trait method:
 
 {% highlight rust %}
-impl fmt::Show for Bob {
+use std::fmt;
+
+impl fmt::Debug for Bob {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "bob {:?}", self.name)
     }
 }
 {% endhighlight %}
+
+Note, that in this example Rust will not implement the `Copy` for `Bob`,
+because we implemented our own `Drop` method.
 
 ### Let's put it to the Test!
 
@@ -195,7 +194,7 @@ It was deleted __before__ the end of function. The return
 value was not assigned to anything, so the compiler called our
 `drop` and destroyed the value right there.
 
-What if we bind the returned value to a variable?
+What if we _bind_ the returned value to a _variable_?
 
 {% highlight rust %}
 fn main() {
@@ -210,7 +209,7 @@ fn main() {
 
 With `let`, it was deleted __at the end__ of function - at the
 end of variable scope. So the compiler simply __destroys
-bound values at the end of scope__.
+bound values at the end of their scope__.
 
 ### Destroyed Unless Moved
 
@@ -239,7 +238,7 @@ fn main() {
     del bob "A"
     end is near
 
-[Try it yourself!](http://is.gd/hOd53m)
+[Try it yourself!](http://is.gd/fQ1Bzy)
 
 It got destroyed in the black hole, and not at the end of `main`!
 
@@ -254,11 +253,11 @@ fn main() {
 }
 {% endhighlight %}
 
-    <anon>:35:16: 35:19 error: use of moved value: `bob`
-    <anon>:35     black_hole(bob);
+    <anon>:33:16: 33:19 error: use of moved value: `bob`
+    <anon>:33     black_hole(bob);
                              ^~~
-    <anon>:34:16: 34:19 note: `bob` moved here because it has type `Bob`, which is non-copyable
-    <anon>:34     black_hole(bob);
+    <anon>:32:16: 32:19 note: `bob` moved here because it has type `Bob`, which is non-copyable
+    <anon>:32     black_hole(bob);
                              ^~~
 
 Simple! Compiler makes sure that we can not use moved values,
@@ -294,7 +293,7 @@ part of bob, like a `name`:
 {% highlight rust %}
 fn main() {
     let mut bob = Bob::new("A");
-    bob.name = String::from_str("mutant");
+    bob.name = "mutant".to_string();
 }
 {% endhighlight %}
 
@@ -309,7 +308,7 @@ assign it to `mut` slot there:
 {% highlight rust %}
 fn mutate(value: Bob) {
     let mut bob = value;
-    bob.name = String::from_str("mutant");
+    bob.name = "mutant".to_string();
 }
 
 fn main() {
@@ -328,23 +327,25 @@ So function from previous example can be shortened:
 
 {% highlight rust %}
 fn mutate(mut value: Bob) { // use mut directly before the arg name
-    value.name = String::from_str("mutant");
+    value.name = "mutant".to_string();
 }
 {% endhighlight %}
 
-### Replacing value in a mutable slot
+### Replacing a value in mutable slot
 
-What happens if we try to overwrite value in a `mut` slot? Let's see:
+What happens if we try to overwrite a value in some `mut` slot? Let's see:
 
 {% highlight rust %}
 fn main() {
     let mut bob = Bob::new("A");
-    println!("");
-    for &name in ["B", "C"].iter() {
+    println!(""); // skip line to make output nicer
+
+    // First overwrite using name "B", and then "C"
+    for &name in &["B", "C"] {
         println!("before overwrite");
         bob = Bob::new(name);
         println!("after overwrite");
-        println!("");
+        println!(""); // skip line
     }
 }
 {% endhighlight %}
@@ -381,7 +382,7 @@ do that.
 
 ## The power of Ownership system
 
-These ownership rules might seem a bit limiting at first, but
+These ownership rules might seem a tad limiting at first, but
 only because we are used to a different set of rules. They
 do not limit what is actually possible, they simply give us a
 different foundation for building higher-level constructions.
@@ -422,8 +423,8 @@ fn main() {
 }
 {% endhighlight %}
 
-    new bob A
-    del bob A
+    new bob "A"
+    del bob "A"
 
 The type of value `bob` returned from Box::new is `Box<Bob>`.
 This _generic_ type makes the `Bob` lifecycle managed by this `Box<Bob>`
@@ -448,17 +449,13 @@ sufficient.
 
 When it is not sufficient, there are other tools that can help with that.
 
-### Garbage Collection
+### Reference Counting
 
-Rust has enough low-level tools for garbage collection (GC) to be implemented as
-a library. The simplest kind of it already exists in Rust: the
-reference-counting GC.
+Rust has enough low-level tools for reference counting to be implemented as
+a library. It can be used in rare cases when the value has several owners,
+therefore its end of life can not be determined statically at compile-time.
 
-While reference-counting solution is small and easy to implement, it
-is not as good as full-fledged garbage collector that we
-have in mind when we say words "Garbage Collector".
-
-Therefore in Rust we have a better name for it: _shared ownership_.
+Rust has a better name for it: _shared ownership_.
 The `std::rc` library provides a way to __share__ ownership of the
 same value between different `Rc` _handles_. The value remains alive
 as long as there is least one handle for it.
@@ -478,22 +475,22 @@ fn main() {
     Rc(bob A)
     del bob A
 
-[Try it here!](http://is.gd/LFKS2A)
+[Try it here!](http://is.gd/5PGJCq)
 
 We can change our `black_hole` function to accept `Rc<Bob>` and check if it is
 destroyed by it. But instead it would be more convenient to make it
-accept __any__ type `T` that implements `Show` trait (so we can print it).
+accept __any__ type `T` that implements `Debug` trait (so we can print it).
 We are going to make it _generic_:
 
 {% highlight rust %}
-fn black_hole<T>(value: T) where T: fmt::Show {
+fn black_hole<T>(value: T) where T: fmt::Debug {
     println!("imminent shrinkage {:?}", value);
 }
 {% endhighlight %}
 
 Works the same, and we will not need to change it for every new type change.
 
-Now, back to sending `Rc<Bob>` to black hole!
+Now, back to sending `Rc<Bob>` to the black hole!
 
 {% highlight rust %}
 fn main() {
@@ -503,14 +500,16 @@ fn main() {
 }
 {% endhighlight %}
 
-    new bob A
-    imminent shrinkage Rc(bob A)
-    Rc(bob A)
-    del bob A
+    new bob "A"
+    imminent shrinkage bob "A"
+    bob "A"
+    del bob "A"
 
-[Try it here!](http://is.gd/A5YrX9)
+[Try it here!](http://is.gd/swTG3e)
 
-It survived the black hole! Great! How does this work?
+Plot twist: happy ending! Bob survives the black hole!
+
+Great! How does this work?
 
 Once wrapped by `Rc` handle, bob will live as long as there is a live `Rc` __clone__
 somewhere. `Rc` handle internally uses `Box` to place new value in heap memory,
@@ -527,7 +526,7 @@ it will be mutated it in the `mutate` function.
 
 {% highlight rust %}
 fn mutate(bob: Rc<RefCell<Bob>>) {
-    bob.borrow_mut().name = String::from_str("mutant");
+    bob.borrow_mut().name = "mutant".to_string();
 }
 
 fn main() {
@@ -537,12 +536,17 @@ fn main() {
 }
 {% endhighlight %}
 
-    new bob A
-    Rc(RefCell { value: bob mutant })
-    del bob mutant
+    new bob "A"
+    RefCell { value: bob "mutant" }
+    del bob "mutant"
 
-This demonstrates how different low-level utilities can be combined to
-achieve precisely what is needed with minimal overhead.
+[Try it here!](http://is.gd/OBurg1)
+
+The `RefCell` is used to provide what is called the _interior mutability_.
+It is just one of the tools in Rust toolbox to solve a specific problem.
+
+So, the point is: different low-level utilities in Rust can be combined
+to achieve _precisely_ what is needed with minimal overhead.
 
 For example, `Rc` can only be used in the same thread. But there is a
 `Arc` type for _atomic_ RC usable between threads. A
@@ -551,14 +555,14 @@ However, `Rc` can be cloned into a `Weak` reference which does not participate
 in reference-counting. More information can be found in the
 [official documentation](http://doc.rust-lang.org/std/rc/).
 
-Most importantly, more advanced garbage collection mechanisms can (and will)
+Most importantly, more advanced memory management mechanisms can (and will)
 be implemented later, and they can be done as libraries.
 
 ### Concurrency
 
 It is interesting to see how Rust changes the way we work with threads.
 The default mode here is no data races. It is not because there are some
-special safety walls around threads, no. In principle, you could build
+special safety walls around threads, no. With Rust you can build
 your own threading library with similar safety properties, simply
 because the ownership model is in itself thread-safe.
 
@@ -566,50 +570,82 @@ Consider what happens when we send two values into a new Rust thread, a
 `Bob` (movable) and an integer (copyable):
 
 {% highlight rust %}
-use std::thread::Thread;
+use std::thread;
 
 fn main() {
     let bob = Bob::new("A");
     let i : i64 = 12;
-    let guard = Thread::scoped(move || {
+
+    let child = thread::spawn(move || {
         println!("From thread, {:?} and {:?}!", bob, i);
     });
+
     println!("waiting for thread to end");
+    child.join();
 }
 {% endhighlight %}
 
-    new bob A
+    new bob "A"
     waiting for thread to end
-    From thread, bob A and 12i64!
-    del bob A
+    From thread, bob "A" and 12!
+    del bob "A"
 
-[Try it here!](http://is.gd/bxhDVZ)
+[Try it here!](http://is.gd/gOba5R)
 
 What is happening there? First, we create two values:
-`bob` and `i`. Then we create a new thread with `Thread::scoped`
+`bob` and `i`. Then we create a new thread with `thread::spawn`
 and pass a _closure_ for it to execute. This closure is going to
-_capture_ our variables `bob` as `i` simply because it _uses_ them.
+_capture_ our variables `bob` as `i`.
 
-_Capturing_ means different thing for `bob` and `i`. The `bob` will get
-__moved__ into closure (and will not be usable outside the thread),
-while `i` will be __copied__ into it, and will remain usable outside
-the thread and in the thread itself.
+Capturing means different things for `Bob` and `i`. Because the `Bob` is
+non-`Copy`, it will be _moved_ to the new thread. The `i` will be _copied_
+there. When the theead is running, we can modify original copy of `i`
+(if needed). It does not influence the copy that was passed to the thread.
 
-Our current, main thread will stop and wait for spawned thread
-to finish when the returned `guard` will reach the end of its life
-(in this case - at the end of our `main` function).
+`Bob`, however, is now owned by this new thread, and can not be modified unless
+the thread returns it back somehow. If we wanted, we could
+return it to the main thread over `child.join()` (the `join` waits for
+the thread to finish).
+
+{% highlight rust %}
+fn main() {
+    let mut bob = Bob::new("A");
+
+    let child = thread::spawn(move || {
+        mutate(&mut bob);
+        bob
+    });
+
+    println!("waiting for thread to end");
+
+    if let Ok(bob) = child.join() {
+        println!("{:?}", bob);
+    }
+}
+
+fn mutate(bob: &mut Bob) {
+    bob.name = "mutant".to_string();
+}
+{% endhighlight %}
+
+    new bob "A"
+    waiting for thread to end
+    bob "mutant"
+    del bob "mutant"
+
+[Experiment more here!](http://is.gd/6EG4JL)
 
 One could say that this does not change much the way we used to work
 with threads - we know not to share same memory location
 between threads without some kind of synchronisation. The difference
 here is that Rust can enforce these rules at compile-time.
 
-Of course, it is possible to get returned result for `guard`,
-as well as create `channels` for sending and receiving data
-between threads in safe and synchronised way. More is available in
+Of course, more things are possible in Rust, for example,
+the `channels` can be used for sending and receiving data
+between threads in more efficient ways. More is available in
 [official threading documentation](http://doc.rust-lang.org/std/thread/),
 [channel documentation](http://doc.rust-lang.org/std/sync/mpsc/), and
-[the book](http://doc.rust-lang.org/book/threads.html).
+[the book](http://doc.rust-lang.org/1.0.0-beta.5/book/concurrency.html).
 
 ### What Else?
 
