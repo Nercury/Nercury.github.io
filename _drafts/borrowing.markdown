@@ -1,41 +1,31 @@
 ---
 layout: post
 title:  "Explore the borrowing system in Rust"
-date:   2015-01-20
+date:   2015-05-14
 categories: rust guide
 ---
 
-### WARNING! DRAFT AND RAMBLINGS!
+This is the second part of the Ownership-Borrowing introduction:
 
-When we create a reference, the value can't be moved.
+- [Part 1][part-1] - Ownership;
+- __Part 2__ - Borrowing.
 
-Explain why.
+In this second part, we will continue our practical exploration of Rust's
+safety mechanisms, this time - the _borrowing system_. As before, we will
+start _very_ simple, and will expand the scope gradually to fit the narrative.
 
-References poison struct stacks. Investigate how deeply.
-(Workarounds? Example?)
+# Playing Catch Up
 
-Reference must not reach out of stack of any "poisoned" object related to it.
-(Example?)
+The Rust Book
+[already has quite an elegant explanation for borrowing][book-borrowing],
+so we won't go into it much deeper than a brief summary, and then expand
+on it more.
 
-Imagine you drive a car. This is a thing you own. Then someone asks
-to borrow the wheels from you. You are not moving anywhere until you get
-your wheels back! Getting your wheels stolen is a compile-time error.
-So it is always safe to lend your wheels in Rust!
+> You might ask: if it is in the book, why bother? Well, first of all,
+> I promised it [in the fist part][part-1]. Second, when I was learning
+> these concepts, I remember reading every possible bit about them, so,
+> maybe my write-up might provide you a different perspective on things.
+> But this does not come with any certain guarantee, of course.
 
-We can move values into better positions on stack to make them live longer
-than references. (Example? Relations)
-
-References are temporary. From the point of view of value they
-reference.
-
-Pitfalls of putting references in structs. Then using them from the
-member functions.
-
-It may initially feel like reference is your usual object that you can
-pass around. Not really - it must always get back to its originating
-owner - otherwise you are screwed. (Screwiness Examples?)
-
-Maybe pattern: move all values in position, do the work (by borrowing
-as neccesary), produce new values as artefacts of work, repeat.
-
-Rust makes you think more about the data.
+[part-1]: /rust/guide/2015/01/19/ownership.html
+[book-borrowing]: http://doc.rust-lang.org/nightly/book/references-and-borrowing.html
