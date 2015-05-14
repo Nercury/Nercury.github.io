@@ -5,6 +5,8 @@ date:   2015-01-19
 categories: rust guide
 ---
 
+> Updated for Rust 1.0.
+
 This two-part guide is for a reader who knows basic syntax and
 building blocks of __Rust__ but does not quite grasp how the
 __ownership__ and __borrowing__ works.
