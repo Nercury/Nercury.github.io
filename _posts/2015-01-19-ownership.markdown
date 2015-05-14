@@ -26,7 +26,7 @@ and not hit any walls related to ownership or borrowing.
 - and [Mutable](#mutable-ownership) ownership rules.
 - Then we will look at the [Power of Ownership system](#the-power-of-ownership-system)
 - in [Memory management](#memory-allocation),
-- [Garbage Collection](#garbage-collection)
+- [Reference counting](#reference-counting)
 - and [Concurrency](#concurrency).
 
 ### Prerequisites - What you already know
