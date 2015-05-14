@@ -81,7 +81,7 @@ used as a function argument. Exactly like a built-in integer.
 
 This trait is one of the [_marker_ traits][marker-traits]. Rust will implement
 it for your type _automatically_ when all your type members _also_
-implementing the `Copy`, has no mutable references,
+implement the `Copy`, type has no mutable references,
 and no `Drop` implementation (we will use this last bit soon).
 
 [copy-trait]: http://doc.rust-lang.org/std/marker/trait.Copy.html
