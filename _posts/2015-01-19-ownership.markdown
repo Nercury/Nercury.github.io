@@ -78,30 +78,26 @@ trait first, and get it out of the way.
 ## Copy Trait
 
 The [`Copy` trait][copy-trait] makes your type to behave in a very familiar way:
-its bits will be copied to another location when assigned, or when
+the bits will be copied to another location when assigned, or when
 used as a function argument. Exactly like a built-in integer.
 
-This trait is one of the [_marker_ traits][marker-traits]. Rust will implement
-it for your type _automatically_ when all your type members _also_
-implement the `Copy`, type has no mutable references,
-and no `Drop` implementation (we will use this last bit soon).
-
 [copy-trait]: http://doc.rust-lang.org/std/marker/trait.Copy.html
-[marker-traits]: http://doc.rust-lang.org/std/marker/index.html
 
 For example, this simple struct will be copy-able by default:
 
 {% highlight rust %}
+#[derive(Copy, Clone)]
 struct Info {
     value: i64,
 }
 {% endhighlight %}
 
-The types __without__ this trait will be __always moved__ to another
-location and will follow the _ownership_ rules.
+Note that we had to _tell_ the compiler that it is `Copy` - otherwise
+it would __always be moved__ to another
+location and would follow the _ownership_ rules.
 
-Since we are interested in them, from now on we will concentrate on
-non-`Copy` types!
+But we are actually interested in ownership, so from now on we will
+concentrate on non-`Copy` types!
 
 ## Ownership
 
@@ -159,9 +155,6 @@ impl fmt::Debug for Bob {
     }
 }
 {% endhighlight %}
-
-Note, that in this example Rust will not implement the `Copy` for `Bob`,
-because we implemented our own `Drop` method.
 
 ### Let's put it to the Test!
 
