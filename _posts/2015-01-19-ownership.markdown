@@ -108,7 +108,7 @@ Therefore, if a function is responsible for deleting this value,
 it can be sure that there are no other users that will try to
 access, change or delete it in future.
 
-But enough of this abstract stuff, let's get into some real examples!
+Let's see some examples!
 
 ### Say hello to Bob, our brave new dummy structure
 
@@ -269,8 +269,8 @@ You can easily do that too, if you know the rules. So far, we saw
 a __few__ of them:
 
 - __Unused return values are destroyed__.
-- __All values bound with `let` are destroyed at the end of
-function, unless they are moved__.
+- __All values bound with `let` are destroyed at the end of the
+scope, unless they are moved__.
 
 Here you go, memory safety based on the fact that there can only be
 a single owner of a value.
@@ -367,8 +367,8 @@ at the end of scope - unless it is moved or overwritten again.
 So, there is one additional rule, for the mutable slots:
 
 - Unused return values are destroyed.
-- All values bound with `let` are destroyed at the end of
-function, unless they are moved.
+- All values bound with `let` are destroyed at the end of the
+scope, unless they are moved.
 - __Replaced values are destroyed__.
 
 Kind of obvious. The point is, in Rust, we are __sure__

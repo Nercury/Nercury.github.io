@@ -14,6 +14,99 @@ In this second part, we will continue our practical exploration of Rust's
 safety mechanisms, this time - the _borrowing system_. As before, we will
 start _very_ simple, and will expand the scope gradually to fit the narrative.
 
+# Ownership Recap
+
+We are going to reuse our brave dummy structure, `Bob`. Thanks, `Bob`!
+
+__Unused return values are destroyed__. The value returned from `Bob::new()`
+constructor will be destroyed right there, because it is not used.
+
+{% highlight rust %}
+fn main() {
+    Bob::new("A"); // Bob is destroyed here
+}
+{% endhighlight %}
+
+__All values bound with `let` are destroyed at the end of the
+scope__, unless they are moved. If we bind returned value to `bob`, we
+are going to extend its lifetime up to the end of scope.
+
+{% highlight rust %}
+fn main() {
+    let bob = Bob::new("A");
+    println!("I am alive!");
+} // Bob is destroyed here.
+{% endhighlight %}
+
+__Replaced values are destroyed__. If we replace bob in mutable slot with
+another value, the old value will be destroyed right after.
+
+{% highlight rust %}
+fn main() {
+    let mut bob = Bob::new("A");
+    bob = Bob::new("B"); // Bob "A" is destroyed here.
+} // Bob "B" is destroyed here.
+{% endhighlight %}
+
+__Destroyed at the end of the scope, unless it is moved__. If we send
+`bob` value to another function, we pass its ownership to it. That means
+out function does not run `Bob` destruction. `Bob` is most likely
+destroyed in the function that took its ownership, but _we don't need to
+care_.
+
+{% highlight rust %}
+fn main() {
+    let bob = Bob::new("A");
+    black_hole(bob); // Bob is most likely destroyed somewhere inside.
+}
+{% endhighlight %}
+
+# Passing value around
+
+Consider this scenario: we wish to modify `Bob` in another function, but
+still retain its ownership. Can we simply return it? Well, yes:
+
+{% highlight rust %}
+fn modify(bob: Bob) -> Bob {
+    bob.name = "modified";
+    bob // return the value
+}
+
+fn main() {
+    let bob = Bob::new("A");
+    bob = modify(bob);
+}
+{% endhighlight %}
+
+__Question:__ How does the Rust know that we have returned the same `Bob` after
+modification?
+
+__Answer:__ It doesn't. The ownership is evaluated per-function.
+
+The `modify` could as well swap the bob with a new value, it would all work
+the same. Rust functions are responsible only for what they promise
+in their definitions, and nothing more.
+
+The definition of `modify(bob: Bob) -> Bob` means that it is going to
+_consume a value_ and then _return a value_ of the type of `Bob`.
+
+So you can imagine the values moving in and out of function as the function
+runs the statements in it, cleaning all the owned values at the end of each
+scope.
+
+It works precisely because because function knows that nothing else owns those
+values.
+
+# Scopes
+
+
+
+
+
+
+
+
+
 But first - a brief interlude.
 
 # No Garbage Collector, But Safe, eh?
