@@ -7,9 +7,9 @@ categories: rust guide
 
 > Updated for Rust 1.0.
 
-This two-part guide is for a reader who knows basic syntax and
+This guide is for a reader who knows basic syntax and
 building blocks of __Rust__ but does not quite grasp how the
-__ownership__ and __borrowing__ works.
+__ownership__ works.
 
 We will start _very_ simple, and then will gradually increase
 complexity at a slow pace, exploring and discussing every new bit
@@ -18,9 +18,7 @@ basic familiarity with `let`, `fn`, `struct`, `trait` and
 `impl` constructs.
 
 Our goal is to learn how to write a new Rust program
-and not hit any walls related to ownership or borrowing.
-
-#### In this first, _ownership_ part:
+and not hit any walls related to ownership.
 
 - After short [Introduction](#prerequisites---what-you-already-know)
 - we will learn about the [Copy Traits](#copy-trait), and then
@@ -650,5 +648,6 @@ great and safe programs with it.
 
 But the other side was glossed over completely: the _borrowing system_.
 
-In the second part of this guide, we will learn why the borrowing
-is needed and how best to use it.
+Initially, I was planning to write a two-parter, with second part about
+the borrowing. But honestly, there are already many resources about it
+so I no longer feel like continuing. Sorry!
