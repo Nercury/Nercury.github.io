@@ -10,4 +10,4 @@ github_username:  Nercury
 
 # Build settings
 markdown: redcarpet
-highlighter: none
+highlighter: pygments
