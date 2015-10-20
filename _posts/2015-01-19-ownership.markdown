@@ -196,9 +196,11 @@ fn main() {
 }
 {% endhighlight %}
 
-    new bob "A"
-    end is near
-    del bob "A"
+```
+new bob "A"
+end is near
+del bob "A"
+```
 
 With `let`, it was deleted __at the end__ of function - at the
 end of variable scope. So the compiler simply __destroys
@@ -246,12 +248,14 @@ fn main() {
 }
 {% endhighlight %}
 
-    <anon>:33:16: 33:19 error: use of moved value: `bob`
-    <anon>:33     black_hole(bob);
-                             ^~~
-    <anon>:32:16: 32:19 note: `bob` moved here because it has type `Bob`, which is non-copyable
-    <anon>:32     black_hole(bob);
-                             ^~~
+```bash
+<anon>:33:16: 33:19 error: use of moved value: `bob`
+<anon>:33     black_hole(bob);
+                         ^~~
+<anon>:32:16: 32:19 note: `bob` moved here because it has type `Bob`, which is non-copyable
+<anon>:32     black_hole(bob);
+                         ^~~
+```
 
 Simple! Compiler makes sure that we can not use moved values,
 and explains nicely what happened.
