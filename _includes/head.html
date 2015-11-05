@@ -14,7 +14,6 @@
     <link rel="stylesheet" href="/css/styles/color-brewer.css">
 
     <script src="/js/highlight.pack.js"></script>
-    <script>hljs.initHighlightingOnLoad();</script>
 
     <script src="{{ "/js/jquery.min.js" | prepend: site.baseurl }}"></script>
     {% if (site.GH_ENV == "gh_pages") %}
@@ -31,15 +30,17 @@
     {% endif %}
     <script>
         $(function() {
-          return $("h1, h2, h3, h4, h5, h6").each(function(i, el) {
-            var $el, icon, id;
-            $el = $(el);
-            id = $el.attr('id');
-            icon = '<i class="fa fa-link"></i>';
-            if (id) {
-              return $el.prepend($("<a />").addClass("header-link").attr("href", "#" + id).html(icon));
-            }
-          });
+            hljs.initHighlightingOnLoad();
+            return $("h1, h2, h3, h4, h5, h6").each(function(i, el) {
+                console.log(el);
+                var $el, icon, id;
+                $el = $(el);
+                id = $el.attr('id');
+                icon = '<i class="fa fa-link"></i>';
+                if (id) {
+                  return $el.prepend($("<a />").addClass("header-link").attr("href", "#" + id).html(icon));
+                }
+            });
         });
     </script>
 </head>

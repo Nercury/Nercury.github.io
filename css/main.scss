@@ -56,6 +56,28 @@ $on-laptop:        800px;
   font-size: 0.9;
 }
 
+blockquote {
+    font-family: Georgia, serif;
+    font-size: 20px;
+    font-style: italic;
+    padding: 0.25em 40px;
+    line-height: 1.45;
+    position: relative;
+    color: #555;
+    border-left: none;
+    margin-right: -20px;
+}
+
+blockquote:before {
+    display: block;
+    content: "\201C";
+    font-size: 80px;
+    position: absolute;
+    left: -10px;
+    top: -19px;
+    color: #7a7a7a;
+}
+
 h1:hover .header-link,
 h2:hover .header-link,
 h3:hover .header-link,
