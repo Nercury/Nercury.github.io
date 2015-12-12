@@ -4,9 +4,5 @@ title: About Me
 permalink: /about/
 ---
 
-I am a software engineer from Vilnius, Lithuania, working with
-Backbone.js, node.js, PHP frameworks, and my latest hobby
-is Rust.
-
-Previously I used to code in (reverse order) Python, C++, F#, C#, Java,
-Delphi, and it all started with Visual Basic 6.
+I am a software engineer from Vilnius, Lithuania, technology enthusiast and tinkerer,
+and my latest hobby (and soon job!) is Rust.
