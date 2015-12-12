@@ -207,7 +207,7 @@ provide different `Push` for it:
 struct Chain<T>(T);
 ```
 
-Then, let's implement addition of `T3` to `(T1, T2)` will look thus:
+Then, the addition of `T3` to `(T1, T2)` will look thus:
 
 ```rust
 impl<T1, T2, X> Push<X> for (T1, T2) {
