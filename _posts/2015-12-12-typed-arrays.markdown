@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Zero-Runtime-Cost Mixed Array in Rust"
+title:  "Zero-Runtime-Cost Mixed List in Rust"
 date:   2015-12-12
 categories: rust interesting
 ---
@@ -9,7 +9,7 @@ categories: rust interesting
 
 Type system in Rust is interesting.
 
-Pushing adds a new element to an array. Let's say we define such trait `Push`:
+Pushing adds a new element to a list. Let's say we define such trait `Push`:
 
 ```rust
 trait Push<X> {
@@ -38,21 +38,21 @@ The `fn push` requires one argument of the type of `X` and returns whatever type
 Calling push is going to combine _input_ of `Self` with another type of `X` and return output
 type of `Self::Next` as a result.
 
-## Array? Or what?
+## List? Or what?
 
-So, where is our array? Well, this blog post is titled Zero-Cost, so there isn't any.
+So, where is our list? Well, this blog post is titled Zero-Cost, so there isn't any.
 
-But we can implement `Push` for _any other type_, and it will _look like_ we are working with array,
+But we can implement `Push` for _any other type_, and it will _look like_ we are working with list,
 while in fact everything is known at compile-time and is kept in stack (or optimized away).
 
 Besides `Push`, we will see how to implement `Pop` and iterate over the thing.
 
-You may have already guessed that the _type_ of this "array" is going to be obnoxious. But, we
+You may have already guessed that the _type_ of this "list" is going to be obnoxious. But, we
 are brave, right?
 
 ## Implementing Push
 
-We can think of `()` type (also known as _unit type_ or _empty tuple_) as array of no size.
+We can think of `()` type (also known as _unit type_ or _empty tuple_) as a list of no size.
 Implementing `Push` for it is quite easy:
 
 ```rust
@@ -157,7 +157,7 @@ Or we can wait, maybe Rust will have variadic generics one day.
 
 What else can we do?
 
-## Unlimited Size "Array"
+## List of Unlimited Size
 
 Well, we can represent list as "an element" called _Head_ and "all other elements", called _Tail_.
 So, when we add new item, it becomes new _Head_, and previous head becomes part of _Tail_. This
@@ -409,7 +409,7 @@ trait Pop<X> {
 }
 ```
 
-Removing element from this "array" requires modification of array type, so the simple `&mut self`
+Removing element from this list requires modification of list type, so the simple `&mut self`
 won't work here. So, we return a tuple with the removed element and the remaining _Tail_ of a
 new type.
 
@@ -518,7 +518,7 @@ Let's say, for some reason, somewhere, this is worth the effort.
 However, no one is going to pass around such types. Well, at least not without some help from
 type system. Question is, can it provide enough help?
 
-For example, if we have a some other methods that add items to our "array", we don't even want to
+For example, if we have a some other methods that add items to our list, we don't even want to
 know the input type. We just want something that can be `Push`ed to,
 modify input object, and return resulting output. However, the output type depends directly
 on input. It would be great if we could abstract over it somehow, so that we could
@@ -531,11 +531,11 @@ based on input:
 trait AddTo<Input> {
     type Output;
 
-    fn add_to(self, array: Input) -> Self::Output;
+    fn add_to(self, list: Input) -> Self::Output;
 }
 ```
 
-Let's say we have some structure that contains the items that we want to add to our "array":
+Let's say we have some structure that contains the items that we want to add to our list:
 
 ```rust
 #[derive(Copy, Clone)] // tells rust this type is primitive and can be copied
@@ -555,8 +555,8 @@ impl<Input, T2, Final> AddTo<Input> for Data
 {
     type Output = Final;
 
-    fn add_to(self, array: Input) -> Self::Output {
-        array
+    fn add_to(self, list: Input) -> Self::Output {
+        list
             .push(self.a)
             .push(self.b)
     }
@@ -638,7 +638,7 @@ trait Visit<A> {
 }
 ```
 
-Let's implement it for all our "array" types. Here, we require that contained types
+Let's implement it for all our list types. Here, we require that contained types
 also implement `Visit`, and forward work to them:
 
 ```rust
@@ -685,7 +685,7 @@ Let's define a type for it, which will be our accumulator:
 struct Text(String);
 ```
 
-Then, we need to implement `Visit` for every type that we ever added to our pseudo array:
+Then, we need to implement `Visit` for every type that we ever added to our list:
 
 ```rust
 impl Visit<Text> for bool {
@@ -747,7 +747,7 @@ This was not really helpful. However, it was kind of expected...
 
 ## Conclusion
 
-It is a bit doubtful that this kind of generic array would be actually worth it, simply
+It is a bit doubtful that this kind of generic list would be actually worth it, simply
 because the type of it is going to remain horrendous.
 
 However, in some cases this can provide a type-checked mixed-type execution sequences. And
