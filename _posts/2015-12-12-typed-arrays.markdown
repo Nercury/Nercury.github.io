@@ -752,5 +752,3 @@ because the type of it is going to remain horrendous.
 
 However, in some cases this can provide a type-checked mixed-type execution sequences. And
 I am guessing that they may be as fast as writing these sequence actions by hand.
-
-Rust is quite interesting _Systems_ Language.
