@@ -1,13 +1,13 @@
 ---
 layout: post
-title:  "The Ownership-based Dependency Injection"
+title:  "The Ownership-driven Dependency Injection"
 date:   2015-10-20
 categories: rust di
 ---
 
 - [Part 1][part-1] - Figuring out the design - A naive start;
 - [Part 2][part-2] - Learning the ropes in Rust;
-- __Part 3__ - The Enlightenment.
+- __Part 3__ - Ownership-driven dependencies.
 
 [part-1]: /rust/di/2014/11/02/building-dependency-injection-container-in-rust.html
 [part-2]: /rust/di/2015/01/02/dependency-injection-learning-rust.html
@@ -31,29 +31,50 @@ In the meantime,
 __In this blog post, I will describe how Rust forced me to discover a superior design
 I did not know existed.__
 
-- We will quickly look [how DI is usually implemented](#the-container-based-di),
-- why this [implementation is ill-suited and awkward in Rust (and everywhere!)](#the-other-side),
-- [define required resource lifetimes for DI mechanism](#what-problem-are-we-solving-here-again),
-- see how neatly it works in Rust,
-- and how it may even be a better DI in other languages!
+But first, let's take a quick look at the most common DI implementation.
 
-## The Container-based DI
+## The Container-driven DI
 
-In the center of everything, there is all-knowing and all-powerful CONTAINER. One asks it,
-and it gives. One asks again, and it gives again.
+In the center of everything, there is all-knowing and all-powerful container.
+When one asks, it gives. When one asks again, and it gives again.
 
 ```rust
 trait Container {
-    fn get(id: &str) -> Something;
+    fn get(id) -> Something;
 }
 ```
 
-At least this is the most common pattern I have encountered everywhere. On the first
-sight, it looks simple, and it looks easy. Life is wonderful?..
+The idea is clear, but the details - not so much. Some aspects may vary
+between different implementations:
 
-## The Other Side
+- The container may or may not be thread safe,
+- It may always return new objects, or share singleton instances,
+- The `id` can be either a type, or a string identifier,
+- The dependency configuration mechanisms are wildly different.
 
-It's like those colorful knittings. May look nice in front. No so in the back.
+Quite often the container implementations will try to adopt all possible use cases,
+and in the process become much more complicated to use.
+
+## The Elephant in the Container
+
+The idea that we need to discuss some kind of _container_ when talking about
+_dependency injection_ hints us that there might be some kind of elephant in
+the room we are not seeing. Shouldn't the _injection of dependency_ be a
+separate thing from _keeping that dependency_?
+
+If you looked at my older blog posts linked at the beginning of this one,
+you would see my struggle to shoe-horn container-driven DI framework into
+a Rust library. That did not go too well, because I did not realize how
+fine-grained and precise Rust's resource management is.
+
+Rust cares a lot about the _correct_ resource management. And when there is a
+container that can contain the resources, Rust wants to know all the details
+about them, so it can provide the most efficient implementation. But if
+the implementation can contain _everything_, Rust forces the design to cater
+for _everything_.
+
+And if you are not familiar with Rust by now, "forcing the design" means
+"failing to compile".
 
 If one wanted usual-kind of DI, in Rust, something like _this_ would be a result:
 

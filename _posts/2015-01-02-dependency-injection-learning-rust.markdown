@@ -8,6 +8,8 @@ categories: rust di
 - [Part 1][part-1] - Figuring out the design - A naive start;
 - __Part 2__ - Learning the ropes in Rust.
 
+> Warning: contains pre-1.0 Rust code
+
 ## Background
 
 While I dabbled a bit in modern C++ before, it was 2 years ago. Besides that,
