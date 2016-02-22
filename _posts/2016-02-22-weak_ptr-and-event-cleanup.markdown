@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Automatic event cleanup in C++"
-date:   2015-12-12
+date:   2016-02-22
 categories: C++ interesting
 ---
 
