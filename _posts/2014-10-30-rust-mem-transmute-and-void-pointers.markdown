@@ -270,13 +270,9 @@ I like how Rust allows using powerful language constructs to wrap low level impl
 and keep this implementation safely locked. I truly believe that Rust is going to
 be amazing tool for building both high and low level applications.
 
-Full code of this contrived container:
+[Full code of this contrived container](Nercury/ccc99ec11f49043c14ed).
 
 ___Disclaimer: I am newbie in rust, use this as an example only and do not trust my code!___
-
-{% gist Nercury/ccc99ec11f49043c14ed %}
-
-
 
 [unsafe-code]:          http://doc.rust-lang.org/guide-unsafe.html
 [doc-mem-transmute]:    http://doc.rust-lang.org/std/mem/fn.transmute.html
