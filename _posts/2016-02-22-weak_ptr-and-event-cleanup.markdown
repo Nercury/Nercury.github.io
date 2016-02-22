@@ -55,7 +55,7 @@ Here, we defined a wrapper for callback list, where `C` is anything callable
 ```cpp
 public:
     std::shared_ptr<C> add(C && callback) {
-        auto shared = std::make_shared<C>(std::forward<C>(callback));
+        auto shared = std::make_shared<C>(callback);
         this->callbacks.push_back(shared);
         return shared;
     }
@@ -130,7 +130,7 @@ private:
 
 public:
     std::shared_ptr<C> add(C && callback) {
-        auto shared = std::make_shared<C>(std::forward<C>(callback));
+        auto shared = std::make_shared<C>(callback);
         this->callbacks.push_back(shared);
         return shared;
     }
@@ -166,3 +166,7 @@ Also, we were able to easily forward to this unknown type the arbitrary argument
 list.
 
 Quite nice.
+
+### Updates
+
+- Remove forwarding for C in template.
