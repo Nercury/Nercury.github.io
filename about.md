@@ -4,5 +4,4 @@ title: About Me
 permalink: /about/
 ---
 
-I am a software engineer from Vilnius, Lithuania, technology enthusiast and tinkerer,
-and my latest hobby (and soon job!) is Rust.
+I work on offloading work to computers, and welcoming our newly created masters.

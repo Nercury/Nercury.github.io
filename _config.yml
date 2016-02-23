@@ -10,7 +10,7 @@ github_username:  Nercury
 
 # Build settings
 markdown: redcarpet
-highlighter: rouge
+# highlighter: pygments
 
 redcarpet:
     extensions:    ["with_toc_data"]

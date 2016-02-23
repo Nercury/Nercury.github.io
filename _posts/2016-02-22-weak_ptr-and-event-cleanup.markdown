@@ -111,12 +111,83 @@ Can be used like this:
 }
 ```
 
-## Full Code of Optimistic Dispatcher
+## Update
+
+Shortly after writing this blog post, I received this note from Jardic:
+
+> Dispatching events usually leads to more events being generated/queued in many program.
+> And as such, it could lead to modifications of the vector storing the callbacks and invalidating its iterators.
+
+At first I thought that I took care of iterator invalidation by resuming
+iteration using the iterator returned from `erase`:
 
 ```cpp
-// OptimisticDispatcher.hpp
-#pragma once
+iter = this->callbacks.erase(iter);
+```
 
+However, I completely missed the case where an event dispatch could lead
+into the same dispatcher being invoked while it is executing, thus messing up
+with callback list.
+
+We need somehow avoid clash of aliasing and mutation by separating the event
+dispatch from the cleanup. Well, more than that: we have to
+ensure cleanup does not happen while iteration is in progress.
+
+We want to avoid creating a new copy of callbacks just to iterate over them,
+because that would require an allocation for every event dispatch.
+
+I chose to iterate twice: first for dispatch, and then for cleanup. And
+do the clean up only if no one else is dispatching. That means keeping track
+of the number of concurent dispatches on the same callback list:
+
+```cpp
+private:
+    ...
+    int32_t concurrent_dispatcher_count = 0;
+```
+
+Then, increment and decrement this count for every dispatch iteration:
+
+```cpp
+this->concurrent_dispatcher_count++;
+
+// Go over all callbacks and dispatch on those that are still available.
+typename std::vector<std::weak_ptr<C>>::iterator iter;
+
+for (iter = this->callbacks.begin(); iter != this->callbacks.end(); ++iter) {
+    if (auto callback = iter->lock()) {
+        (*callback)(std::forward<A>(args)...);
+    }
+}
+
+this->concurrent_dispatcher_count--;
+```
+
+And then cleanup only if this count is zero, in one go:
+
+```cpp
+// Remove all callbacks that are gone, only if we are not dispatching.
+
+if (0 == this->concurrent_dispatcher_count) {
+    this->callbacks.erase(
+        std::remove_if(
+            this->callbacks.begin(),
+            this->callbacks.end(),
+            [] (std::weak_ptr<C> callback) { return callback.expired(); }
+        ),
+        this->callbacks.end()
+    );
+}
+```
+
+Actually, this way of doing things might even be more efficient, because
+we are not removing elements one by one.
+
+Of course, this dispatcher is still only safe in single-threaded contexts.
+
+## Full Code of Optimistic Dispatcher (updated)
+
+```cpp
 #include <memory>
 #include <vector>
 
@@ -127,7 +198,7 @@ Can be used like this:
 template <typename C> class OptimisticDispatcher final {
 private:
     std::vector<std::weak_ptr<C>> callbacks;
-
+    int32_t concurrent_dispatcher_count = 0;
 public:
     std::shared_ptr<C> add(C && callback) {
         auto shared = std::make_shared<C>(callback);
@@ -137,17 +208,33 @@ public:
 
     template <typename ...A>
     void invoke(A && ... args) {
+        this->concurrent_dispatcher_count++;
+
         // Go over all callbacks and dispatch on those that are still available.
-        // Remove all callbacks that are gone.
         typename std::vector<std::weak_ptr<C>>::iterator iter;
-        for (iter = this->callbacks.begin(); iter != this->callbacks.end(); ) {
-            auto callback = iter->lock();
-            if (callback) {
+
+        for (iter = this->callbacks.begin(); iter != this->callbacks.end(); ++iter) {
+            if (auto callback = iter->lock()) {
                 (*callback)(std::forward<A>(args)...);
-                ++iter;
-            } else {
-                iter = this->callbacks.erase(iter);
             }
+        }
+
+        this->concurrent_dispatcher_count--;
+
+        // Remove all callbacks that are gone, only if we are not dispatching.
+
+        if (0 == this->concurrent_dispatcher_count) {
+            std::cout << "callback count before erase " << callbacks.size() << std::endl;
+            this->callbacks.erase(
+                std::remove_if(
+                    this->callbacks.begin(),
+                    this->callbacks.end(),
+                    [] (std::weak_ptr<C> callback) { return callback.expired(); }
+                ),
+                this->callbacks.end()
+            );
+
+            std::cout << "callback count after erase " << callbacks.size() << std::endl;
         }
     }
 
@@ -165,8 +252,10 @@ required by this template.
 Also, we were able to easily forward to this unknown type the arbitrary argument
 list.
 
-Quite nice.
+Of course, we have hit some iterator invalidation issues, but only Rust
+would have prevented that.
 
 ### Updates
 
 - Remove forwarding for C in template.
+- Make sure dispatcher is re-entrant.
