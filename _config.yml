@@ -9,7 +9,7 @@ twitter_username: nercury
 github_username:  Nercury
 
 # Build settings
-markdown: redcarpet
+# markdown: redcarpet
 # highlighter: pygments
 
 redcarpet:

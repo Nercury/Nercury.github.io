@@ -47,6 +47,10 @@ $on-laptop:        800px;
         "layout"
 ;
 
+.highlighter-rouge span.err, .highlight span.err {
+    border: none;
+}
+
 .header-link {
   position: absolute;
   float: left;
