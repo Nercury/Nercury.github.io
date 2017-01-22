@@ -524,7 +524,7 @@ int main() {
 However, the C++ compiler is not able to track lifetimes and ensure memory
 safety.
 
-This is a problem is when you get used to these things being verified by the compiler.
+This is a problem when you get used to these things being verified by the compiler.
 The objects we have just written might become more complex, and it would
 become much harder to track runaway modifications
 to `Person`:
