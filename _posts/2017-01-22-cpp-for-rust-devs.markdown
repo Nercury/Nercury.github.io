@@ -59,23 +59,11 @@ int main() {
 
 You may be tempted to reduce copying in C++ too.
 
-The C++ has this notion of `lvalues` versus `rvalues`. In short, any value is
-usually `lvalue`, except when you return it from a function:
-
-```c++
-string returns_string() {
-    string val("hello")
-    return val; // val is `rvalue` here
-}
-```
+The C++ has this notion of `lvalues` versus `rvalues`.
 
 In C++, `lvalues` are copied, while `rvalues` can be moved, if the type
 actually implements move operations (and I am glossing over a lot of details
 here).
-
-In the example above, the sufficiently new compiler will know that returned
-value can not be used anywhere else, and it will move the result instead of
-copying it.
 
 There is a function in C++ `std` library that allows us to transform any
 `lvalue` to `rvalue`, called `std::move`.
