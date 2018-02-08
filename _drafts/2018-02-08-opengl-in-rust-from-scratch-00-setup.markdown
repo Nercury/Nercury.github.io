@@ -35,15 +35,14 @@ There are three major differences:
 We won't delve much deeper here in discussion of the last two assertions. Feel
 free to examine their correctness yourself while learning Rust.
 
-What does the "unsafe" mean in the context of Rust? In short - no segfaults.
+What does the "unsafe" mean in the context of Rust? [In short - no segfaults](https://doc.rust-lang.org/book/second-edition/ch19-01-unsafe-rust.html).
 In Rust it is unsafe to dereference a raw pointer or call a non-rust function.
-I am going to assume you have read [chapter about unsafe in the official Rust book](https://doc.rust-lang.org/book/second-edition/ch19-01-unsafe-rust.html).
 OpenGL is non-rust, so we will have lots of unsafe fun.
 
 ### Why "unsafe" exists
 
 It may seem strange that "unsafe" exists at all. The reason for it is quite simple:
-it allows us to deal with complicated hairy stuff once, inside a function with a safe API,
+it allows us to deal with complicated stuff once, inside a function with a safe API,
 and then completely forget about it when we become the users of that API. In other
 words, it moves the responsibility of correct API usage to API implementer.
 
@@ -66,7 +65,7 @@ manager or Homebrew, I recommend to remove it and reinstall via Rustup.
 
 When completed, the rustup should be available from command prompt:
 
-```bash
+```txt
 > rustup --version
 rustup 1.9.0 (57fc3c087 2018-01-04)
 ```
@@ -76,24 +75,24 @@ MSVC (compatible with Microsoft C++ C libraries). We will use MSVC toolchain.
 
 Install the MSVC toolchain using rustup (may be already installed):
 
-```sh
+```txt
 > rustup install stable-x86_64-pc-windows-msvc
 ``` 
 
 Make it default:
 
-```sh
-rustup default stable-msvc
+```txt
+> rustup default stable-msvc
 ```
 
 `rustc` and `cargo` should both work (set up the required environment paths and log in again if they don't):
 
-```sh
+```txt
 > rustc --version
 rustc 1.23.0 (766bd11c8 2018-01-01)
 ```
 
-```sh
+```txt
 > cargo --version
 cargo 0.24.0 (45043115c 2017-12-05)
 ```
@@ -104,6 +103,15 @@ MSVC environment will require Microsoft's linker. The easiest way to get it is b
 Alternatively, you may install [Visual Studio Community 2017](https://www.visualstudio.com/vs/community/)
 with "Desktop development with C++" feature set.
 This installs VC++ 2017 toolset that also contains the linker.
+
+We will compile SDL2 from sources. For that, [install cmake](https://cmake.org/download/), 
+and make sure to add it to your PATH. Re-login
+if necessary.
+
+```txt
+> cmake --version
+cmake version 3.10.2
+```
 
 I use free [IntelliJ IDEA Community Edition](https://www.jetbrains.com/idea/download/), because
 I am familiar with IntelliJ products.
@@ -116,14 +124,14 @@ more attention to good logging.
  
 From the command line, create a new Rust project:
 
-```sh
+```txt
 > cargo new --bin new-project
      Created binary (application) `new-project` project
 ```
 
 You may run it from command line:
 
-```sh
+```txt
 > cd new-project
 new-project> cargo run
    Compiling new-project v0.1.0 (file:///C:/Users/Nerijus/dev/new-project)
