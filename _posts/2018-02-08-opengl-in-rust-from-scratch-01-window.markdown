@@ -328,7 +328,7 @@ We again use prefix `_event` variable with underscore to silence unused event wa
 If we run the program now, the window comes to life! Albeit a bit empty inside. We will remedy
 that soon.
 
-When we try to close the window, OS sends `Quit` event, but our window is ignorant even to that.
+When we try to close the window, OS sends `Quit` event, but our window is ignorant even of that.
 Let's handle it:
 
 ```rust
