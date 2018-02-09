@@ -155,4 +155,5 @@ fn main() {
 Click near the ▶ arrow near the `fn main`. IntelliJ Rust plugin should also
 compile and run your function, as well as add "Run new-project" configuration.
 
-Congrats! We are ready to begin.
+Congrats! We are ready to begin 
+[creating a window](/rust/opengl/tutorial/2018/02/08/opengl-in-rust-from-scratch-01-window.html).
