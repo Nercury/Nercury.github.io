@@ -352,7 +352,8 @@ No that's not all, [here is more about patterns](https://doc.rust-lang.org/book/
 We have also annotated the outer loop with `'main` label, so that `break 'main` breaks out of the `loop` loop
 instead of inner `for` loop.
 
-With that, our window can finally be closed, and we can start loading some color inside!
-
 The code for this lesson can be
  [found here](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-01).
+ 
+With that, our window can finally be closed, and 
+[we can start loading some color inside](/rust/opengl/tutorial/2018/02/09/opengl-in-rust-from-scratch-02-opengl-context.html)!
