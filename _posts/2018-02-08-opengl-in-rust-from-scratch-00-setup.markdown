@@ -10,7 +10,7 @@ Hello! Let's learn how to work with OpenGL in Rust.
 I titled this post "from scratch", because I am going to assume little
 knowledge of Rust and basic knowledge of 3D graphics and OpenGL.
 
-Therefore, this tutorial may teach you intermediate Rust and how to get Rust working
+Therefore, this tutorial may teach you basic Rust and how to get Rust working
 with OpenGL, however for in-depth OpenGL learning you will need another tutorial or book.
 
 "From Scratch" also means that we will try to build abstractions ourselves,

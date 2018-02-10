@@ -206,3 +206,6 @@ to SDL2 to swap the window pixels with what we have just rendered:
 ```
 
 [Full lesson code can be found here](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-02).
+
+Next up, 
+[a long and "modern" road to output a triangle to to the screen](/rust/opengl/tutorial/2018/02/10/opengl-in-rust-from-scratch-03-compiling-shaders.html).
