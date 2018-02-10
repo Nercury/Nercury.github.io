@@ -728,6 +728,36 @@ And finally, use them:
 shader_program.set_used();
 ```
 
+Add `trangle.vert` to `src`:
+
+(traingle.vert)
+
+```glsl
+#version 330 core
+
+layout (location = 0) in vec3 Position;
+
+void main()
+{
+    gl_Position = vec4(Position, 1.0);
+}
+```
+
+As well as `triangle.frag`:
+
+(traingle.frag)
+
+```glsl
+#version 330 core
+
+out vec4 Color;
+
+void main()
+{
+    Color = vec4(1.0f, 0.5f, 0.2f, 1.0f);
+}
+```
+
 However, we won't see anything on screen yet, because we are not sending
 any draw commands to OpenGL yet.
 
