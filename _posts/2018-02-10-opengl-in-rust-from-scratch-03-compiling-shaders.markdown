@@ -733,4 +733,4 @@ any draw commands to OpenGL yet.
 
 We will remedy that the next time.
 
-As always, [the code for this lesson is available on github].
+As always, [the code for this lesson is available on github](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-03).
