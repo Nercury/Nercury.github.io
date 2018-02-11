@@ -761,6 +761,6 @@ void main()
 However, we won't see anything on screen yet, because we are not sending
 any draw commands to OpenGL yet.
 
-We will remedy that the next time.
+We will remedy that [the next time](/rust/opengl/tutorial/2018/02/11/opengl-in-rust-from-scratch-04-triangle.html).
 
 As always, [the code for this lesson is available on github](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-03).
