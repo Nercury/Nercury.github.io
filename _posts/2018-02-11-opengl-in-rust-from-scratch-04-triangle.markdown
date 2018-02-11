@@ -181,7 +181,7 @@ And if everything went smoothly, we should finally see the result:
 ![Triangle](/images/opengl-rust/04/triangle.jpg)
 
 But if you have seen "classic" OpenGL tutorial traingle, you might
-rememeber each corner to have different color. This will be the subject of the
-next post.
+rememeber each corner to have different color. [This will be the subject of the
+next post](/rust/opengl/tutorial/2018/02/11/opengl-in-rust-from-scratch-05-triangle-colors.html).
 
-As always, [the code for this lesson is available on github](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-04).
+As always, [the code for this part is available on github](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-04).

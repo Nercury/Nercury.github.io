@@ -352,7 +352,7 @@ No that's not all, [here is more about patterns](https://doc.rust-lang.org/book/
 We have also annotated the outer loop with `'main` label, so that `break 'main` breaks out of the `loop` loop
 instead of inner `for` loop.
 
-The code for this lesson can be
+The code can be
  [found here](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-01).
  
 With that, our window can finally be closed, and 
