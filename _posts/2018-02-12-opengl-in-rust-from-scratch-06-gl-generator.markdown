@@ -18,7 +18,7 @@ the way we load and use OpenGL. We will create our own project-specific `gl` cra
 
 This will allow us:
 
-- To ensure gl functions are grouped by driver;
+- To ensure gl context functions invoked from the thread they were created from;
 - Enable debug checks for all gl function calls;
 - Have control of enabled OpenGL extensions;
 - Have control of supported API level, i.e. remove new OpenGL functions that we are not using.
