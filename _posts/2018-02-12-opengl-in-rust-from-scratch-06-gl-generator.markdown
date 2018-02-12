@@ -166,7 +166,7 @@ which we should probably now use everywhere.
 
 ### First attempt: hello, lifetime specifier
 
-However, if we tried to use it for our Program, we would quickly encounter few issues:
+However, if we tried to use a reference to `gl::Gl` in our `Program` struct, we would quickly encounter few issues:
 
 (example, wait, don't do this)
 
@@ -247,10 +247,10 @@ pub struct Program<'a> {
 
 After adding lifetime specifier to multiple other places, we will realize that
 while it works, `Program<'a>` is very inflexible to use. If we tried, as an example, 
-to use include `Program<'a>` into another `Struct`, it will also need to gain lifetime
-specifier `Struct<'a>`. Consider briefly that our `Program` won't be the only thing
+to include `Program<'a>` in another `Struct`, that struct would also need to gain a lifetime
+specifier `Struct<'a>`. Consider briefly, that our `Program` won't be the only thing
 to use `Gl`, and if all the things required lifetime specifiers, we would have
-a very hard time.
+a very bad time.
 
 Lifetime is inconvenient thing to use in this case. Lifetime specifier `'a` on a struct
 means that it contains a pointer to some memory location, and while this struct
@@ -288,7 +288,7 @@ impl Drop for Program {
 }
 ```
 
-Of course, we would need this call `deinit` manually:
+Of course, we would need to call this `deinit` manually:
 
 ```rust
 program.deinit(&gl);
@@ -332,7 +332,7 @@ It might work. That's all I can say about this approach.
 
 ### Almost final attempt: ownership
 
-What if, instead of storing a pointer (yes, it is better to thing of references as pointers) in 
+What if, instead of storing a pointer (yes, it is better to think of references as pointers) in 
 a `Program` (and later `Shader`) structs, we put a value there?
 
 (let's do this! in render_gl.rs)
@@ -347,7 +347,7 @@ pub struct Program {
 By placing a value in a struct in Rust, we express the intention for that value
 to be deleted togeter with a parent struct.
 
-But we may not want Gl to be deleted, right? Yes, however Gl can be cloned:
+But we may not want Gl to be deleted, right? Yes, but Gl can be cloned:
 
 (example)
 
@@ -426,7 +426,7 @@ When we do all these replacements, the program should compile and run.
 
 ## Final version: shared gl reference
 
-We are doing a deep copy of `Gl` struct. How bug is it exactly?
+We are doing a deep copy of `Gl` struct. How big is it exactly?
 
 ```rust
 println!("size of Gl: {}", std::mem::size_of_val(&gl));
@@ -451,7 +451,7 @@ let gl = Rc::new(
 
 But then, every place we use `Gl` would suddenly need the type `Rc<Gl>`, which is annoying.
 It would be great if `Gl` was already reference counted inside, then we could clone it cheaply.
-If only we had access to the `gl` crate, we could change what `Gl` is... wait.
+If only we had an access to the `gl` crate, we could change what `Gl` is... wait.
 
 ### Customised gl crate
 
@@ -588,7 +588,7 @@ Documentation for _your own_ gl crate can be generated in the usual way:
 cargo doc -p gl --no-deps --open
 ```
 
-However, we can't see now full function list, because original `Gl` became private.
+However, now we can't see the full function list, because the original `Gl` became private.
 We can re-export it with different name to remedy the situation:
 
 (lib/gl/src/lib.rs)
@@ -670,8 +670,8 @@ fn main() {
 }
 ```
 
-Let's make some mistake in our program. What would happen, if instead of binding to `vbo`
-variable, we would bind to a number 42?
+Let's make a mistake in our program. What would happen, if instead of binding to `vbo`
+variable, we bind to a number 42?
 
 (main.rs, test)
 
@@ -690,7 +690,7 @@ Well, I guess it's better than nothing!
 
 ## Autocomplete
 
-One small thing - my IDE offers no autocomplete for generated code. However,
+One small thing - my IDE offers no autocomplete for the generated code. However,
 it is easy to get it by copy-pasting whole auto-generated `bindings.rs` from
 `/target/debug/gl-...` to `mod bindings` namespace. IntelliJ can then even
 display proper documentation annotations.
