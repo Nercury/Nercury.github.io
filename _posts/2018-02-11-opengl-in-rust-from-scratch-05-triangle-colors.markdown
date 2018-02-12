@@ -119,7 +119,7 @@ VAO configured in previous lesson, we would get some garbage on screen,
 and would have to spend some time searching for bug and double-checking
 everything.
 
-In the next lessons, we will begin building some abstractions to encapsulate
+In future, we will begin building some abstractions to encapsulate
 error-prone things related to VAO setup.
 
 There are additional topics discussed in [learnopengl.com](https://learnopengl.com)
@@ -129,3 +129,6 @@ to Rust, and I feel that we have discussed enough examples of that. I am going
 to leave these things as "exercises to the reader".
 
 As always, [the code for this part is available on github](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-05).
+
+For the next part, we [will rework our OpenGL setup a bit](/rust/opengl/tutorial/2018/02/12/opengl-in-rust-from-scratch-06-gl-generator.html), before we have written 
+too many things.
