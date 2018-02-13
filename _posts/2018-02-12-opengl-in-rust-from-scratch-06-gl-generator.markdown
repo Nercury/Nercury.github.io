@@ -192,9 +192,7 @@ impl Drop for Program {
         unsafe {
             // no "gl" here!
         
-            if gl.IsProgram(self.id) == gl::TRUE {
-                gl.DeleteProgram(self.id);
-            }
+            gl.DeleteProgram(self.id);
         }
     }
 }
@@ -216,9 +214,7 @@ pub struct Program {
 impl Drop for Program {
     fn drop(&mut self) {
         unsafe {
-            if self.gl.IsProgram(self.id) == gl::TRUE {
-                self.gl.DeleteProgram(self.id);
-            }
+            self.gl.DeleteProgram(self.id);
         }
     }
 }
@@ -280,9 +276,7 @@ function, where we can pass the `&Gl` object?
 impl Drop for Program {
     fn deinit(&mut self, gl: &gl::Gl) {
         unsafe {
-            if gl.IsProgram(self.id) == gl::TRUE {
-                gl.DeleteProgram(self.id);
-            }
+            gl.DeleteProgram(self.id);
         }
     }
 }

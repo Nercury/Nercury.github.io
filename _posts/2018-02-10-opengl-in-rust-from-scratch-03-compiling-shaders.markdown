@@ -374,20 +374,13 @@ To clean it up, we will implement `Drop` trait for the `Shader`:
 impl Drop for Shader {
     fn drop(&mut self) {
         unsafe {
-            if gl::IsShader(self.id) == gl::TRUE {
-                gl::DeleteShader(self.id);
-            }
+            gl::DeleteShader(self.id);
         }
     }
 }
 ```
 
-[By the looks of glDeleteShader documentation](http://docs.gl/gl4/glDeleteShader) it should be
-safe to straight up delete the shader, even if the shader object id is 0, and even if the shader is
-attached to a program. However, I am worrying about cases where OpenGL context is lost, and we are left with
-invalid shader object id.
-In this case, `DeleteShader` would generate an error, which would be confusing; therefore I am adding
-the `glIsShader` check before issuing the delete call.
+Rust will ensure that `gl::DeleteShader` is called exactly once for every shader object id.
 
 ## Moving Shader implementation into another module
 
@@ -437,9 +430,7 @@ pub mod render_gl {
     impl Drop for Shader {
         fn drop(&mut self) {
             unsafe {
-                if gl::IsShader(self.id) == gl::TRUE {
-                    gl::DeleteShader(self.id);
-                }
+                gl::DeleteShader(self.id);
             }
         }
     }
@@ -618,9 +609,7 @@ impl Program {
 impl Drop for Program {
     fn drop(&mut self) {
         unsafe {
-            if gl::IsProgram(self.id) == gl::TRUE {
-                gl::DeleteProgram(self.id);
-            }
+            gl::DeleteProgram(self.id);
         }
     }
 }
