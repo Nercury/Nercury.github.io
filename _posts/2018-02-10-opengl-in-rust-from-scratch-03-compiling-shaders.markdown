@@ -250,7 +250,7 @@ Congratulations! You have just created your first safe API for a bunch of unsafe
 
 However, there are some things we can do to make this API nicer.
 
-### Extracting CString creation from create_shader
+### Extracting CString creation from `shader_from_source`
 
 We can extract the lines that help us create new empty `CString` to another function.
 We might need it later:
@@ -280,7 +280,7 @@ Instead of returning a shader object id, we can return a struct named `Shader` t
 this `id`. This returned struct would have no overhead, and will consume exactly the same
 amount of bytes as `gl::types::GLuint`, but can be much more convenient to use:
 
-(main.rs, above create_shader function)
+(main.rs, above shader_from_source function)
 
 ```rust
 struct Shader {
@@ -298,7 +298,7 @@ impl Shader {
         source: &CStr,
         kind: gl::types::GLenum
     ) -> Result<Shader, String> {
-        let id = create_shader(source, kind)?;
+        let id = shader_from_source(source, kind)?;
         Ok(Shader { id })
     }
     
@@ -312,13 +312,13 @@ It is called using `Shader::create` syntax and acts as a constructor.
 The return type of it is `Result<Shader, String>`, which may be either the successfully created `Shader`,
 or an error `String`.
 
-The question mark `?` at the end of `let id = create_shader(source, kind)?;` line
+The question mark `?` at the end of `let id = shader_from_source(source, kind)?;` line
 does the same as would this code:
 
 (example)
 
 ```rust
-let id = match create_shader(source, kind) {
+let id = match shader_from_source(source, kind) {
     Ok(id) => id,
     Err(error) => return Err(error.into()),
 };
@@ -414,7 +414,7 @@ pub mod render_gl {
             source: &CStr,
             kind: gl::types::GLenum
         ) -> Result<Shader, String> {
-            let id = create_shader(source, kind)?;
+            let id = shader_from_source(source, kind)?;
             Ok(Shader { id })
         }
 
@@ -435,7 +435,7 @@ pub mod render_gl {
         }
     }
 
-    fn create_shader(
+    fn shader_from_source(
         source: &CStr,
         kind: gl::types::GLenum
     ) -> Result<gl::types::GLuint, String> {

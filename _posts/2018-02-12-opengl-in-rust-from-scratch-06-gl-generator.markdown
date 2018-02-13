@@ -395,13 +395,13 @@ impl Program {
 }
 ```
 
-A standalone method such as `create_shader` that we have written previously does not need 
+A standalone method such as `shader_from_source` that we have written previously does not need 
 full ownership of `gl`, a reference will suffice:
 
 (render_gl.rs, modified)
 
 ```rust
-fn create_shader(
+fn shader_from_source(
     gl: &gl::Gl, // a reference to gl
     source: &CStr,
     kind: gl::types::GLenum
