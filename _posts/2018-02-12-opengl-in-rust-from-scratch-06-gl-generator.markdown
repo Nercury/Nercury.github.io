@@ -268,7 +268,7 @@ they are valid at compile time.
 ### Second attempt: manual de-init
 
 Ok, ok, we give up. What if we do not store `&Gl` in a `Program`, but add a manual `deinit`
-function, where we can pass the `&Gl` object?
+function, where we can pass the `&Gl` argument?
 
 (example)
 
