@@ -73,7 +73,7 @@ First try:
 (main.rs, at the end)
 
 ```rust
-fn create_shader(source: &str) -> gl::types::GLuint {
+fn shader_from_source(source: &str) -> gl::types::GLuint {
     // continue here
 }
 ```
@@ -85,7 +85,7 @@ For that, we will change return type to `Result<gl::types::GLuint, String>`. If 
 get shader id, otherwise we can extract an error message from `Err`.
 
 ```rust
-fn create_shader(source: &str) -> Result<gl::types::GLuint, String> {
+fn shader_from_source(source: &str) -> Result<gl::types::GLuint, String> {
     ...
 }
 ```
@@ -93,7 +93,7 @@ fn create_shader(source: &str) -> Result<gl::types::GLuint, String> {
 Let's start by obtaining shader object id:
 
 ```rust
-fn create_shader(source: &str) -> Result<gl::types::GLuint, String> {
+fn shader_from_source(source: &str) -> Result<gl::types::GLuint, String> {
     let id = unsafe { gl::CreateShader(gl::VERTEX_SHADER) };
     
     // continue here
@@ -104,7 +104,7 @@ Ha! We need to specify the shader type. Let's improve the function signature and
 the shader type to it. `type` is a reserved keyword in Rust, but we can name it `kind`:
 
 ```rust
-fn create_shader(
+fn shader_from_source(
     source: &str,
     kind: gl::types::GLuint
 ) -> Result<gl::types::GLuint, String> {
@@ -130,7 +130,7 @@ Let's change function parameter from `&str` to `&std::ffi::CStr`:
 // import namespace to avoid repeating `std::ffi` everywhere
 use std::ffi::{CString, CStr};
 
-fn create_shader(
+fn shader_from_source(
     source: &CStr, // modified
     kind: gl::types::GLenum
 ) -> Result<gl::types::GLuint, String> {
@@ -290,11 +290,11 @@ struct Shader {
 // continue here
 ```
 
-And then implement `create` function for Shader:
+And then implement `from_source` function for Shader:
 
 ```rust
 impl Shader {
-    fn create(
+    fn from_source(
         source: &CStr,
         kind: gl::types::GLenum
     ) -> Result<Shader, String> {
@@ -337,25 +337,25 @@ Now our shader can be created like this:
 (example)
 
 ```rust
-let shader = Shader::create(
+let shader = Shader::from_source(
     &CStr::from_bytes_with_nul(b"<source code here>\0").unwrap(),
     gl::VERTEX_SHADER
 ).unwrap();
 ```
 
-We can create two more helper methods, `create_vert` and `create_frag`, so that we can skip
+We can create two more helper methods, `from_vert_source` and `from_frag_source`, so that we can skip
 `gl::VERTEX_SHADER` parameter:
 
 ```rust
 impl Shader {
-    fn create(...) { ... }
+    fn from_source(...) { ... }
     
-    fn create_vert(source: &CStr) -> Result<Shader, String> {
-        Shader::create(source, gl::VERTEX_SHADER)
+    fn from_vert_source(source: &CStr) -> Result<Shader, String> {
+        Shader::from_source(source, gl::VERTEX_SHADER)
     }
 
-    fn create_frag(source: &CStr) -> Result<Shader, String> {
-        Shader::create(source, gl::FRAGMENT_SHADER)
+    fn from_frag_source(source: &CStr) -> Result<Shader, String> {
+        Shader::from_source(source, gl::FRAGMENT_SHADER)
     }
 }
 
@@ -410,7 +410,7 @@ pub mod render_gl {
     }
 
     impl Shader {
-        pub fn create(
+        pub fn from_source(
             source: &CStr,
             kind: gl::types::GLenum
         ) -> Result<Shader, String> {
@@ -418,12 +418,12 @@ pub mod render_gl {
             Ok(Shader { id })
         }
 
-        pub fn create_vert(source: &CStr) -> Result<Shader, String> {
-            Shader::create(source, gl::VERTEX_SHADER)
+        pub fn from_vert_source(source: &CStr) -> Result<Shader, String> {
+            Shader::from_source(source, gl::VERTEX_SHADER)
         }
 
-        pub fn create_frag(source: &CStr) -> Result<Shader, String> {
-            Shader::create(source, gl::FRAGMENT_SHADER)
+        pub fn from_frag_source(source: &CStr) -> Result<Shader, String> {
+            Shader::from_source(source, gl::FRAGMENT_SHADER)
         }
     }
 
@@ -538,8 +538,8 @@ a program:
 (example)
 
 ```rust
-let vert_shader = Shader::create_vert(..)?;
-let frag_shader = Shader::create_frag(..)?;
+let vert_shader = Shader::from_vert_source(..)?;
+let frag_shader = Shader::from_frag_source(..)?;
 
 let program_id = unsafe { gl::CreateProgram() };
 
@@ -556,8 +556,8 @@ attached to program. Therefore we detach the shader after linking it:
 (example)
 
 ```rust
-let vert_shader = Shader::create_vert(..)?;
-let frag_shader = Shader::create_frag(..)?;
+let vert_shader = Shader::from_vert_source(..)?;
+let frag_shader = Shader::from_frag_source(..)?;
 
 let program_id = unsafe { gl::CreateProgram() };
 
@@ -583,7 +583,7 @@ pub struct Program {
 }
 
 impl Program {
-    pub fn create_linked(shaders: &[&Shader]) -> Result<Program, String> {
+    pub fn from_shaders(shaders: &[Shader]) -> Result<Program, String> {
         let program_id = unsafe { gl::CreateProgram() };
 
         for shader in shaders {
@@ -615,8 +615,8 @@ impl Drop for Program {
 }
 ```
 
-`create_linked` has a single `shaders` parameter, that takes a _slice_ (`&[]`) of
-`Shader` references (`&Shader`). They are required just for the linking.
+`from_shaders` has a single `shaders` parameter, that takes a _slice_ (`&[]`) of
+`Shader` structs. They are required just for the linking.
 
 We also need the error handling, which is very similar to error handling of a shader program:
 
@@ -675,11 +675,11 @@ Then, right before the `'main` loop, we can compile our vertex and shader progra
 ```rust
 use std::ffi::CString;
 
-let vert_shader = render_gl::Shader::create_vert(
+let vert_shader = render_gl::Shader::from_vert_source(
     &CString::new(include_str!("triangle.vert")).unwrap()
 ).unwrap();
 
-let frag_shader = render_gl::Shader::create_frag(
+let frag_shader = render_gl::Shader::from_frag_source(
     &CString::new(include_str!("triangle.frag")).unwrap()
 ).unwrap();
 
@@ -702,8 +702,8 @@ Then, we link our shaders:
 (main.rs, before loop)
 
 ```rust
-let shader_program = render_gl::Program::create_linked(
-    &[&vert_shader, &frag_shader]
+let shader_program = render_gl::Program::from_shaders(
+    &[vert_shader, frag_shader]
 ).unwrap();
 
 // continue here

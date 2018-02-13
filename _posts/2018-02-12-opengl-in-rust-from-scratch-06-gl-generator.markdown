@@ -172,7 +172,7 @@ However, if we tried to use a reference to `gl::Gl` in our `Program` struct, we 
 
 ```rust
 impl Program {
-    pub fn create_linked(gl: &gl::Gl, shaders: &[&Shader]) -> Result<Program, String> {
+    pub fn from_shaders(gl: &gl::Gl, shaders: &[Shader]) -> Result<Program, String> {
         // use "." instead of "::"
         let program_id = unsafe { gl.CreateProgram() }; 
         
@@ -181,7 +181,7 @@ impl Program {
 }
 ```
 
-We would be able to do this in "create_linked" function, however, `drop` function can not have
+We would be able to do this in "from_shaders" function, however, `drop` function can not have
 any additional parameters:
 
 (example, wait, don't do this)
@@ -355,16 +355,16 @@ a deep copy of gl value. When we create our shaders and program, we can pass clo
 (main.rs, modified)
 
 ```rust
-let vert_shader = render_gl::Shader::create_vert(
+let vert_shader = render_gl::Shader::from_vert_source(
     gl.clone(), &CString::new(include_str!("triangle.vert")).unwrap()
 ).unwrap();
 
-let frag_shader = render_gl::Shader::create_frag(
+let frag_shader = render_gl::Shader::from_frag_source(
     gl.clone(), &CString::new(include_str!("triangle.frag")).unwrap()
 ).unwrap();
 
-let shader_program = render_gl::Program::create_linked(
-    gl.clone(), &[&vert_shader, &frag_shader]
+let shader_program = render_gl::Program::from_shaders(
+    gl.clone(), &[vert_shader, frag_shader]
 ).unwrap();
 ``` 
 
@@ -385,7 +385,7 @@ Modify constructor methods and implementations:
 
 ```rust
 impl Program {
-    pub fn create_linked(gl: gl::Gl, shaders: &[&Shader]) -> Result<Program, String> {
+    pub fn from_shaders(gl: gl::Gl, shaders: &[Shader]) -> Result<Program, String> {
         let program_id = unsafe { gl.CreateProgram() };
         
         ...
@@ -541,9 +541,9 @@ Our methods now clone `gl` at the call site:
 (example)
 
 ```rust
-let shader_program = render_gl::Program::create_linked(
+let shader_program = render_gl::Program::from_shaders(
     gl.clone(), // cloned at the call site
-    &[&vert_shader, &frag_shader]
+    &[vert_shader, frag_shader]
 ).unwrap();
 ```
 
@@ -552,9 +552,9 @@ Instead, it is a bit more clean to pass a reference, and leave the decision to c
 (main.rs, modify method calls)
 
 ```rust
-let shader_program = render_gl::Program::create_linked(
+let shader_program = render_gl::Program::from_shaders(
     &gl, // pass reference
-    &[&vert_shader, &frag_shader]
+    &[vert_shader, frag_shader]
 ).unwrap();
 ```
 
@@ -564,7 +564,7 @@ And then modify constructors for `Shader` and `Program`:
 
 ```rust
 impl Program {
-    pub fn create_linked(gl: &gl::Gl, shaders: &[&Shader]) -> Result<Program, String> {
+    pub fn from_shaders(gl: &gl::Gl, shaders: &[Shader]) -> Result<Program, String> {
         ...
 
         Ok(Program { gl: gl.clone(), id: program_id })
