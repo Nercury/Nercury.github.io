@@ -698,3 +698,6 @@ option is available if needed.
 [The code is available on github](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-06).
 
 From now on, we will continue using this custom gl crate.
+
+[Next time](/rust/opengl/tutorial/2018/02/14/opengl-in-rust-from-scratch-07-basic-resources.html), we will load shaders from files instead of embedding them as strings in the
+executable.
