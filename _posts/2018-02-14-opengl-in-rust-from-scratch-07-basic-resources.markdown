@@ -73,7 +73,20 @@ Previously with SDL, we used `String` for error value everywhere. If the only er
 we are interested in is SDL error, `String` is a sensible choice, because there is not much more
 SDL could return.
 
-However, we can do a bit better with resources. Inside `resources.rs`, besides `Resources`
+Using `String` has few problems though:
+
+- If an error is expected to happen often and in hot path, `String` creation would
+slow the program down, because it requires allocation;
+- It is inconvenient to handle `String` error - if, say, we want to terminate the program
+on some errors but not the others, `String` is absolutely not ideal;
+- The program logic is cluttered with string formatting everywhere!
+
+For these reasons, it's much better to create a module-local enum and list add possible error
+cases there as needed. Then, take care of nice error formatting in another place.
+
+## Resources Error enum
+
+Inside `resources.rs`, besides `Resources`
 struct with `root_path`, let's also add `Error` enum, which will contain any error this module 
 could return:
 
@@ -338,7 +351,7 @@ impl Shader {
             .ok_or_else(|| format!("Can not determine shader type for resource {:?}", name))?;
 
         let source = res.load_cstring(name)
-            .map_err(|e| format!("Error loading resource {:?}: {:?}", name, e))?;
+            .map_err(|e| format!("Error loading resource {:?}: {}", name, e))?;
 
         Shader::from_source(gl, &source, shader_kind)
     }
@@ -502,4 +515,31 @@ This, of course, still requires re-compilation for build script to copy files,
 but we can also run the program directly from `/target` directory and
 modify the shader files there.
 
+## Shader Errors
+
+For initial simplicity, we have not created another `Error` type for shader, and used
+simple `String` instead. Let's change `String` to module-local enum too, in the same
+way we've done this for `Resources`. Then we can change result returned from `from_res`
+functions to `Result<Program, Error>`.
+
+Before copy-pasting the final source, see if you can do
+it yourself.
+
+In my case, final `Error` structure ended up looking like this:
+
+```rust
+#[derive(Debug)]
+pub enum Error {
+    ResourceLoad { name: String, inner: resources::Error },
+    CanNotDetermineShaderTypeForResource { name: String },
+    CompileError { name: String, message: String },
+    LinkError { name: String, message: String },
+}
+```
+
+I decided to include additional `name` information in the `ResourceLoad` error, therefore
+I have't used the automatic error conversion with `From<resource::Error>` here. 
+
 [The full code is available on github](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-07).
+
+[Next time, we will make our error output look much nicer](/rust/opengl/tutorial/2018/02/15/opengl-in-rust-from-scratch-08-failure.html).
