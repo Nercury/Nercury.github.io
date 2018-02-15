@@ -285,7 +285,7 @@ any displayable type to `failure::Error`.
 
 Finally, we can move our program logic out of `main()` into a new `run()` function, 
 that returns `Result<(), failure::Error>`. And then the only thing main is going to do
-is to invoke `run()` and print nicely formatted message:
+is invoke `run()` and print a nicely formatted message:
 
 (main.rs, partial)
 
@@ -342,7 +342,7 @@ pub fn failure_to_string(e: failure::Error) -> String {
 }
 ```
 
-Make sure to check [failure's book](https://boats.gitlab.io/failure/intro.html), 
-which explains these usage patterns in detailed way.
+Make sure to check out the [failure's book](https://boats.gitlab.io/failure/intro.html), 
+which explains these usage patterns in a detailed way.
 
 [Full source code is available on github](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-08).
