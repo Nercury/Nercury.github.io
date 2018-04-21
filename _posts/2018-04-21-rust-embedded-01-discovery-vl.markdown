@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Embedded Rust Experiments - STM32VLDISCOVERY board"
-date:   2018-02-21
+date:   2018-04-21
 categories: rust embedded experiments
 ---
 
