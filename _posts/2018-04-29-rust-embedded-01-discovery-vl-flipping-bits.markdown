@@ -880,7 +880,7 @@ port_c.crh.write(|w| unsafe {
 // continue here
 ```
 
-Finally, we use Port's BSRR "Bit Set" register to flop bits `8` and `9` to high:
+Finally, we use Port's BSRR "Bit Set" register to flip bits `8` and `9` high:
 
 ```rust
 port_c.bsrr.write(|w|
