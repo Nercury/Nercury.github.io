@@ -9,7 +9,7 @@ The words "I built my own LED matrix display" are almost synonymous to "wires, w
 
 ![Single Matrix Wires](/images/mcu-02-real/arduino-multiplex-display-zoom-1.jpg)
 
-Funny thing is, this solution is not even _that_ bad. See, the LED display used there
+Funny thing is, this solution is not even _that_ bad. See, the LED display here
 has a 8x8 LED matrix, with a total of 64 individually controlled LEDs. That would mean
 64 wires. Clearly, we get away with 16 (if only counting the ones that are connected to the
 display). That's because the display is connected in [multiplexed](https://en.wikipedia.org/wiki/Multiplexed_display)
@@ -26,3 +26,15 @@ demonstrates the technique very clearly:
 
 ([image source](http://www.franksworkshop.com.au/Electronics/RGB/RGB.htm))
 
+The ones and zeroes here represent the rows and columns we want to be active, but not the
+actual voltage. For the current to flow over a LED diode, we need to connect the anode to 
+_high_ and cathode to _low_ voltage, because the current only flows one way through the diode. 
+The column values in the picture above would need to be inverted from `1` to `0` and vice-versa.
+
+![LED pinout](/images/mcu-02-real/led_pinout.png)
+
+([image source](https://www.allaboutcircuits.com/tools/led-resistor-calculator/))
+
+![ULN2803A](/images/mcu-02-real/uln2803a.jpg)
+
+![Multiplex with inverter and resistors](/images/mcu-02-real/multiplex-full.png)
