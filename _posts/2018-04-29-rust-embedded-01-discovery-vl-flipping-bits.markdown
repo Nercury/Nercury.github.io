@@ -53,7 +53,8 @@ will be used to upload our program to MCU).
 
 [The book][mcu-world] has wildly different instructions for [Linux](https://japaric.github.io/discovery/03-setup/linux.html),
 [Windows](https://japaric.github.io/discovery/03-setup/windows.html) and 
-[macOS](https://japaric.github.io/discovery/03-setup/macos.html).
+[macOS](https://japaric.github.io/discovery/03-setup/macos.html). Follow them and install
+ tools for your platform (except the windows driver).
 
 For Windows, you can download the driver [from the board page we've visited before](http://www.st.com/en/evaluation-tools/stm32vldiscovery.html).
 
@@ -68,15 +69,22 @@ With OpenOCD 0.10, this works for me:
 openocd -f interface/stlink.cfg -f target/stm32f1x.cfg
 ```
 
-On windows, you will need to specify where the OpenOCD "scripts" are by passing `-s`
-parameter:
+The book uses `interface/stlink-v2-1.cfg`, which works, but we get the deprecation warning
+with a note to switch to `interface/stlink.cfg`, which works too.
 
-```bash
-openocd -s C:\OpenOCD\share\scripts -f interface/stlink.cfg -f target/stm32f1x.cfg
+It is likely that you will receive this error on Windows:
+
+```plain
+...
+Error: libusb_open() failed with LIBUSB_ERROR_NOT_SUPPORTED
 ```
 
-The book uses `interface/stlink-v2-1.cfg`, which works, but I get the deprecation warning
-with a note to switch to `interface/stlink.cfg`, which works too.
+Windows has multiple mechanisms to load drivers. OpenOCD uses WinUSB. 
+I had to use Zadig tool to install WinUSB version of STM32 STLink driver.
+Follow the [instructions here][zadig-instructions], except our driver should be named
+"STM32 STLink".
+
+[zadig-instructions]: https://github.com/foss-for-synopsys-dwc-arc-processors/arc_gnu_eclipse/wiki/How-to-Use-OpenOCD-on-Windows
 
 ![Discovery VL labels](/images/mcu-02/st-link-blink.gif)
 
