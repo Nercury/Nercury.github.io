@@ -150,24 +150,22 @@ in a case of panic (and returns `!` "never" type):
 (main.rs, bellow main() function)
 
 ```rust
-#[lang = "panic_fmt"]
-#[no_mangle]
-pub unsafe extern "C" fn rust_begin_unwind(
-    _args: core::fmt::Arguments,
-    _file: &'static str,
-    _line: u32,
-    _col: u32,
-) -> ! {
+#![feature(panic_implementation)]
+
+use core::panic::PanicInfo;
+
+#[panic_implementation]
+fn panic(_info: &PanicInfo) -> ! {
     loop {}
 }
 ```
 
-For this to work, we need to enable `lang_items` feature:
+For this to work, we need to enable `panic_implementation` feature:
 
 (at the top of main.rs)
 
 ```rust
-#![feature(lang_items)]
+#![feature(panic_implementation)]
 ```
 
 Features require nightly rust, so if you are not already on nightly, you will
@@ -179,13 +177,19 @@ have to switch to it. It's best to add a project specific override:
 rustup override set nightly
 ```
 
+### Note on stability
+
+We switched to nightly Rust, and this means this tutorial may become outdated
+quickly. If something does not work, you may need to do your own googling and
+reading, much like I had to do while documenting my steps here.
+
+### Eh, personality!
+
 We are down to one error:
 
 ```txt
 error: language item required, but not found: `eh_personality`
 ```
-
-### Eh, personality!
 
 The `eh_personality` is used to implement stack unwinding in case a panic occurs.
 
