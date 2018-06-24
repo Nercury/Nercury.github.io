@@ -165,12 +165,12 @@ let vertices: Vec<f32> = vec![
 ];
 ```
 
-This is suboptimal: rememeber, every line here is the data that is received by
-vertex shader. It should not be limited to floats.
+This is suboptimal: rememeber, every line here contains the data that is received by
+vertex shader. The data should not be limited to floats.
 
-What we can do instead, is to create a new type for each possible vertex attribute.
-We now have two attributes per vertex: position and color, both use `vec3` floating
-point vector. Let's create a type for this in `render_gl` module:
+Instead, we can create a new type for each possible vertex attribute.
+Here, we have two attributes per vertex: position and color, both are using `vec3` floating
+point vector. We will start by creating a type for this vector in the `render_gl` module:
 
 (render_gl/mod.rs, new line at the top)
 
@@ -324,3 +324,53 @@ gl.BufferData(
 Let's run it, the triangle should be back on screen!
 
 ## A new type for a vertex
+
+To move further, we will create a new vertex type for our vertex data, which
+will contain color and position:
+
+(main.rs, above `fn main()`)
+
+```rust
+#[repr(C, packed)]
+struct Vertex {
+    pos: data::f32_f32_f32,
+    clr: data::f32_f32_f32,
+}
+```
+
+We define this vertex inside main, because it should be customized for whatever
+shader we are writing. Right now we named it `Vertex`, because there are no other types
+of vertices, but we can imagine types like `MetalShaderVertex` or `ParticleSystemVertex`.
+
+And then, let's again modify `vertices` initialization:
+
+(main.rs, replace code)
+
+```rust
+// set up vertex buffer object
+
+let vertices: Vec<Vertex> = vec![
+    Vertex { pos: (0.5, -0.5, 0.0).into(),  clr: (1.0, 0.0, 0.0).into() }, // bottom right
+    Vertex { pos: (-0.5, -0.5, 0.0).into(), clr: (0.0, 1.0, 0.0).into() }, // bottom left
+    Vertex { pos: (0.0,  0.5, 0.0).into(),  clr: (0.0, 0.0, 1.0).into() }  // top
+];
+```
+
+Some verbosity here is not an issue. In a real application, we would rarely load this data by hand:
+usually we would import it from a mesh file (exported from some 3D modeling program) or auto-generate
+it procedurally.
+
+Let's not forget to fix `gl.BufferData` call (use `size_of::<Vertex>`):
+
+(main.rs, replace code)
+
+```rust
+gl.BufferData(
+    gl::ARRAY_BUFFER, // target
+    (vertices.len() * std::mem::size_of::<Vertex>()) as gl::types::GLsizeiptr, // size of data in bytes
+    vertices.as_ptr() as *const gl::types::GLvoid, // pointer to data
+    gl::STATIC_DRAW, // usage
+);
+```
+
+The code should compile and we should be still greeted by the triangle.
