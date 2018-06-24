@@ -115,24 +115,212 @@ In fact, the last "driver bugs" point makes it abundantly clear that we won't cr
 abstraction here. For the awesome attempt to do that, you should check out the [glium](https://github.com/glium/glium)
 library, as well as post by its original author on [why he is leaving glium](https://users.rust-lang.org/t/glium-post-mortem/7063).
 
-Instead, our goal here is to learn and explore, while creating simple utilities that we can understand
-and adapt to whatever unknown driver issue we will encounter in the wild, instead of trying to create
-the api wrapper that solves everyone's problems.
+Instead, we will focus on building VAOs in a way that gradually improves maintainability of our code
+while leaving the design as simple as possible.
 
-With this philosophy in mind, we are still going to look at a possible abstraction that is very similar
-to what the glium did (although a bit simplified). Then, we will explore another, simpler (but maybe
-not that powerful) approach. Then, we will discuss the pros and cons of both.
+## Prerequisites
 
-## Layout-struct approach
+We are going to expand `render_gl` submodule. We arn't using 
+[Rust 2018](https://rust-lang-nursery.github.io/edition-guide/2018/index.html) syntax yet,
+so we need to:
 
-What if we create a struct `Layout` that can be used to add format components and then
-initialize VAO:
+- create directory `render_gl`
+- move `render_gl.rs` to `render_gl/mod.rs`
+
+This should compile.
+
+With this done, we can move all the code into even deeper `shader` submodule, leaving `render_gl`
+free to define more submodules at the top.
+
+First create `render_gl/shader.rs`, and move everything that was inside `render_gl/mod.rs` there.
+
+Then, inside the `render_gl/mod.rs` we can keep the `shader` submodule private (use `mod shader`
+instead of `pub mod shader`), and re-export types from `render_gl::shader` as members of `render_gl`:
+
+(render_gl/mod.rs, full file)
 
 ```rust
-let layout = Layout::new()
-    // Position attribute
-    .with(0, Format::f32_f32_f32, Padding::p0)
-    // Color attribute
-    .with(1, Format::f32_f32_f32, Padding::p0);
-layout.attrib_pointers(gl);
+mod shader;
+
+pub use self::shader::{Shader, Program, Error};
 ```
+
+This should continue compiling. If it was a bit confusing, you may always check out the final
+code (link should be at the end of this post).
+
+## A new type for a vertex attribute
+
+Currently, our vertex data is in continuous `f32` array:
+
+(existing code, main.rs)
+
+```rust
+// set up vertex buffer object
+
+let vertices: Vec<f32> = vec![
+    // positions      // colors
+    0.5, -0.5, 0.0,   1.0, 0.0, 0.0,   // bottom right
+    -0.5, -0.5, 0.0,  0.0, 1.0, 0.0,   // bottom left
+    0.0,  0.5, 0.0,   0.0, 0.0, 1.0    // top
+];
+```
+
+This is suboptimal: rememeber, every line here is the data that is received by
+vertex shader. It should not be limited to floats.
+
+What we can do instead, is to create a new type for each possible vertex attribute.
+We now have two attributes per vertex: position and color, both use `vec3` floating
+point vector. Let's create a type for this in `render_gl` module:
+
+(render_gl/mod.rs, new line at the top)
+
+```rust
+pub mod data;
+
+// the rest of the exsiting file
+```
+
+(render_gl/data.rs, new file)
+
+```rust
+#[allow(non_camel_case_types)]
+#[repr(C, packed)]
+pub struct f32_f32_f32 {
+    pub d0: f32,
+    pub d1: f32,
+    pub d2: f32,
+}
+
+// continue here
+```
+
+We allow `non_camel_case_types`, because this name does not follow Rust conventions. Of course,
+you may pick another name, but I like the readability of this one.
+
+The `repr(C, packed)` makes rust use `C`-like layout, and `packed` makes sure `f32` components
+do not contain gaps between. Otherwise Rust might align fields to 4 bytes, which is no-issue with
+4-byte wide `f32`, but might be an issue for other data types we are going to create, like `i16_i16`; 
+therefore we will use `repr(C, packed)` for everything, just to make this explicit.
+
+This is the reason we are creating our own type, and not re-using tuple `(f32, f32, f32)` - its 
+layout can change with the compiler version.
+
+This is also the reason for not re-using `Vec3` type from
+some existing math library. We need full control of the layout that must be in agreement 
+with OpenGL spec. This also means that this struct is specific to OpenGL renderer; if we were
+to write, say, `Vulkan` renderer, we would take care of the structs specific to it in a
+context of `Vulkan`.
+
+Let's create a convenience constructor:
+
+(render_gl/data.rs, continued)
+
+```rust
+impl f32_f32_f32 {
+    pub fn new(d0: f32, d1: f32, d2: f32) -> f32_f32_f32 {
+        f32_f32_f32 {
+            d0, d1, d2
+        }
+    }
+}
+
+// continue here
+```
+
+This allows us to initialize the data this way:
+
+(example)
+
+```rust
+f32_f32_f32::new(0.5, -0.5, 0.0)
+```
+
+We can shrink the code a bit more if we implement conversion from tuple:
+
+(render_gl/data.rs, continued)
+
+```rust
+impl From<(f32, f32, f32)> for f32_f32_f32 {
+    fn from(other: (f32, f32, f32)) -> Self {
+        f32_f32_f32::new(other.0, other.1, other.2)
+    }
+}
+```
+
+This allows us to write more brief initialization from tuple:
+
+```rust
+let result: f32_f32_f32 = (0.5, -0.5, 0.0).into();
+```
+
+This magic may require some explanation: the `into` method is implemented for any type
+that has `From` implementation for the returned value type. This implementation is
+in Rust standard library:
+
+(rust standard library)
+
+```rust
+impl<T, U> Into<U> for T where U: From<T>
+{
+    fn into(self) -> U {
+        U::from(self)
+    }
+}
+```
+
+It is very useful for implementing something akin to explicit casts between types.
+
+With that done, we can include our `render_gl::data` types in `main.rs`:
+
+(main.rs, another `use` statement)
+
+```rust
+use render_gl::data;
+```
+
+And then we can replace our `vertices` initialization with our new type:
+
+(main.rs, replace existing code)
+
+```rust
+// set up vertex buffer object
+
+let vertices: Vec<data::f32_f32_f32> = vec![
+    // positions      // colors
+    (0.5, -0.5, 0.0).into(),   (1.0, 0.0, 0.0).into(),   // bottom right
+    (-0.5, -0.5, 0.0).into(),  (0.0, 1.0, 0.0).into(),   // bottom left
+    (0.0,  0.5, 0.0).into(),   (0.0, 0.0, 1.0).into()    // top
+];
+```
+
+If we run it now, we would see something undefined (or nothing) on screen.
+It's because `gl.BufferData` length in bytes was defined as this:
+
+(existing code)
+
+```rust
+vertices.len() * std::mem::size_of::<f32>()
+```
+
+We need to change it to
+
+```rust
+vertices.len() * std::mem::size_of::<data::f32_f32_f32>()
+```
+
+Let's modify `gl.BufferData` call:
+
+(main.rs, replace `gl.BufferData` call)
+
+```rust
+gl.BufferData(
+    gl::ARRAY_BUFFER, // target
+    (vertices.len() * std::mem::size_of::<data::f32_f32_f32>()) as gl::types::GLsizeiptr, // size of data in bytes
+    vertices.as_ptr() as *const gl::types::GLvoid, // pointer to data
+    gl::STATIC_DRAW, // usage
+);
+```
+
+Let's run it, the triangle should be back on screen!
+
+## A new type for a vertex

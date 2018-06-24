@@ -191,6 +191,12 @@ We switched to nightly Rust, and this means this tutorial may become outdated
 quickly. If something does not work, you may need to do your own googling and
 reading, much like I had to do while documenting my steps here.
 
+Or, you may pick exactly the same nightly compiler version as me:
+
+```plain
+rustup override set nightly-2018-06-15
+```
+
 ### Eh, personality!
 
 We are down to one error:
@@ -259,9 +265,13 @@ Let's add it to `Cargo.toml` dependencies:
 (Cargo.toml)
 
 ```toml
-[dependencies.cortex-m-rt]
-version = "0.4"
+[dependencies]
+cortex-m-rt = "0.5"
 ```
+
+At this point, it is best to follow [cortex-m-rt documentation](https://docs.rs/cortex-m-rt/0.5.1/cortex_m_rt/#an-example).
+This means starting from empty main; our `panic_implementation` is no longer necessary
+here, 
 
 And reference it in the root of our crate:
 
@@ -270,6 +280,8 @@ And reference it in the root of our crate:
 ```rust
 extern crate cortex_m_rt;
 ```
+
+We can also remove 
 
 Let's build it:
 
