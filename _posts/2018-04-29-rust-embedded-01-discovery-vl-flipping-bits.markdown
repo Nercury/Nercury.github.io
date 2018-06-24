@@ -158,22 +158,24 @@ in a case of panic (and returns `!` "never" type):
 (main.rs, bellow main() function)
 
 ```rust
-#![feature(panic_implementation)]
-
-use core::panic::PanicInfo;
-
-#[panic_implementation]
-fn panic(_info: &PanicInfo) -> ! {
+#[lang = "panic_fmt"]
+#[no_mangle]
+pub unsafe extern "C" fn rust_begin_unwind(
+    _args: core::fmt::Arguments,
+    _file: &'static str,
+    _line: u32,
+    _col: u32,
+) -> ! {
     loop {}
 }
 ```
 
-For this to work, we need to enable `panic_implementation` feature:
+For this to work, we need to enable `lang_items` feature:
 
 (at the top of main.rs)
 
 ```rust
-#![feature(panic_implementation)]
+#![feature(lang_items)]
 ```
 
 Features require nightly rust, so if you are not already on nightly, you will
@@ -194,7 +196,7 @@ reading, much like I had to do while documenting my steps here.
 Or, you may pick exactly the same nightly compiler version as me:
 
 ```plain
-rustup override set nightly-2018-06-15
+rustup override set nightly-2018-04-29
 ```
 
 ### Eh, personality!
@@ -266,7 +268,7 @@ Let's add it to `Cargo.toml` dependencies:
 
 ```toml
 [dependencies]
-cortex-m-rt = "0.5"
+cortex-m-rt = "0.4"
 ```
 
 At this point, it is best to follow [cortex-m-rt documentation](https://docs.rs/cortex-m-rt/0.5.1/cortex_m_rt/#an-example).
@@ -280,8 +282,6 @@ And reference it in the root of our crate:
 ```rust
 extern crate cortex_m_rt;
 ```
-
-We can also remove 
 
 Let's build it:
 
