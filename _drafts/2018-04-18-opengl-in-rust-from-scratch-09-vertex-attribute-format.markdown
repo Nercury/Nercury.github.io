@@ -373,4 +373,196 @@ gl.BufferData(
 );
 ```
 
-The code should compile and we should be still greeted by the triangle.
+The code should compile and we should be again greeted by our humble triangle.
+
+## Nicer vertex attribute pointers setup
+
+Currently, the code that sets up vertex attribute pointer with `gl.EnableVertexAttribArray`
+and `gl.VertexAttribPointer` would be very error-prone to maintain. Using our new
+`Vertex` as a starting point, we are going to gradually refactor this set up code...
+
+(main.rs, snippet)
+
+```rust
+// replace this code
+
+gl.EnableVertexAttribArray(0); // this is "layout (location = 0)" in vertex shader
+gl.VertexAttribPointer(
+    0, // index of the generic vertex attribute ("layout (location = 0)")
+    3, // the number of components per generic vertex attribute
+    gl::FLOAT, // data type
+    gl::FALSE, // normalized (int-to-float conversion)
+    (6 * std::mem::size_of::<f32>()) as gl::types::GLint, // stride (byte offset between consecutive attributes)
+    std::ptr::null() // offset of the first component
+);
+gl.EnableVertexAttribArray(1); // this is "layout (location = 0)" in vertex shader
+gl.VertexAttribPointer(
+    1, // index of the generic vertex attribute ("layout (location = 0)")
+    3, // the number of components per generic vertex attribute
+    gl::FLOAT, // data type
+    gl::FALSE, // normalized (int-to-float conversion)
+    (6 * std::mem::size_of::<f32>()) as gl::types::GLint, // stride (byte offset between consecutive attributes)
+    (3 * std::mem::size_of::<f32>()) as *const gl::types::GLvoid // offset of the first component
+);
+```
+
+...into a call on the `Vertex`:
+
+(main.rs, replace previous snippet)
+
+```rust
+// replace previous code with this
+
+Vertex::vertex_attrib_pointers(&gl);
+```
+
+Let's create this function on `Vertex` type (this function does not have `self` parameter, 
+so it is similar to a static method in other languages):
+
+(main.rs, bellow `struct Vertex { ... }`)
+
+```rust
+impl Vertex {
+    fn vertex_attrib_pointers(gl: &gl::Gl) {
+        unsafe {
+            gl.EnableVertexAttribArray(0); // this is "layout (location = 0)" in vertex shader
+            gl.VertexAttribPointer(
+                0, // index of the generic vertex attribute ("layout (location = 0)")
+                3, // the number of components per generic vertex attribute
+                gl::FLOAT, // data type
+                gl::FALSE, // normalized (int-to-float conversion)
+                (6 * std::mem::size_of::<f32>()) as gl::types::GLint, // stride (byte offset between consecutive attributes)
+                std::ptr::null() // offset of the first component
+            );
+            gl.EnableVertexAttribArray(1); // this is "layout (location = 0)" in vertex shader
+            gl.VertexAttribPointer(
+                1, // index of the generic vertex attribute ("layout (location = 0)")
+                3, // the number of components per generic vertex attribute
+                gl::FLOAT, // data type
+                gl::FALSE, // normalized (int-to-float conversion)
+                (6 * std::mem::size_of::<f32>()) as gl::types::GLint, // stride (byte offset between consecutive attributes)
+                (3 * std::mem::size_of::<f32>()) as *const gl::types::GLvoid // offset of the first component
+            );
+        }
+    }
+}
+```
+
+(The above should compile)
+
+Here, we will continue to move two very similar parts into an implementation
+on `data::f32_f32_f32` type. But first, let's refactor `vertex_attrib_pointers` code a bit
+so that it would be easy to see the parameters used:
+
+(main.rs, rewritten `Vertex::vertex_attrib_pointers` implementation)
+
+```rust
+impl Vertex {
+    fn vertex_attrib_pointers(gl: &gl::Gl) {
+        let stride = std::mem::size_of::<Self>(); // byte offset between consecutive attributes
+
+        let location = 0; // layout (location = 0)
+        let offset = 0; // offset of the first component
+
+        unsafe {
+            gl.EnableVertexAttribArray(location);
+            gl.VertexAttribPointer(
+                location,
+                3, // the number of components per generic vertex attribute
+                gl::FLOAT, // data type
+                gl::FALSE, // normalized (int-to-float conversion)
+                stride as gl::types::GLint,
+                offset as *const gl::types::GLvoid
+            );
+        }
+
+        let location = 1; // layout (location = 1)
+        let offset = offset + std::mem::size_of::<data::f32_f32_f32>(); // offset of the first component
+
+        unsafe {
+            gl.EnableVertexAttribArray(location);
+            gl.VertexAttribPointer(
+                location,
+                3, // the number of components per generic vertex attribute
+                gl::FLOAT, // data type
+                gl::FALSE, // normalized (int-to-float conversion)
+                stride as gl::types::GLint,
+                offset as *const gl::types::GLvoid
+            );
+        }
+    }
+}
+```
+
+(The above should compile)
+
+The magic numbers got replaced with the actual sizes of `Vertex` and its components:
+
+- `6 * std::mem::size_of::<f32>()` replaced with `std::mem::size_of::<Self>()` (where `Self` refers to "this" `Vertex` type);
+- `3 * std::mem::size_of::<f32>()` replaced with `std::mem::size_of::<data::f32_f32_f32>()`.
+
+Most importantly, the code in `unsafe` blocks is exactly the same, and can be now
+moved to a function on `data::f32_f32_f32` type:
+
+(render_gl/data.rs, inside `impl f32_f32_f32` block)
+
+```rust
+pub unsafe fn vertex_attrib_pointer(gl: &gl::Gl, stride: usize, location: usize, offset: usize) {
+    gl.EnableVertexAttribArray(location as gl::types::GLuint);
+    gl.VertexAttribPointer(
+        location as gl::types::GLuint,
+        3, // the number of components per generic vertex attribute
+        gl::FLOAT, // data type
+        gl::FALSE, // normalized (int-to-float conversion)
+        stride as gl::types::GLint,
+        offset as *const gl::types::GLvoid
+    );
+}
+```
+
+(don't forget small `use gl;` at the top of `render_gl/data.rs`)
+
+And the `Vertex::vertex_attrib_pointers` can be futher simplified to:
+
+(main.rs, replaced `vertex_attrib_pointer` code)
+
+```rust
+impl Vertex {
+    fn vertex_attrib_pointers(gl: &gl::Gl) {
+        let stride = std::mem::size_of::<Self>(); // byte offset between consecutive attributes
+
+        let location = 0; // layout (location = 0)
+        let offset = 0; // offset of the first component
+
+        unsafe {
+            data::f32_f32_f32::vertex_attrib_pointer(gl, stride, location, offset);
+        }
+
+        let location = 1; // layout (location = 1)
+        let offset = offset + std::mem::size_of::<data::f32_f32_f32>(); // offset of the first component
+
+        unsafe {
+            data::f32_f32_f32::vertex_attrib_pointer(gl, stride, location, offset);
+        }
+    }
+}
+```
+
+(The above should compile)
+
+I've chosen to make `f32_f32_f32::vertex_attrib_pointer` function unsafe while
+leaving parent `Vertex::vertex_attrib_pointers` "safe". My reasoning is twofold. First,
+it may be easier to screw something up while using `f32_f32_f32::vertex_attrib_pointer` directly
+(say, argument order) than `Vertex::vertex_attrib_pointers`. Second, `data::f32_f32_f32`
+is reusable type inside a lower level library, where we want to warn "future us" about
+the dangers of it, while `Vertex` is a type that is specific to whatever experimental
+shader we are building, and we may favor more convenience here. We may get back to this
+topic in future if it starts causing issues.
+
+This was a small change, but it added a lot of convenience. If you squint a little,
+you may even wonder if this could be auto-generated.
+
+Next time, we will learn about procedural macros, create our own `#[derive(VertexAttributePointers)]`
+macro, and auto-generate `vertex_attrib_pointers` code.
+
+[Full source code is available on github](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-09).
