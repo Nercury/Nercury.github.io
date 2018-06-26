@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Rust and OpenGL from scratch - Vertex Attribute Format"
-date:   2018-04-18
+date:   2018-06-27
 categories: rust opengl tutorial
 ---
 
@@ -120,7 +120,7 @@ while leaving the design as simple as possible.
 
 ## Prerequisites
 
-We are going to expand `render_gl` submodule. We arn't using 
+We are going to expand `render_gl` submodule. We are not using 
 [Rust 2018](https://rust-lang-nursery.github.io/edition-guide/2018/index.html) syntax yet,
 so we need to:
 
@@ -132,7 +132,7 @@ This should compile.
 With this done, we can move all the code into even deeper `shader` submodule, leaving `render_gl`
 free to define more submodules at the top.
 
-First create `render_gl/shader.rs`, and move everything that was inside `render_gl/mod.rs` there.
+First, create `render_gl/shader.rs`, and move everything that was inside `render_gl/mod.rs` there.
 
 Then, inside the `render_gl/mod.rs` we can keep the `shader` submodule private (use `mod shader`
 instead of `pub mod shader`), and re-export types from `render_gl::shader` as members of `render_gl`:
@@ -148,9 +148,9 @@ pub use self::shader::{Shader, Program, Error};
 This should continue compiling. If it was a bit confusing, you may always check out the final
 code (link should be at the end of this post).
 
-## A new type for a vertex attribute
+## A new type for a Vertex Attribute
 
-Currently, our vertex data is in continuous `f32` array:
+Currently, our vertex data is in a continuous `f32` array:
 
 (existing code, main.rs)
 
@@ -166,7 +166,7 @@ let vertices: Vec<f32> = vec![
 ```
 
 This is suboptimal: rememeber, every line here contains the data that is received by
-vertex shader. The data should not be limited to floats.
+the vertex shader. The data should not be limited to floats.
 
 Instead, we can create a new type for each possible vertex attribute.
 Here, we have two attributes per vertex: position and color, both are using `vec3` floating
@@ -199,13 +199,14 @@ you may pick another name, but I like the readability of this one.
 
 The `repr(C, packed)` makes rust use `C`-like layout, and `packed` makes sure `f32` components
 do not contain gaps between. Otherwise Rust might align fields to 4 bytes, which is no-issue with
-4-byte wide `f32`, but might be an issue for other data types we are going to create, like `i16_i16`; 
+4-byte wide `f32`, but might be an issue for other data types we are going to create in later
+lessons, like `i16_i16`; 
 therefore we will use `repr(C, packed)` for everything, just to make this explicit.
 
-This is the reason we are creating our own type, and not re-using tuple `(f32, f32, f32)` - its 
+This is a reason we are creating our own type, and not re-using tuple `(f32, f32, f32)` - its 
 layout can change with the compiler version.
 
-This is also the reason for not re-using `Vec3` type from
+It is also a reason for not re-using `Vec3` type from
 some existing math library. We need full control of the layout that must be in agreement 
 with OpenGL spec. This also means that this struct is specific to OpenGL renderer; if we were
 to write, say, `Vulkan` renderer, we would take care of the structs specific to it in a
@@ -254,8 +255,8 @@ let result: f32_f32_f32 = (0.5, -0.5, 0.0).into();
 ```
 
 This magic may require some explanation: the `into` method is implemented for any type
-that has `From` implementation for the returned value type. This implementation is
-in Rust standard library:
+that has `From` implementation for the returned value type. Implementation of `Into` is
+in the Rust standard library:
 
 (rust standard library)
 
@@ -302,7 +303,8 @@ It's because `gl.BufferData` length in bytes was defined as this:
 vertices.len() * std::mem::size_of::<f32>()
 ```
 
-We need to change it to
+Out element in the vector is not longer a `f32`, it's `data::f32_f32_f32`.
+We need to change the code to match it:
 
 ```rust
 vertices.len() * std::mem::size_of::<data::f32_f32_f32>()
@@ -323,10 +325,10 @@ gl.BufferData(
 
 Let's run it, the triangle should be back on screen!
 
-## A new type for a vertex
+## A new type for a Vertex
 
 To move further, we will create a new vertex type for our vertex data, which
-will contain color and position:
+will group color and position into a single struct:
 
 (main.rs, above `fn main()`)
 
@@ -338,11 +340,11 @@ struct Vertex {
 }
 ```
 
-We define this vertex inside main, because it should be customized for whatever
-shader we are writing. Right now we named it `Vertex`, because there are no other types
+We define this vertex inside main, because we will customize it later for whatever
+shader we will be writing. Right now we named struct `Vertex`, because there are no other types
 of vertices, but we can imagine types like `MetalShaderVertex` or `ParticleSystemVertex`.
 
-And then, let's again modify `vertices` initialization:
+And finally, let's modify `vertices` initialization:
 
 (main.rs, replace code)
 
@@ -375,7 +377,7 @@ gl.BufferData(
 
 The code should compile and we should be again greeted by our humble triangle.
 
-## Nicer vertex attribute pointers setup
+## Nicer vertex attribute pointers Setup
 
 Currently, the code that sets up vertex attribute pointer with `gl.EnableVertexAttribArray`
 and `gl.VertexAttribPointer` would be very error-prone to maintain. Using our new
@@ -452,7 +454,7 @@ impl Vertex {
 
 Here, we will continue to move two very similar parts into an implementation
 on `data::f32_f32_f32` type. But first, let's refactor `vertex_attrib_pointers` code a bit
-so that it would be easy to see the parameters used:
+so that it would be easy to see the duplicate code:
 
 (main.rs, rewritten `Vertex::vertex_attrib_pointers` implementation)
 
@@ -496,10 +498,10 @@ impl Vertex {
 
 (The above should compile)
 
-The magic numbers got replaced with the actual sizes of `Vertex` and its components:
+The magic numbers got replaced by the actual sizes of `Vertex` and its components:
 
-- `6 * std::mem::size_of::<f32>()` replaced with `std::mem::size_of::<Self>()` (where `Self` refers to "this" `Vertex` type);
-- `3 * std::mem::size_of::<f32>()` replaced with `std::mem::size_of::<data::f32_f32_f32>()`.
+- `6 * std::mem::size_of::<f32>()` got replaced by `std::mem::size_of::<Self>()` (where `Self` refers to "this" `Vertex` type);
+- `3 * std::mem::size_of::<f32>()` got replaced by `std::mem::size_of::<data::f32_f32_f32>()`.
 
 Most importantly, the code in `unsafe` blocks is exactly the same, and can be now
 moved to a function on `data::f32_f32_f32` type:
@@ -554,15 +556,17 @@ I've chosen to make `f32_f32_f32::vertex_attrib_pointer` function unsafe while
 leaving parent `Vertex::vertex_attrib_pointers` "safe". My reasoning is twofold. First,
 it may be easier to screw something up while using `f32_f32_f32::vertex_attrib_pointer` directly
 (say, argument order) than `Vertex::vertex_attrib_pointers`. Second, `data::f32_f32_f32`
-is reusable type inside a lower level library, where we want to warn "future us" about
+is a reusable type inside a lower level library, where we want to warn "future us" about
 the dangers of it, while `Vertex` is a type that is specific to whatever experimental
-shader we are building, and we may favor more convenience here. We may get back to this
+shader we are building, and we may favor more convenience while experimenting. We may get back to this
 topic in future if it starts causing issues.
 
 This was a small change, but it added a lot of convenience. If you squint a little,
-you may even wonder if this could be auto-generated.
+you may even start to wonder if this `impl Vertex` could be auto-generated.
 
+<!--
 Next time, we will learn about procedural macros, create our own `#[derive(VertexAttributePointers)]`
 macro, and auto-generate `vertex_attrib_pointers` code.
+-->
 
 [Full source code is available on github](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-09).
