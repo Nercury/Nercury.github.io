@@ -564,9 +564,8 @@ topic in future if it starts causing issues.
 This was a small change, but it added a lot of convenience. If you squint a little,
 you may even start to wonder if this `impl Vertex` could be auto-generated.
 
-<!--
-Next time, we will learn about procedural macros, create our own `#[derive(VertexAttributePointers)]`
+[Next time](/rust/opengl/tutorial/2018/07/11/opengl-in-rust-from-scratch-10-procedural-macros.html), 
+we will learn about procedural macros, create our own `#[derive(VertexAttributePointers)]`
 macro, and auto-generate `vertex_attrib_pointers` code.
--->
 
 [Full source code is available on github](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-09).
