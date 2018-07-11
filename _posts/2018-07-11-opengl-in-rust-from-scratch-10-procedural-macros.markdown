@@ -982,4 +982,6 @@ Should we continue using procedural macros? Well, it was possible to avoid them,
 boilerplate. But it is good to know they exist! Yet another tool in our toolbox with its own
 trade-offs.
 
+Next time, [we will implement the remaining 65 OpenGL data types](/rust/opengl/tutorial/2018/07/12/opengl-in-rust-from-scratch-11-vertex-data-types.html).
+
 [Full source code is available on github](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-10).
