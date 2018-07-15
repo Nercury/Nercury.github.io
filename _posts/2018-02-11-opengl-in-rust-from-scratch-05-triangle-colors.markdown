@@ -5,6 +5,12 @@ date:   2018-02-11
 categories: rust opengl tutorial
 ---
 
+> ["Rust and OpenGL from scratch"](/rust/opengl/tutorial/2018/02/08/opengl-in-rust-from-scratch-00-setup.html) 
+> series aims to introduce you 
+> to various Rust features and patterns, from simple to advanced, 
+> from common to obscure, while at the same
+> time working towards a simple OpenGL renderer.
+
 Welcome back!
 
 [Previously](/rust/opengl/tutorial/2018/02/11/opengl-in-rust-from-scratch-04-triangle.html), 
