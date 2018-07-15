@@ -345,4 +345,8 @@ pub fn failure_to_string(e: failure::Error) -> String {
 Make sure to check out the [failure's book](https://boats.gitlab.io/failure/intro.html), 
 which explains these usage patterns in a detailed way.
 
+[Next time](/rust/opengl/tutorial/2018/06/27/opengl-in-rust-from-scratch-09-vertex-attribute-format.html),
+we will look into writing a nicer abstraction for vertex attribute
+layout and format.
+
 [Full source code is available on github](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-08).
