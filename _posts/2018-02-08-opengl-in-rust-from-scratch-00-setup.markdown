@@ -18,6 +18,11 @@ so that we get better knowledge of Rust. In addition to that, we will
 able to follow existing OpenGL tutorials, because we will know exactly what
 OpenGL functions we are calling.
 
+Note that I am also learning myself while doing this. However, I have already written
+a bit messy OpenGL renderer with Rust once, so I have some vision where
+this should go. I am also taking my time to remove the mess and simplify
+the end result as much as possible.
+
 ## Why Rust
 
 > Wrapping carefully written unsafe code in a safe API is the underappreciated cornerstone of Rust

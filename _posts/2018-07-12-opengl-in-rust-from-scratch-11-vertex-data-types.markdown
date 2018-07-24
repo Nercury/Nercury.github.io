@@ -5,12 +5,6 @@ date:   2018-07-12
 categories: rust opengl tutorial
 ---
 
-> ["Rust and OpenGL from scratch"](/rust/opengl/tutorial/2018/02/08/opengl-in-rust-from-scratch-00-setup.html) 
-> series aims to introduce you 
-> to various Rust features and patterns, from simple to advanced, 
-> from common to obscure, while at the same
-> time working towards a simple OpenGL renderer.
-
 Welcome back!
 
 [Previously](/rust/opengl/tutorial/2018/07/11/opengl-in-rust-from-scratch-10-procedural-macros.html), 
@@ -421,3 +415,5 @@ Why we have avoided using macros? Well, they don't work well for API generation 
 would loose most of autocomplete suggestions, because our tools are not there yet.
 
 [Full source code, as always, is available on github](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-11).
+
+[Next time](/rust/opengl/tutorial/2018/07/25/opengl-in-rust-from-scratch-12-buffers.html), we will create abstractions for VAO and VBO.
