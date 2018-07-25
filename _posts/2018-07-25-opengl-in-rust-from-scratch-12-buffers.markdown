@@ -68,7 +68,7 @@ unsafe {
 }
 ```
 
-## ArrayBuffer Abstraction
+## ArrayBuffer Wrapper
 
 A simple struct with a constructor `new` and a `drop` implementation will ensure
 a single creation and a single drop:
@@ -111,7 +111,7 @@ impl Drop for ArrayBuffer {
 ```
 
 Which would be nice and good, except we can't access the `Gl` in `drop`.
-We can reuse the same solution we did [back in shader program abstraction](/rust/opengl/tutorial/2018/02/12/opengl-in-rust-from-scratch-06-gl-generator.html)
+We can reuse the same solution we did [back in shader program wrapper](/rust/opengl/tutorial/2018/02/12/opengl-in-rust-from-scratch-06-gl-generator.html)
 where we stored a reference-counted `Gl` inside the shader program struct.
 
 (src/render_gl/buffer.rs)
@@ -147,7 +147,7 @@ impl Drop for ArrayBuffer {
 }
 ```
 
-Yep, because of this additional `gl` field, this abstraction steps a bit 
+Yep, because of this additional `gl` field, this wrapper steps a bit 
 outside of zero-cost claim. It may also be a problem
 if we tried to create millions of small array buffers (which may also be _another_, bigger problem).
 Simplest way I can think
@@ -265,9 +265,9 @@ So there. Of course, we do try, but in this case the benefits are not very clear
 consider `&mut self` references in cases where they helped to
 enforce certain API usage.
 
-## Vertex Array Object Abstraction
+## Vertex Array Object Wrapper
 
-Let's follow a very similar approach and build VAO abstraction:
+Let's follow a very similar approach and build VAO wrapper:
 
 (src/render_gl/buffer.rs, added code)
 
@@ -378,13 +378,14 @@ reference-counting twice, so we might just get away without it.
 Yes, and we will likely live with draw, viewport and clear calls "unabstracted".
 The `unsafe` blocks are a bit annoying, but that's about it.
 
-## Element Array Buffer Abstraction
+## Element Array Buffer Wrapper
 
 `gl::ELEMENT_ARRAY_BUFFER` works exactly like `gl::ARRAY_BUFFER`,
-so to create an abstraction for it we could just copy-paste 
+so to create a rusty wrapper for it we could just copy-paste 
 `ArrayBuffer` struct into a new `ElementArrayBuffer` struct.
 
-But I think it's time we used generics somewhere, and this seems like a good
+But I think it's time for a bit of heavier use of generics and traits, 
+and this seems like a good
 place to start (and a bit non-standard, as we will see shortly). 
 We could rename `ArrayBuffer` to generic `Buffer<BufferType>`, where
 `BufferType` would hold either `gl::ARRAY_BUFFER` or `gl::ELEMENT_ARRAY_BUFFER` (and 
