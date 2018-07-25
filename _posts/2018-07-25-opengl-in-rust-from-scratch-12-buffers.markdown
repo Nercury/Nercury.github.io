@@ -581,6 +581,6 @@ pub type ElementArrayBuffer = Buffer<BufferTypeElementArray>;
 
 Now, we can leave the same code in `main` as it was before
 making the array generic. Additionally, we have a new `ElementArrayBuffer` 
-type ready for use in the next lesson.
+type ready for use in a later lesson.
 
 [Full source code, is available on github](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-12). 
