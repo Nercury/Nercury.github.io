@@ -373,11 +373,6 @@ does not mean immediate deallocation, at least not in this case. If a buffer is 
 by VAO, it lives until the VAO is destroyed. It feels kind of wasteful to do this
 reference-counting twice, so we might just get away without it.
 
-### There is still some unsafe code
-
-Yes, and we will likely live with draw, viewport and clear calls "unabstracted".
-The `unsafe` blocks are a bit annoying, but that's about it.
-
 ## Element Array Buffer Wrapper
 
 `gl::ELEMENT_ARRAY_BUFFER` works exactly like `gl::ARRAY_BUFFER`,
