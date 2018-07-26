@@ -7,7 +7,7 @@ categories: rust opengl tutorial
 
 Welcome back!
 
-[Previously](/rust/opengl/tutorial/2018/02/09/opengl-in-rust-from-scratch-02-opengl-context.html), 
+[Previously](/rust/opengl/tutorial/2018/02/09/opengl-in-rust-from-scratch-02-opengl-context.html),
 we have loaded OpenGL context for SDL window, to handle user input
 and output pixels.
 
@@ -21,9 +21,9 @@ build tools for compiling a shader and linking a program.
 
 We will be using what is called "modern OpenGL". Turns out, long ago, it wasn't so
 modern. We won't discuss graphics pipeline here from the beginning: instead, I suggest
-you follow along using another "modern OpenGL tutorial". I will be using 
-[this awesome tutorial as the base](https://learnopengl.com/). 
-This lesson will cover more Rust-y side of 
+you follow along using another "modern OpenGL tutorial". I will be using
+[this awesome tutorial as the base](https://learnopengl.com/).
+This lesson will cover more Rust-y side of
 ["Hello Triangle" part](https://learnopengl.com/Getting-started/Hello-Triangle).
 
 ## Additional OpenGL context setup
@@ -95,7 +95,7 @@ Let's start by obtaining shader object id:
 ```rust
 fn shader_from_source(source: &str) -> Result<gl::types::GLuint, String> {
     let id = unsafe { gl::CreateShader(gl::VERTEX_SHADER) };
-    
+
     // continue here
 }
 ```
@@ -109,7 +109,7 @@ fn shader_from_source(
     kind: gl::types::GLuint
 ) -> Result<gl::types::GLuint, String> {
     let id = unsafe { gl::CreateShader(kind) };
-    
+
     // continue here
 }
 ```
@@ -135,7 +135,7 @@ fn shader_from_source(
     kind: gl::types::GLenum
 ) -> Result<gl::types::GLuint, String> {
     let id = unsafe { gl::CreateShader(kind) };
-    
+
     // continue here
 }
 ```
@@ -189,7 +189,7 @@ unsafe {
 // continue here
 ```
 
-For our buffer, we allocate `Vec` of the correct length and fill it with spaces. Then 
+For our buffer, we allocate `Vec` of the correct length and fill it with spaces. Then
 we create `CString` from it (which is going to reuse the same allocation, as well as append 0 at the end):
 
 ```rust
@@ -240,8 +240,8 @@ return Err(error.to_string_lossy().into_owned());
 ```
 
 `error.to_string_lossy()` converts `CString` to Rust String, replacing any invalid unicode
-characters with unicode error character. `to_string_lossy` is implemented on `CStr`, but we were 
-able to call it on `CString`, because it inherits all `CStr` methods. However, 
+characters with unicode error character. `to_string_lossy` is implemented on `CStr`, but we were
+able to call it on `CString`, because it inherits all `CStr` methods. However,
 `to_string_lossy` returns a value that can be either String or `&str`, so we use `into_owned` to
 obtain a definite String. This last unfortunate step requires an additional allocation, but this
 is the error handling path, so hopefully it is not a big deal.
@@ -301,7 +301,7 @@ impl Shader {
         let id = shader_from_source(source, kind)?;
         Ok(Shader { id })
     }
-    
+
     // continue here
 }
 ```
@@ -327,7 +327,7 @@ let id = match shader_from_source(source, kind) {
 In case the Result was Ok, this block would unwrap id from Ok and assign it to `id` variable,
 and in case of Err, the function would return with the same error value.
 
-There is much more to error handling in Rust, 
+There is much more to error handling in Rust,
 [and I highly recommend to not skip learning about it](https://doc.rust-lang.org/book/second-edition/ch09-02-recoverable-errors-with-result.html).
 
 ### Additional constructor methods for Shader
@@ -349,7 +349,7 @@ We can create two more helper methods, `from_vert_source` and `from_frag_source`
 ```rust
 impl Shader {
     fn from_source(...) { ... }
-    
+
     fn from_vert_source(source: &CStr) -> Result<Shader, String> {
         Shader::from_source(source, gl::VERTEX_SHADER)
     }
@@ -387,7 +387,7 @@ Rust will ensure that `gl::DeleteShader` is called exactly once for every shader
 I am going to call new module `render_gl`, because it will contain utilities such
 as the shader for gl rendering.
 
-Let's wrap everything bellow the main function into `pub mod render_gl {}` block. 
+Let's wrap everything bellow the main function into `pub mod render_gl {}` block.
 Modules do not inherit imports from the parent modules. Therefore we will need to add
 `use gl;` at the top of child `render_gl` module. Moreover, by default
 Rust imports `std` to the root crate module; therefore we will need `use std;` in child too.
@@ -486,7 +486,7 @@ pub mod render_gl {
 
 ### Moving render_gl module into another file
 
-It is quite simple: create a new file named `render_gl.rs` in `src`, and move the contents of 
+It is quite simple: create a new file named `render_gl.rs` in `src`, and move the contents of
 `pub mod render_gl {  }` block into it. Then, add a seminocol at the end of `pub mod render_gl`:
 
 ```rust
@@ -496,7 +496,7 @@ pub mod render_gl;
 When the Rust compiler encounters a module name with no block `{}`, it tries to load the contents
 from a file named with the same name and suffixed with `.rs`; in this case it would be `render_gl.rs`.
 If such a file does not exist, it will then try to load contents from `render_gl/mod.rs` file (this
-is useful to further subdivide submodules into smaller ones). If that also fails, then we get a 
+is useful to further subdivide submodules into smaller ones). If that also fails, then we get a
 compilation error.
 
 Module references usually appear near the top of the file, bellow `extern crate` references.
@@ -591,7 +591,7 @@ impl Program {
         }
 
         unsafe { gl::LinkProgram(program_id); }
-        
+
         // continue with error handling here
 
         for shader in shaders {
@@ -717,9 +717,9 @@ And finally, use them:
 shader_program.set_used();
 ```
 
-Add `trangle.vert` to `src`:
+Add `triangle.vert` to `src`:
 
-(traingle.vert)
+(triangle.vert)
 
 ```glsl
 #version 330 core
@@ -734,7 +734,7 @@ void main()
 
 As well as `triangle.frag`:
 
-(traingle.frag)
+(triangle.frag)
 
 ```glsl
 #version 330 core
