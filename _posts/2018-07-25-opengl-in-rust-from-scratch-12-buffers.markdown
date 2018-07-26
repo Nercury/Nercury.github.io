@@ -583,4 +583,6 @@ Now, we can leave the same code in `main` as it was before
 making the array generic. Additionally, we have a new `ElementArrayBuffer` 
 type ready for use in a later lesson.
 
+But the next time, [we will finish cleaning up our run function](/rust/opengl/tutorial/2018/07/27/opengl-in-rust-from-scratch-13-safe-triangle-nalgebra.html).
+
 [Full source code, is available on github](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-12). 
