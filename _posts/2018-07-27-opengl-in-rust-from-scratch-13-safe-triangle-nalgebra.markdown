@@ -608,4 +608,4 @@ This should compile and run.
 We have finally created some breathing space inside our main function.
 Next time, we will try to explore a bit more than triangle!
 
-[Full source code, is available on github](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-13). 
+[Full source code is available on github](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-13). 
