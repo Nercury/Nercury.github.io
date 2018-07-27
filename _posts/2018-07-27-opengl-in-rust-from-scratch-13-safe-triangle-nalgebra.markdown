@@ -7,7 +7,7 @@ categories: rust opengl tutorial
 
 Welcome back!
 
-[Previously](/rust/opengl/tutorial/2018/07/25/opengl-in-rust-from-scratch-12-buffers.html), 
+[Previously](/rust/opengl/tutorial/2018/07/25/opengl-in-rust-from-scratch-12-buffers.html),
 we have create safe (ish) wrappers for VBO and VAO.
 
 This time, we will continue along this path and remove the rest of unsafe code from our
@@ -15,10 +15,10 @@ This time, we will continue along this path and remove the rest of unsafe code f
 
 ## A structure to hold data for Triangle
 
-The data that is necessary for Triangle is the shader program, VAO and VBO. 
+The data that is necessary for Triangle is the shader program, VAO and VBO.
 
 We can easily group them together into `Triangle` struct, and move this struct to
-another file. 
+another file.
 
 (src/main.rs, added module reference)
 
@@ -51,8 +51,8 @@ impl Triangle {
 The `new` function uses the `Resources` to load the data for the triangle into
 OpenGL objects, and then store handles to those objects inside the `Triangle` struct.
 
-Loading can fail, therefore the `new` returns a `Result` type. If we wanted to care 
-a bit more about performance here, like, if this kind of object 
+Loading can fail, therefore the `new` returns a `Result` type. If we wanted to care
+a bit more about performance here, like, if this kind of object
 would be created many times, we would return a custom error type that
 would implement `Fail`. We have [discussed error performance and types back in the
 `Failure` lesson](/rust/opengl/tutorial/2018/02/15/opengl-in-rust-from-scratch-08-failure.html).
@@ -176,7 +176,7 @@ will hook into initialization and rendering logic.
 These components will depend on each other and some will even modify the state
 of each other.
 
-In Object-Oriented languages, it is a common pattern to inject such 
+In Object-Oriented languages, it is a common pattern to inject such
 components into each other at the time of initialization. However,
 in Rust, if we inject one mutable reference of, say, a `triangle` somewhere,
 we can't do that for another component - the code won't compile:
@@ -213,7 +213,7 @@ let triangle = Rc::new(triangle::Triangle::new(&res, &gl)?);
 let config = Config::new(triangle.clone())?;
 let controller = Controller::new(triangle.clone())?;
 
-... 
+...
 
 // somewhere else
 
@@ -227,7 +227,7 @@ struct Controller {
 ```
 
 This way, the triangle is shared, we get rid of lifetimes, but the triangle is
-still immutable! To make it mutable, we would have to use what is called 
+still immutable! To make it mutable, we would have to use what is called
 _interior mutability_: additionally wrap the triangle in a `RefCell` that makes
 borrowing checks dynamically at runtime instead of compile time:
 
@@ -238,7 +238,7 @@ let triangle = Rc::new(RefCell::new(triangle::Triangle::new(&res, &gl)?));
 let config = Config::new(triangle.clone())?;
 let controller = Controller::new(triangle.clone())?;
 
-... 
+...
 
 // somewhere else
 
@@ -321,9 +321,9 @@ config.save_triangle_configuration(&mut triangle);
 controller.shake_triangle(&mut triangle);
 ```
 
-The upside of this approach is that we can clearly see the dependencies and 
+The upside of this approach is that we can clearly see the dependencies and
 what mutates what inside the render loop, which would be hard to track
-with the `RefCell` approach. 
+with the `RefCell` approach.
 
 The downside is that we can't pull OO shenanigans and create a sea of objects
 with unclear data flow patterns where any component can be modified to mutate whatever
@@ -431,8 +431,8 @@ And then, something new: we may update the viewport when the window is resized:
 for event in event_pump.poll_iter() {
     match event {
         sdl2::event::Event::Quit {..} => break 'main,
-        sdl2::event::Event::Window { 
-            win_event: sdl2::event::WindowEvent::Resized(w, h), 
+        sdl2::event::Event::Window {
+            win_event: sdl2::event::WindowEvent::Resized(w, h),
             ..
         } => {
             viewport.update_size(w, h);
@@ -470,17 +470,17 @@ which makes auto-generated Rust documentation hard to understand, and harder if
 we are new to Rust. Compared to that, `cgmath` is very straightforward,
 and I still recommend it.
 
-However, one other crate has caught my eye: `nalgebra`, together with 
+However, one other crate has caught my eye: `nalgebra`, together with
 the crate that is build on it, `ncollide`. Looking further down the road,
-there is also `nphysics`, that builds on both, a physics engine written 
+there is also `nphysics`, that builds on both, a physics engine written
 entirely in Rust!
 
-While the reference documentation of `nalgebra` and `ncollide` is 
+While the reference documentation of `nalgebra` and `ncollide` is
 a bit hard to navigate, the online documentation hands-down wins the contest.
 Check out [nalgebra.org](http://nalgebra.org/) and [ncollide.org](http://ncollide.org/)!
 
 An assurance that these lower-level functions are suitable for a
-physics engine contributed the most for decision to bite 
+physics engine contributed the most for decision to bite
 the bullet (no pun intended) and pick `nalgebra` for this and further lessons.
 
 Let's include `nalgebra` in our project:
@@ -566,17 +566,17 @@ ColorBuffer {
 ```
 
 What is going on? Well, almost all the types in `nalgebra` are aliases
-to the _very_ generic `Matrix` type (we have created a few 
+to the _very_ generic `Matrix` type (we have created a few
 aliases ourselves in the previous lesson).
 
-Vector is simply a Matrix with one row. To resize, we use [matrix resize](http://nalgebra.org/vectors_and_matrices/#matrix-resizing)
+Vector is simply a Matrix with one column. To resize, we use [matrix resize](http://nalgebra.org/vectors_and_matrices/#matrix-resizing)
 function `fixed_resize` with generic parameters `na::U4` and `na::U1`, which mean
-`4` columns and `1` row, respectively. Because Rust does not yet support parametrization over 
+`4` rows and `1` column, respectively. Because Rust does not yet support parametrization over 
 integer values, these types are used as a workaround. This is the same approach that we have used
-in the previous lesson, for our `Buffer<BufferTypeArray>` and 
+in the previous lesson, for our `Buffer<BufferTypeArray>` and
 `Buffer<BufferTypeElementArray>` aliases.
 
-The resized matrix will be bigger, so the function has an argument for 
+The resized matrix will be bigger, so the function has an argument for
 a value to fill in these new cells, here we pass `1.0` for alpha.
 
 Now we can initialize color buffer with a color we want:
@@ -608,4 +608,4 @@ This should compile and run.
 We have finally created some breathing space inside our main function.
 Next time, we will try to explore a bit more than triangle!
 
-[Full source code is available on github](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-13). 
+[Full source code is available on github](https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-13).

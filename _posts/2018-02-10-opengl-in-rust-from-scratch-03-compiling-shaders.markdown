@@ -307,7 +307,7 @@ impl Shader {
 ```
 
 `create` does not have `self` first parameter, and is akin to static functions in Java-like languages.
-It is called using `Shader::create` syntax and acts as a constructor.
+It is called using `Shader::from_source` syntax and acts as a constructor.
 
 The return type of it is `Result<Shader, String>`, which may be either the successfully created `Shader`,
 or an error `String`.
@@ -694,7 +694,7 @@ that makes `&String` or `&Vec<T>` arguments work for `&str` or `&[T]` parameters
 gets compiled into our executable as string.
 - `.unwrap` for `CString::new` is needed because Rust's UTF-8 strings may contain 0 in the middle and be valid.
 This should basically never happen, so we use `unwrap` to panic the program if it does.
-- `.unwarp` on `Shader::create_...` functions will panic and terminate our program with a debug
+- `.unwarp` on `Shader::from_*_source_...` functions will panic and terminate our program with a debug
 message if shaders fail to compile. This is temporary way we handle the compilation.
 
 Then, we link our shaders:
