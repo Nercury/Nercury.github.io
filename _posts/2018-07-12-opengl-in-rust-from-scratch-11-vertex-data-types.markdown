@@ -219,11 +219,10 @@ pub struct u2_u10_u10_u10_rev_float {
     pub inner: ::vec_2_10_10_10::Vector,
 }
 
-impl From<::vec_2_10_10_10::Vector> for u2_u10_u10_u10_rev_float {
-    /// Create this data type from (f32, f32, f32) tuple
-    fn from(other: ::vec_2_10_10_10::Vector) -> Self {
+impl From<(f32, f32, f32, f32)> for u2_u10_u10_u10_rev_float {
+    fn from(other: (f32, f32, f32, f32)) -> Self {
         u2_u10_u10_u10_rev_float {
-            inner: other
+            inner: ::vec_2_10_10_10::Vector::new(other.0, other.1, other.2, other.3)
         }
     }
 }
@@ -232,8 +231,8 @@ impl From<::vec_2_10_10_10::Vector> for u2_u10_u10_u10_rev_float {
 We are not going to re-implement all the same constructor with the setters and
 getters; instead, we will simply expose the `inner` field as public.
 
-But the helper `From<vec_2_10_10_10::Vector>` is nice to have, to be able to 
-convert `vec_2_10_10_10::Vector` to `u2_u10_u10_u10_rev_float` with `.into()` call.
+But the helper `From<(f32, f32, f32, f32)>` is nice to have, to be able to 
+convert `(f32, f32, f32, f32)` to `u2_u10_u10_u10_rev_float` with `.into()` call.
 
 Now, all that's left is to add `vertex_attrib_pointer` method with correct
 arguments to `glVertexAttribPointer`:
@@ -281,15 +280,15 @@ And we need to change `vertices` initialization:
 let vertices: Vec<Vertex> = vec![
     Vertex {
         pos: (0.5, -0.5, 0.0).into(),
-        clr: vec_2_10_10_10::Vector::new(1.0, 0.0, 0.0, 1.0).into()
+        clr: (1.0, 0.0, 0.0, 1.0).into()
     }, // bottom right
     Vertex {
         pos: (-0.5, -0.5, 0.0).into(),
-        clr: vec_2_10_10_10::Vector::new(0.0, 1.0, 0.0, 1.0).into()
+        clr: (0.0, 1.0, 0.0, 1.0).into()
     }, // bottom left
     Vertex { 
         pos: (0.0,  0.5, 0.0).into(),
-        clr: vec_2_10_10_10::Vector::new(0.0, 0.0, 1.0, 1.0).into()
+        clr: (0.0, 0.0, 1.0, 1.0).into()
     }  // top
 ];
 ```
