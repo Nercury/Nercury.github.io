@@ -184,6 +184,7 @@ pub mod data;
 
 ```rust
 #[allow(non_camel_case_types)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C, packed)]
 pub struct f32_f32_f32 {
     pub d0: f32,
@@ -197,14 +198,22 @@ pub struct f32_f32_f32 {
 We allow `non_camel_case_types`, because this name does not follow Rust conventions. Of course,
 you may pick another name, but I like the readability of this one.
 
+Deriving `Copy, Clone`, allows this type to be trivially copied like a primitive
+int or float. The `Debug` allows to print value in `println` or `format` call.
+
 The `repr(C, packed)` makes rust use `C`-like layout, and `packed` makes sure `f32` components
 do not contain gaps between. Otherwise Rust might align fields to 4 bytes, which is no-issue with
 4-byte wide `f32`, but might be an issue for other data types we are going to create in later
 lessons, like `i16_i16`; 
 therefore we will use `repr(C, packed)` for everything, just to make this explicit.
 
-This is a reason we are creating our own type, and not re-using tuple `(f32, f32, f32)` - its 
-layout can change with the compiler version.
+There is a caveat for non-aligned value usage: modifying it through a pointer
+[is undefined behavior](https://github.com/rust-lang/rust/issues/27060). However, 
+we can rememeber to  _not_ to do that, and Rust will at least issue a warning if we try.
+
+This is another reason why we create a new type specifically for storing a vertex value - 
+we should not work directly with the packed value, instead, this value should simply store
+the end result of some computation.
 
 It is also a reason for not re-using `Vec3` type from
 some existing math library. We need full control of the layout that must be in agreement 
@@ -333,6 +342,7 @@ will group color and position into a single struct:
 (main.rs, above `fn main()`)
 
 ```rust
+#[derive(Copy, Clone, Debug)]
 #[repr(C, packed)]
 struct Vertex {
     pos: data::f32_f32_f32,

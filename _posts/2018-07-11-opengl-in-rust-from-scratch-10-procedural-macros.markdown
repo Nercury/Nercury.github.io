@@ -13,6 +13,7 @@ we have written this repetitive impl for our `Vertex` type:
 (some code omitted)
 
 ```rust
+#[derive(Copy, Clone, Debug)]
 #[repr(C, packed)]
 struct Vertex {
     pos: data::f32_f32_f32,
@@ -68,6 +69,7 @@ The goal is to replace the code above with some attributes on our type:
 
 ```rust
 #[derive(VertexAttribPointers)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C, packed)]
 struct Vertex {
     #[location = "0"]
@@ -306,6 +308,7 @@ But then, if we add `#[derive(VertexAttribPointers)]` attribute to `Vertex` stru
 
 ```rust
 #[derive(VertexAttribPointers)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C, packed)]
 struct Vertex {
     pos: data::f32_f32_f32,
@@ -721,6 +724,7 @@ And now this attribute is legal to add to our `Vertex` struct:
 
 ```rust
 #[derive(VertexAttribPointers)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C, packed)]
 struct Vertex {
     #[location = 0]
@@ -864,6 +868,7 @@ And modify our `Vertex` type:
 
 ```rust
 #[derive(VertexAttribPointers)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C, packed)]
 struct Vertex {
     #[location = "0"]

@@ -12,6 +12,7 @@ we have created a procedural macro, which, given this `Vertex` definition:
 
 ```rust
 #[derive(VertexAttribPointers)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C, packed)]
 struct Vertex {
     #[location = "0"]
@@ -27,6 +28,7 @@ this `vertex_attrib_pointer` method for each `Vertex` field with correct argumen
 (example, some code omitted)
 
 ```rust
+#[derive(Copy, Clone, Debug)]
 #[repr(C, packed)]
 pub struct f32_f32_f32 {
     pub d0: f32,
@@ -214,6 +216,7 @@ not_ normalize the integers to floats when passing them to the shader:
 
 ```rust
 #[allow(non_camel_case_types)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C, packed)]
 pub struct u2_u10_u10_u10_rev_float {
     pub inner: ::vec_2_10_10_10::Vector,
@@ -263,6 +266,7 @@ Inside `main.rs`, let's modify `Vertex` type to use this new type:
 
 ```rust
 #[derive(VertexAttribPointers)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C, packed)]
 struct Vertex {
     #[location = "0"]
@@ -329,6 +333,7 @@ Here is the implementation:
 
 ```rust
 #[allow(non_camel_case_types)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C, packed)]
 pub struct i8_ {
     pub d0: i8,
@@ -366,6 +371,7 @@ similar:
 
 ```rust
 #[allow(non_camel_case_types)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C, packed)]
 pub struct i8_float {
     pub d0: i8,

@@ -51,6 +51,16 @@ Let's go to [crates.io](https://crates.io) and search for `sdl2`.
 On [sdl2 crate page](https://crates.io/crates/sdl2), you can find links to
 documentation, github repository.
 
+### A note about SDL choice
+
+For better or worse, I have picked SDL for this tutorial. However, you should
+be aware that there are Rust alternatives. For example [winit](https://crates.io/crates/winit)
+crate has an API that is very similar to Rust-SDL.
+
+So if the SDL2 does not work, or you want to go with more Rusty solution,
+try `winit`! The next lessons won't use anything else but window events from
+SDL2 anyways.
+
 ### Documentation
 
 Library authors can provide link to crate documentation in their `Cargo.toml` file. This is that link.
