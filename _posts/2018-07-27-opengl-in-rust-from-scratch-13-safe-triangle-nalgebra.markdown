@@ -477,7 +477,8 @@ entirely in Rust!
 
 While the reference documentation of `nalgebra` and `ncollide` is
 a bit hard to navigate, the online documentation hands-down wins the contest.
-Check out [nalgebra.org](http://nalgebra.org/) and [ncollide.org](http://ncollide.org/)!
+Check out [nalgebra.org](http://nalgebra.org/), [ncollide.org](http://ncollide.org/) and
+[nphysics.org](http://nphysics.org/)!
 
 An assurance that these lower-level functions are suitable for a
 physics engine contributed the most for decision to bite
