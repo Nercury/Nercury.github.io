@@ -41,9 +41,10 @@ At the top of our `main.rs`, we will initialize it to point to the path of our e
 
 ```rust
 use resources::Resources;
+use std::path::Path;
 
 fn main() {
-    let res = Resources::from_exe_path().unwrap();
+    let res = Resources::from_relative_exe_path(Path::new("assets-07")).unwrap();
     
     ...
 }
@@ -56,6 +57,11 @@ let shader_program = render_gl::Program::from_res(
     &gl, &res, "shaders/triangle"
 ).unwrap();
 ```
+
+I am suffixing `assets` path with `-07`, because the code for different tutorial
+lessons lives in the same cargo workspace, and the similarly named resources for different
+lessons can end up in the same directory. So you can certainly skip the `-07` suffix in
+your own project.
 
 We will leave it for `Program` to take care and find the necessary `triangle.vert` and `triangle.frag`
 variants.
@@ -93,7 +99,7 @@ could return:
 (resources.rs, full file)
 
 ```rust
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub enum Error {
@@ -105,7 +111,7 @@ pub struct Resources {
 }
 
 impl Resources {
-    pub fn from_exe_path() -> Result<Resources, Error> {
+    pub fn from_relative_exe_path(rel_path: &Path) -> Result<Resources, Error> {
         // continue here
     }
 }
@@ -125,7 +131,7 @@ defined on all `Result` types](https://doc.rust-lang.org/beta/std/result/enum.Re
 
 ```rust
 impl Resources {
-    pub fn from_exe_path() -> Result<Resources, Error> {
+    pub fn from_relative_exe_path(rel_path: &Path) -> Result<Resources, Error> {
         let exe_file_name = ::std::env::current_exe()
             .map_err(|_| Error::FailedToGetExePath)?;
             
@@ -158,37 +164,16 @@ However, it is possible (though highly unlikely) that `exe_file_name` has no par
 The value returned from `ok_or` is now changed to `Result`, and we can again use `?` to unwrap the `Ok`
 value, or return from the function with the error.
 
-If everything went well up to this point, we can finally return the `Resources` struct:
+If everything went well up to this point, we can join `exe_path` with `rel_path` and
+return the `Resources` struct:
 
 (resources.rs, continued)
 
 ```rust
 Ok(Resources {
-    root_path: exe_path.into()
+    root_path: exe_path.join(rel_path)
 })
 ```
-
-That `.into()` function on `exe_path` might be confusing. Turns out, `.parent` does not return a
-`PathBuf`, instead it returns a reference to the portion of `PathBuf` in the form of `Path`, the
-same way a `str` slice reference can be returned from a `String`.
-
-But in the standard library, there is a trait `From<Path>` implemented for `PathBuf`, 
-that can create a new allocated `PathBuf`
-from a `Path` reference. We could have used it this way:
-
-(example)
-
-```rust
-Ok(Resources {
-    root_path: PathBuf::from(exe_path) // de-sugared exe_path.into()
-})
-```
-
-So, what that `into` was all about? Turns out that in standard library there is a sibling `Into` trait,
-that is implemented for [ANY type A that has `B::from(A)`](https://doc.rust-lang.org/beta/std/convert/trait.Into.html).
-Yep, Rust type system can do this kind of trickery. It means that, as long as
-the `from` conversion exists, and the target type can be deduced (it can be, because
-we defined `root_path` as `PathBuf`), the `.into()` can be used to convert between the two.
 
 ## Loading CString from file
 
@@ -281,6 +266,14 @@ fn resource_name_to_path(root_dir: &Path, location: &str) -> PathBuf {
 
 Inside, we iterate over the chunks of resource name separated by "/", and then add
 them to path, which will internally use platform-correct separator.
+
+However, here is an interesting function call: `root_dir.into()`. What does it do exactly?
+Turns out, that in the standard library there is an `Into` trait,
+which is implemented for [ANY type A that has `B::from(A)`](https://doc.rust-lang.org/beta/std/convert/trait.Into.html).
+It means that, as long as
+the `from` conversion exists on a target, and the target type can be deduced 
+(it can be, because we explicitly specified the type of `path` to be `PathBuf`), 
+the `.into()` can be used to convert between the two (between `Path` and `PathBuf`).
 
 Let's fix-up file-open statement to use this function:
 
@@ -419,7 +412,7 @@ Our executable is placed into `target/debug`, while our shader files are in `src
 We will create a build script that copies our shaders from project asset directory to 
 the build directory.
 
-First, let's move our shaders from `src` to `shaders` - from now on, only the Rust code
+First, let's move our shaders from `src` to `assets/shaders` - from now on, only the Rust code
 should be in `src`.
 
 Then, add a `build.rs` file with the following code:
@@ -445,8 +438,8 @@ fn main() {
         .join(env::var("PROFILE").unwrap());
 
     copy(
-        &manifest_dir.join("shaders"),
-        &executable_path.join("shaders"),
+        &manifest_dir.join("assets"),
+        &executable_path.join("assets-07"),
     );
 }
 
@@ -494,8 +487,8 @@ The important bit is `copy` function, that copies our shader assets:
 
 ```rust
 copy(
-    &manifest_dir.join("shaders"),
-    &executable_path.join("shaders"),
+    &manifest_dir.join("assets"),
+    &executable_path.join("assets-07"), // -07 avoiding conflicts between tutorial lessons
 );
 ```
 

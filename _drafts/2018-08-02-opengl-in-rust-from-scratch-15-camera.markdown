@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Rust and OpenGL from scratch - Camera"
-date:   2018-07-29
+date:   2018-08-02
 categories: rust opengl tutorial
 ---
 
