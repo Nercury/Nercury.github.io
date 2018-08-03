@@ -78,10 +78,11 @@ Let's create a new project-specific `gl` crate, which won't be published to `cra
 ```txt
 > mkdir lib
 > cd lib
-> cargo new --vcs none gl
+> cargo new --vcs none --lib gl
 ```
 
 `--vcs none` will disable `.git` for this library, because it will be using our project's VCS (if any).
+`--lib` will create a library crate.
 
 I had this structure in mind:
 
