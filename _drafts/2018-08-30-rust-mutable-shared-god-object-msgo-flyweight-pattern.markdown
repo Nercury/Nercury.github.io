@@ -8,7 +8,7 @@ categories: rust flyweight pattern
 Let's talk about a Rust pattern that puts a flyweight facade on a 
 reference-counted shared mutable object.
 
-Some designs we want to make do not map well into idiomatic Rust code.
+Sometimes we want to create APIs that do not map well into the idiomatic Rust code.
 For example, the design of a channel that transmits data between
 the sending and receiving ends requires a hidden state that ties
 them together. Or we may want to create many different mesh objects 
