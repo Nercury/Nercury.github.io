@@ -1,0 +1,562 @@
+---
+layout: post
+title:  "Resources"
+date:   2018-09-30 11:00:00 UTC
+categories: rust resources
+---
+
+> This talk was done at Rust Vilnius meetup
+
+Hello, and welcome to the third Rust meetup!
+
+By the way, how many of you are completely new to Rust? Awesome!
+
+My name is Nerijus Arlauskas, I am using Rust for my hobby projects for a while
+now. Currently I work at Trafi where we are developing urban mobility platform.
+
+This talk is not going to be a complete introduction to Rust.
+Instead, we will focus on one particular aspect of it - the way it encourages
+us to work with resources.
+
+What do I mean by "resource"? 
+
+- A piece of memory
+- A file
+- A socket
+- A mutex
+- Your own custom thing
+
+## Lets look at C#
+
+If we look at GC languages, we have the memory covered, and that's awesome:
+
+- A piece of memory - **GC!**
+- A file
+- A socket
+- A mutex
+- Your own custom thing
+
+What about other things? In C#, we have `IDisposable` mechanism, that brings back
+manual resource management:
+
+```cs
+var thing = new DisposableThing();
+// use it
+thing.dispose();
+```
+
+This brings bad all the bag of things *that you must not forget*. The `finally` block
+in `try-finally` used to help with them:
+
+```cs
+var thing = new DisposableThing();
+
+try {
+    // use it
+}
+finally
+{
+    thing.dispose();
+}
+```
+
+The `using` block made it a little bit more automatic:
+
+```cs
+using (var thing = new DisposableThing()) {
+    // use it
+}
+```
+
+So in C#, language-specific `using` covers automatic management of files and network
+streams:
+
+- A piece of memory - **GC!**
+- A file **using!**
+- A socket **using!**
+- A mutex
+- Your own custom thing **your own IDisposable**
+
+What about mutex? We won't delve into many details here, suffice to say that there
+is specific syntax for basic safe-to-use mutex:
+
+```cs
+private readonly object Handle;
+
+private DataX _a; // protected by Handle
+private DataX _b; // protected by Handle
+
+lock (Handle) {
+    // woth with _a and _b
+    _a.process(_b);
+}
+```
+
+So we have mutex covered too:
+
+- A piece of memory - **GC!**
+- A file **using!**
+- A socket **using!**
+- A mutex **lock!**
+- Your own custom thing **your own IDisposable**
+
+## Lets look at C++
+
+A piece of memory:
+
+```cpp
+#include <string>
+
+int main() {
+    std::string s("Hello");
+    
+    return 0;
+}
+```
+
+This is safe. At the end of the scope, C++ will run destructor for `s`, and it will
+get destroyed.
+
+It remains safe even if we assign the value:
+
+```cpp
+#include <string>
+
+int main() {
+    std::string s("Hello");
+    
+    auto t = s; // good!
+    
+    return 0;
+}
+```
+
+This works, because C++ has copy constructor which copies the memory of string into
+another location when we assign the value. At the end of the scope both are destroyed.
+
+In C++ this idiom is called RAII (Resource Acquisition Is Initialization):
+
+- A piece of memory - **RAII!**
+- A file
+- A socket
+- A mutex
+- Your own custom thing
+
+What about files and sockets then? Turns out, it is covered by RAII:
+
+```cpp
+#include <fstream>
+
+int main() {
+    std::ofstream s("a.txt");
+    s << "Hello" << std::endl;
+}
+```
+
+Here we create a file stream named `s` and write "Hello" to it. Note
+how we don't need to close it: at the end of the scope C++ is going to invoke
+the destructor which will close files for us.
+
+Similar libraries exist for network sockets, because RAII is available as
+a language feature:
+
+- A piece of memory - **RAII!**
+- A file - **RAII!**
+- A socket - **RAII!**
+- A mutex
+- Your own custom thing - **RAII!**
+
+What about mutex? Turns out RAII can be used here too:
+
+```cpp
+#include <thread>
+
+...
+
+std::mutex my_mutex;
+
+int data_a = 1; // protected by my_mutex
+int data_b = 2; // protected by my_mutex
+
+...
+
+{
+    std::lock_guard<std::mutex> guard(my_mutex);
+
+    // some operation
+    data_a = data_b;
+}
+```
+
+At the end of this scope, C++ calls the destructor on `guard`, which unlocks
+the mutex.
+
+- A piece of memory - **RAII!**
+- A file - **RAII!**
+- A socket - **RAII!**
+- A mutex - **RAII!**
+- Your own custom thing - **RAII!**
+
+So, all these features are covered by the same technique in C++! Why do we need
+a garbage collector then?
+
+It's because real-world applications are not this simple. We need pointers to things.
+In GC world, pointers are objects. In C++, pointers are not memory safe.
+
+This unsafety is the reason why we have garbage collection in the first place.
+However, it looks like by solving memory issues with GC we lost some convenient
+resource management, and had to invent features like `lock` and `using`.
+
+## Lets look at Rust
+
+When it comes to managing resources, Rust is more similar to C++ than GC languages.
+
+Rust automatically destroys a peace of memory at the end of the scope:
+
+```rust
+fn main() {
+    let s = String::from("Hello");
+}
+```
+
+But it is a bit surprising in a way it does not make copies by default, 
+and instead moves values:
+
+```rust
+fn main() {
+    let s = String::from("Hello");
+    let t = s;
+}
+```
+
+Here, only one `String` is destroyed at the end, because after the `t = s` the 
+`s` can not be used.
+
+Doing the same in C++ is more involved, while in Rust this is the default. If we wanted
+the code that preserves both copies, we can use explicit `clone` function:
+
+```rust
+fn main() {
+    let s = String::from("Hello");
+    let t = s.clone();
+}
+```
+
+Now two strings are destroyed at the end of the function.
+
+This "technology" is called "Ownership" in Rust.
+
+- A piece of memory - **Ownership!**
+- A file
+- A socket
+- A mutex
+- Your own custom thing
+
+What about files?
+
+```rust
+use std::fs;
+use std::io::Write;
+
+fn main() {
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open("a.txt")
+        .unwrap();
+
+    file.write(b"Hello").unwrap();
+}
+```
+
+Here we don't worry about closing the file at all. You may notice `unwrap` functions
+everywhere. This is Rust forcing us to handle every possible error somehow. In this
+case we panic.
+
+In real app the function would return an `io::Result` type, and we can leave up to the
+parent function to handle the errors somehow:
+
+```rust
+use std::fs;
+use std::io;
+use std::io::Write;
+
+fn main() -> Result<(), io::Error> {
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open("a.txt")?;
+
+    file.write(b"Hello")?;
+
+    Ok(())
+}
+```
+
+Or even more simplified:
+
+```rust
+use std::fs;
+use std::io;
+use std::io::Write;
+
+fn main() -> Result<(), io::Error> {
+    fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open("a.txt")?
+        .write(b"Hello")?;
+
+    Ok(())
+}
+```
+
+Of course, in this particular case no one is calling this function, so the program
+would simply exit with error if there was any kind of `io` error.
+
+In the latest case we can almost forget we need to close file, and it is fine.
+
+If we look a bit in depth how it is implemented, it is quite simple.
+We start by wrapping a OS-specific handle inside a `struct`:
+
+```rust
+pub struct File {
+    handle: u32,
+}
+```
+
+Then we implement "open" constructor that forwards call to OS and returns a handle:
+
+```rust
+impl File {
+    pub fn open(path: &str) -> File {
+        let handle = unsafe { ffi::os::open(path) };
+        File { handle } // returns
+    }
+}
+```
+
+As well as the `drop` "destructor":
+
+```rust
+impl Drop for File {
+    fn drop(&mut self) {
+         unsafe { ffi::os::close(self.handle) }   
+    }
+}
+```
+
+That's all you would need, except without error handling.
+With error handling, it would look like this:
+
+```rust
+impl File {
+    pub fn open(path: &str) -> Result<(), io::Error> {
+        let handle = unsafe { ffi::os::open(path) };
+        
+        if handle == -1 {
+            Err(io::Error::from(io::ErrorKind::PermissionDenied))
+        } else {
+            Ok(File { handle })
+        }
+    }
+}
+```
+
+Quick reminder that the `Result` in rust is a type that can be either `Ok` or `Err`:
+
+```rust
+pub enum Result<T, E> {
+    /// Contains the success value
+    Ok(T),
+
+    /// Contains the error value
+    Err(E),
+}
+```
+
+This really makes it more concise, however at first it may be easier to list the
+full `Result` type:
+
+```rust
+impl File {
+    pub fn open(path: &str) -> Result<File, io::Error> {
+        let handle = unsafe { ffi::os::open(path) };
+        
+        if handle == -1 {
+            Err(io::Error::from(io::ErrorKind::PermissionDenied))
+        } else {
+            Ok(File { handle })
+        }
+    }
+}
+``` 
+
+In case there was an error, we don't return the file, so there is nothing to
+be closed. This makes this problem not that hard after all.
+
+- A piece of memory - **Ownership!**
+- A file - **Ownership!**
+- A socket - **Ownership!**
+- A mutex
+- Your own custom thing - **Ownership!**
+
+And here we also saw how to build our own Resource wrapper.
+
+What about mutex?
+
+While in C++ and C# data was separated from Mutex, in Rust data is owned by the mutex:
+
+```rust
+use std::sync::Mutex;
+
+struct Data {
+    a: i32,
+    b: i32,
+}
+
+fn main() {
+    let shared = Mutex::new(Data { a: 1, b: 2 });
+
+    {
+        let mut data_handle = shared.lock().unwrap();
+        data_handle.a = 3;
+    }
+
+    println!("Result: {}", shared.lock().unwrap().a)
+}
+```
+
+Somewhat similar to C++, we get the "guard" from mutex, that is destroyed at the
+end of the scope. It also ensures that there is no way to modify data
+protected by mutex but to `lock` it.
+
+Often multiple threads need to access this data. There can be only one mutex
+at any moment, because it needs to be destroyed at the end of the scope.
+
+However, we can use reference counting to make `Mutex` clone'able:
+
+```rust
+use std::sync::{Mutex, Arc};
+
+struct Data {
+    a: i32,
+    b: i32,
+}
+
+fn main() {
+    let shared = Arc::new(Mutex::new(Data { a: 1, b: 2 }));
+
+    {
+        let mut data_handle = shared.lock().unwrap();
+        data_handle.a = 3;
+    }
+
+    println!("Result: {}", shared.lock().unwrap().a)
+}
+```
+
+So this compiles. Why we did not need to add any accessors is out of scope of this talk.
+However, with this done, we can clone the mutex:
+
+```rust
+use std::sync::{Mutex, Arc};
+
+struct Data {
+    a: i32,
+    b: i32,
+}
+
+fn main() {
+    let shared = Arc::new(Mutex::new(Data { a: 1, b: 2 }));
+    let shared1 = shared.clone();
+    let shared2 = shared.clone();
+
+    {
+        let mut data_handle = shared.lock().unwrap();
+        data_handle.a = 3;
+    }
+
+    println!("Result: {}", shared.lock().unwrap().a)
+}
+```
+
+Instead of using it in function itself, we can spawn two new threads and
+use the data from them:
+
+```rust
+use std::thread;
+use std::sync::{Mutex, Arc};
+
+struct Data {
+    a: i32,
+    b: i32,
+}
+
+fn main() {
+    let shared = Arc::new(Mutex::new(Data { a: 1, b: 2 }));
+    let shared1 = shared.clone();
+    let shared2 = shared.clone();
+
+    let thread_handle1 = thread::spawn(move || {
+        let mut data_handle = shared1.lock().unwrap();
+        data_handle.a = data_handle.b;
+    });
+
+    let thread_handle2 = thread::spawn(move || {
+        let mut data_handle = shared2.lock().unwrap();
+        data_handle.a = 3;
+    });
+
+    thread_handle1.join().unwrap();
+    thread_handle2.join().unwrap();
+
+    println!("Result: {}", shared.lock().unwrap().a)
+}
+```
+
+The `move` keyword instructs to `move` captured variables into a thread, so they are
+destroyed at the end of it:
+
+```rust
+let shared1 = shared.clone(); // shared1
+
+let thread_handle1 = thread::spawn(move || {
+    let mut data_handle = shared1.lock().unwrap(); // shared1
+    data_handle.a = data_handle.b;
+});
+```
+
+Each thread also returns a handle, which can be used to wait until the thread finishes:
+
+```rust
+let thread_handle1 = thread::spawn(move || { ... });
+
+thread_handle1.join().unwrap(); // wait to finish
+```
+
+## Conclusion
+
+So the Rust ownership covers all the cases with pretty much the same model:
+
+- A piece of memory - **Ownership!**
+- A file - **Ownership!**
+- A socket - **Ownership!**
+- A mutex - **Ownership!**
+- Your own custom thing - **Ownership!**
+
+It does this without GC, and with assurance of no segmentation faults.
+
+One thing that is not visible from these examples: these resources in Rust
+are way more flexible than, say, `using` in C#, because they can be passed around
+freely, or stored in other structs, while in C# the way `IDisposable` is managed is
+a bit restricted (with using), or very manual.
+
+Rust also claims no data races, however, we in our example we have easily created intentional
+race condition. Turns out, race condition technically is not a data race.
+
+It is worth noting that in Rust you can't use locks incorrectly. It won't compile.
+
+The big advantage here that there is only one model to learn, and writing a custom
+implementation is very simple, because Rust is designed for writing safe abstractions.
+
