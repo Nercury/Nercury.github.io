@@ -5,9 +5,6 @@ date:   2018-04-29
 categories: rust embedded experiments
 ---
 
-The ["Discover the world of microcontrollers through Rust!"][mcu-world]
-book describes how to set up rust project for STM32F3DISCOVERY board.
-
 Here I will document the steps to get started with STM32VLDISCOVERY board.
 
 We will take my favourite "from scratch" approach. That way, we build the final
@@ -21,56 +18,62 @@ I try to present what I have learned in a sequential, easy to understand way.
 
 Go to ST site and [locate the board documentation](http://www.st.com/en/evaluation-tools/stm32vldiscovery.html).
 
-Board uses STM32F100RBT6B Cortex-M3 microcontroller. [Locate the documentation of this microcontroller too](http://www.st.com/en/microcontrollers/stm32f100rb.html).
+Board uses STM32F100RBT6B Cortex-M3 microcontroller (MCU). [Locate the documentation of this MCU too](http://www.st.com/en/microcontrollers/stm32f100rb.html).
 The page has many PDFs. [We are interested in what is called the "reference manual"][mcu]. 
-It's big.
-
-At the end of this page, there is a [literature list](#literature).
+It's big ([direct link](https://www.st.com/content/ccc/resource/technical/document/reference_manual/a2/2d/02/4b/78/57/41/a3/CD00246267.pdf/files/CD00246267.pdf/jcr:content/translations/en.CD00246267.pdf).
 
 The final code [is available on the github](https://github.com/Nercury/embedded-experiments/tree/master/part01-blink).
 
 ## Connection to the board
 
-The board contains the microcontroller and everything that is required to run it,
-as well as programmer called ST-Link.
+The board contains the MCU and everything that is required to run it,
+as well as a programmer called ST-Link.
 
 ![Discovery VL labels](/images/mcu-02/discovery-vl-labels.jpg)
 
-By default it is configured to program the microcontroller on the board. However,
+By default it is configured to program the MCU on the board. However,
 we can change some jumpers, connect 4 wires to pins marked "SWD" and use ST-Link 
-to program similar microcontroller on another board designed by us. This
-board is good for testing this microcontroller, because all the pins are accessible 
+to program similar MCU on another board designed by us (however it is likely
+we won't do this, because we will get distracted by more recent shiny MCUs). This
+board is good for testing this MCU, because all the pins are accessible 
 and plugable to a breadboard.
 
-We connect to ST-Link over an USB cable.
+Here it is, plugged into two breadboards, and powering it with 3.3V from `GND` and
+`3V3` pins. As you can see, it lights up an external LED.
 
-From now on, I will call the microcontroller MCU.
+![Discovery VL labels](/images/mcu-02/discovery-vl-breadboard.jpeg)
+
+The designers of this board clearly did not design it to be used this way:
+especially annoying is a parallel row of pins at the end of the board.
+
+We connect to ST-Link over an USB cable.
 
 ## USB and ST-Link
 
 We will make sure that we have a connection to our board by installing OpenOCD (which
 will be used to upload our program to MCU).
 
-[The book][mcu-world] has wildly different instructions for [Linux](https://japaric.github.io/discovery/03-setup/linux.html),
-[Windows](https://japaric.github.io/discovery/03-setup/windows.html) and 
-[macOS](https://japaric.github.io/discovery/03-setup/macos.html). Follow them and install
- tools for your platform (except the windows driver).
+Make sure your rust version is at least `1.31`
+
+Here we can find the set up instructions for OpenOCD (and other tools):
+ - [Linux](https://rust-embedded.github.io/book/intro/install/linux.html),
+ - [Windows](https://rust-embedded.github.io/book/intro/install/windows.html) and 
+ - [macOS](https://rust-embedded.github.io/book/intro/install/macos.html). 
+ 
+Follow them and install tools for our platform.
 
 For Windows, you can download the driver [from the board page we've visited before](http://www.st.com/en/evaluation-tools/stm32vldiscovery.html).
 
-Then, follow the instructions to [verify that you have connection to the board](https://japaric.github.io/discovery/03-setup/verify.html) with one
+Then, follow the instructions to [verify that you have connection to the board](https://rust-embedded.github.io/book/intro/install/verify.html) with one
 caveat: change `openocd` call to use different device than the book says. Our
 device in our board is `STM32F100RB`. We can browse installed `OpenOCD` `scripts`
-to locate the board `cfg` file.
+to locate the board `cfg` file and use it as `-f` command line option.
 
 With OpenOCD 0.10, this works for me:
 
 ```bash
-openocd -f interface/stlink.cfg -f target/stm32f1x.cfg
+openocd -f interface/stlink-v2-1.cfg -f target/stm32f1x.cfg
 ```
-
-The book uses `interface/stlink-v2-1.cfg`, which works, but we get the deprecation warning
-with a note to switch to `interface/stlink.cfg`, which works too.
 
 It is likely that you will receive this error on Windows:
 
@@ -93,6 +96,13 @@ running in another terminal window.
 
 ## Back to Rust
 
+We will need Rust `1.31` (stable).
+
+```bash
+$ rustc -V
+rustc 1.31.1 (b6c32da9b 2018-12-18)
+```
+
 We will bootstrap a Rust project from scratch.
 
 First, let's create a simple Rust project:
@@ -111,6 +121,8 @@ fn main() {
     println!("Hello, world!");
 }
 ```
+
+> Here we are not using Rust 2018, so remove `edition = "2018"` from Cargo/toml file.
 
 ### No std
 
@@ -140,68 +152,7 @@ fn main() {
 }
 ```
 
-We get more errors when compiling:
-
-```txt
-error: language item required, but not found: `panic_fmt`
-error: language item required, but not found: `eh_personality`
-```
-
-### Lang items and nightly Rust
-
-Turns out, Rust's std library was filling in some gaps in Rust's core
-which are now missing. For example, it was handling panics.
-
-We can fill in our own panic handler with this code, which simply never finishes
-in a case of panic (and returns `!` "never" type):
-
-(main.rs, bellow main() function)
-
-```rust
-#[lang = "panic_fmt"]
-#[no_mangle]
-pub unsafe extern "C" fn rust_begin_unwind(
-    _args: core::fmt::Arguments,
-    _file: &'static str,
-    _line: u32,
-    _col: u32,
-) -> ! {
-    loop {}
-}
-```
-
-For this to work, we need to enable `lang_items` feature:
-
-(at the top of main.rs)
-
-```rust
-#![feature(lang_items)]
-```
-
-Features require nightly rust, so if you are not already on nightly, you will
-have to switch to it. It's best to add a project specific override:
-
-(in project's dir)
-
-```bash
-rustup override set nightly
-```
-
-### Note on stability
-
-We switched to nightly Rust, and this means this tutorial may become outdated
-quickly. If something does not work, you may need to do your own googling and
-reading, much like I had to do while documenting my steps here.
-
-Or, you may pick exactly the same nightly compiler version as me:
-
-```plain
-rustup override set nightly-2018-04-29
-```
-
-### Eh, personality!
-
-We are down to one error:
+We get another error when compiling:
 
 ```txt
 error: language item required, but not found: `eh_personality`
@@ -243,6 +194,29 @@ When we try to compile it now, we see that `eh_personality` error disappeared, a
 instead we get:
 
 ```txt
+error: `#[panic_handler]` function required, but not found
+```
+
+With `#![no_std]` flag the standard library got removed, and now nothing implements
+the panic handler. There is a crate though that simply halts the program on panic, 
+`panic-halt`:
+
+(Cargo.toml)
+
+```toml
+[dependencies]
+panic-halt = "0.2.0"
+```
+
+(src/main.rs)
+
+```rust
+extern crate panic_halt;
+```
+
+Now, the `panic_handler` error is gone, but we got the next one:
+
+```txt
 error: requires `start` lang_item
 ```
 
@@ -268,70 +242,45 @@ Let's add it to `Cargo.toml` dependencies:
 
 ```toml
 [dependencies]
-cortex-m-rt = "0.4"
+cortex-m-rt = "0.6.7"
 ```
 
-At this point, it is best to follow [cortex-m-rt documentation](https://docs.rs/cortex-m-rt/0.5.1/cortex_m_rt/#an-example).
-This means starting from empty main; our `panic_implementation` is no longer necessary
-here, 
+Now we can read [the documentation for cortex-m-rt](https://docs.rs/cortex-m-rt/0.6.7/cortex_m_rt/)
+to find out exactly how to write our main function:
 
-And reference it in the root of our crate:
-
-(main.rs)
+(src/main.rs, whole file)
 
 ```rust
+#![no_std]
+#![no_main]
+
+extern crate panic_halt;
 extern crate cortex_m_rt;
+
+use cortex_m_rt::entry;
+
+// use `main` as the entry point of this application
+// `main` is not allowed to return
+#[entry]
+fn main() -> ! {
+    // initialization
+
+    loop {
+        // application logic
+    }
+}
 ```
 
 Let's build it:
 
 ```txt
-error: linking with `arm-none-eabi-gcc` failed: exit code: 1
-```
-
-We failed to link! (If you get another error, [make sure you have followed the instructions to
-set up the tools for your platform, as well as you have got the ARM linker](#usb-and-st-link))
-
-[The documentation for cortex-m-rt](https://docs.rs/cortex-m-rt/0.4.0/cortex_m_rt/) crate
-tells us that we need to pass additional flags to rustc compiler, like this:
-
-(example)
-
-```bash
 cargo rustc --target thumbv7m-none-eabi -- \
-      -C link-arg=-Tlink.x -C linker=arm-none-eabi-ld -Z linker-flavor=ld
+            -C linker=arm-none-eabi-ld -C link-arg=-nostartfiles -C link-arg=-Tlink.x
 ```
-
-It would work, but it is more convenient to put this configuration into
-`.cargo/config` file. That way cargo will pick these flags automatically when
-building the appropriate architecture.
-
-Let's create `.cargo/config` for our project. It follows `toml` file format, but does
-not have `.toml` extension:
-
-(.cargo/config)
-
-```toml
-[target.thumbv7m-none-eabi]
-runner = 'arm-none-eabi-gdb'
-rustflags = [
-  "-C", "link-arg=-Tlink.x",
-  "-C", "linker=arm-none-eabi-ld",
-  "-Z", "linker-flavor=ld",
-  "-Z", "thinlto=no",
-]
-```
-
-Now invoke `cargo build --target thumbv7m-none-eabi` as before. It should pick up
-the config file and use the correct linker. If we are successful, we will see this
-error (I know, it never ends):
 
 ```txt
-error: linking with `arm-none-eabi-ld` failed: exit code: 1
-  |
-  = ...
-  = note: arm-none-eabi-ld.exe: cannot open linker script file memory.x: 
-    No such file or directory
+note: C:\Program Files (x86)\GNU Tools ARM Embedded\7 2017-q4-major\bin\arm-none-eabi-ld.exe: 
+    cannot open linker script file memory.x: No such file or directory
 ```
 
 When linking the executable, the linker picks up information about our MCU from
@@ -354,81 +303,283 @@ MEMORY
 _stack_start = ORIGIN(RAM) + LENGTH(RAM);
 ```
 
-And then we should be greeted by the next error:
+Finally, we should be able to build it!
 
 ```txt
-error: linking with `arm-none-eabi-ld` failed: exit code: 1
-  |
-  = ...
-  = note: arm-none-eabi-ld.exe: 
-          The interrupt handlers are missing. If you are not linking to a device
-          crate then you supply the interrupt handlers yourself. Check the
-          documentation.
+cargo rustc --target thumbv7m-none-eabi -- \
+            -C linker=arm-none-eabi-ld -C link-arg=-Tlink.x
 ```
 
-There are 2 things we get from this helpful error message: first, there are device crates
-that we can link to, and second, that we can supply the interrupt handlers ourselves.
-
-Supplying a blank interrupt handler ourselves is easy, we just add this snippet of code:
-
-(at the end of main.rs, requires `#![used]` and `#![feature(used)]` crate attributes)
-
-```rust
-#[link_section = ".vector_table.interrupts"]
-#[used]
-static INTERRUPTS: [extern "C" fn(); 240] = [default_handler; 240];
-
-extern "C" fn default_handler() {}
+```txt
+Finished dev [unoptimized + debuginfo] target(s) in 0.18s
 ```
 
-And indeed, this finally builds! However, the first method of using a device crate sounds
-like it would help us avoid a lot of trouble.
+## .cargo/config file
 
-Instead of supplying our own interrupt handler, we will link to `stm32f1` device crate,
-because the name of our Cortex-M MCU is `STM32F100RB`:
+It is more convenient to put these `-C` configuration bits into
+`.cargo/config` file. That way cargo will pick these flags automatically when
+building the appropriate architecture.
 
-(Cargo.toml)
+Let's create `.cargo/config` for our project. It follows `toml` file format, but does
+not have `.toml` extension:
+
+(.cargo/config)
 
 ```toml
-[dependencies.stm32f1]
-version = "0.1.0"
-features = ["stm32f100", "rt"]
+[build]
+# Pick ONE of these compilation targets
+# target = "thumbv6m-none-eabi"    # Cortex-M0 and Cortex-M0+
+target = "thumbv7m-none-eabi"    # Cortex-M3
+# target = "thumbv7em-none-eabi"   # Cortex-M4 and Cortex-M7 (no FPU)
+# target = "thumbv7em-none-eabihf" # Cortex-M4F and Cortex-M7F (with FPU)
 ```
 
-We select the device we want with `stm32f100` feature flag ([see the list of devices in crate
-README](https://crates.io/crates/stm32f1)), and we can also add `rt` feature, which brings
-in `cortex-m-rt` we added previously. In fact, we can remove `cortex-m-rt` from
-our dependencies now.
+This eliminates the need of `--target thumbv7m-none-eabi` parameter. It is now the default,
+and this should work the same as before:
 
-With that done, we can get rid of `panic_fmt`
-lang item by including `panic-abort` crate, which aborts on panic:
+```bash
+cargo rustc -- -C linker=arm-none-eabi-ld -C link-arg=-Tlink.x
+```
+
+Then we can put other `-C` options in `config` file too:
+
+(.cargo/config, whole file)
+
+```toml
+[build]
+# Pick ONE of these compilation targets
+# target = "thumbv6m-none-eabi"    # Cortex-M0 and Cortex-M0+
+target = "thumbv7m-none-eabi"    # Cortex-M3
+# target = "thumbv7em-none-eabi"   # Cortex-M4 and Cortex-M7 (no FPU)
+# target = "thumbv7em-none-eabihf" # Cortex-M4F and Cortex-M7F (with FPU)
+
+
+rustflags = [
+  # LLD (shipped with the Rust toolchain) is used as the default linker
+  "-C", "link-arg=-Tlink.x",
+
+  # if you run into problems with LLD switch to the GNU linker by commenting out
+  # this line
+  "-C", "linker=arm-none-eabi-ld",
+
+  # if you need to link to pre-compiled C libraries provided by a C toolchain
+  # use GCC as the linker by commenting out both lines above and then
+  # uncommenting the three lines below
+  # "-C", "linker=arm-none-eabi-gcc",
+  # "-C", "link-arg=-Wl,-Tlink.x",
+  # "-C", "link-arg=-nostartfiles",
+]
+```
+
+Now we can build our project with simple `cargo build`.
+
+## Running
+
+Similarly, we can configure `cargo run` to load our binary in the MCU
+and start executing it.
+
+Let's expand `.cargo/config` with these options:
+
+(.cargo/config, add at the end)
+
+```toml
+[target.'cfg(all(target_arch = "arm", target_os = "none"))']
+# uncomment ONE of these three option to make `cargo run` start a GDB session
+# which option to pick depends on your system
+#runner = "arm-none-eabi-gdb -q -x openocd.gdb"
+runner = "arm-none-eabi-gdb -q -x openocd_run.gdb"
+# runner = "gdb-multiarch -q -x openocd.gdb"
+# runner = "gdb -q -x openocd.gdb"
+```
+
+Then, let's create `openocd_run.gdb` file and write gdb commands into it:
+
+(openocd_run.gdb)
+
+```gdb
+target extended-remote :3333
+
+# print demangled symbols
+set print asm-demangle on
+
+# detect unhandled exceptions, hard faults and panics
+break DefaultHandler
+break UserHardFault
+break rust_begin_unwind
+
+monitor arm semihosting enable
+load
+continue
+```
+
+We also need a `openocd.cfg` file:
+
+(openocd.cfg)
+
+```cfg
+source [find interface/stlink-v2-1.cfg]
+source [find target/stm32f1x.cfg]
+```
+
+Here we use the correct STLink interface script and the device configuration.
+
+To continue, the OpenOCD must be running in the background and the red
+led on the MCU dev board should be blinking.
+
+```txt
+cargo run
+```
+
+```txt
+Running `arm-none-eabi-gdb -q -x openocd_run.gdb C:\Users\...\embedded-experiments\target\thumbv7m-none-eabi\debug\part01-blink`
+...
+semihosting is enabled
+Loading section .vector_table, size 0x400 lma 0x8000000
+Loading section .text, size 0x2f8 lma 0x8000400
+Loading section .rodata, size 0xd0 lma 0x80006f8
+Start address 0x8000404, load size 1992
+Transfer rate: 6 KB/sec, 664 bytes/write.
+```
+
+_Something_ has happened. It would be great if we could print a "Hello world"
+somehow. Luckily, the chip supports semihosting, and can send back
+signals with messages.
+
+Let's include `cortex-m-semihosting` crate in dependencies:
 
 (Cargo.toml)
 
 ```toml
 [dependencies]
-panic-abort = "0.1.1"
+cortex-m-semihosting = "0.3.2"
 ```
 
-(main.rs)
+Then add a reference to the crate in `main.rs`:
+
+(src/main.rs)
 
 ```rust
-extern crate panic_abort;
+extern crate cortex_m_semihosting;
 ```
 
-We can now remove `#![feature(lang_items)]` and `rust_begin_unwind` function.
+And pull `hprintln` macro from it:
 
-## The final, minimal result that can run
+(src/main.rs)
+
+```rust
+use cortex_m_semihosting::hprintln;
+```
+
+And then modify the `main` function:
+
+(src/main.rs)
+
+```rust
+#[entry]
+fn main() -> ! {
+    // initialization
+
+    hprintln!("Hello, world!").unwrap();
+
+    loop {
+        // application logic
+    }
+}
+```
+
+Let's run it again:
+
+```bash
+cargo run
+```
+
+We should see:
+
+```txt
+Hello, world!
+```
+
+In __OpenOCD__ terminal.
+
+## Semihosting abort
+
+Instead of the `panic_halt`, which halts program on panic (and should probably be used
+in production), we can use `panic_semihosting` crate when we have this semihosting link.
+
+This way we will receive way more information about any panic in our program.
+
+This is simple: we replace `panic_halt` crate with `panic_semihosting`.
+
+(Cargo.toml)
+
+```toml
+[dependencies]
+#panic-halt = "0.2.0"
+panic-semihosting = "0.5.1"
+```
+
+And reference the appropriate crate:
+
+(src/main.rs)
+
+```rust
+extern crate panic_semihosting;
+//extern crate panic_halt;
+```
+
+## The device crate
+
+We can now control the device by reading and writing data to the correct memory locations.
+
+Luckily, there is a `stm32f1` device crate, that wraps it all in a nicer API.
+
+(Cargo.toml)
+
+```toml
+[dependencies.stm32f1]
+version = "0.6.0"
+features = ["stm32f100", "rt"]
+```
+
+We select the device we want with `stm32f100` feature flag ([see the list of devices in crate
+README](https://crates.io/crates/stm32f1)), and we can also add `rt` feature, which brings
+in `cortex-m-rt` we added previously. 
+
+We can remove `cortex-m-rt` crate now:
+
+(Cargo.toml)
+
+```toml
+[dependencies]
+# cortex-m-rt = "0.6.7"
+```
 
 We are now left with this `main.rs`:
 
 ```rust
 #![no_std]
+#![no_main]
 
 extern crate stm32f1;
-extern crate panic_abort;
+extern crate panic_semihosting;
+//extern crate panic_halt;
+extern crate cortex_m_rt;
+extern crate cortex_m_semihosting;
 
-fn main() {
+use cortex_m_rt::entry;
+use cortex_m_semihosting::hprintln;
+
+// use `main` as the entry point of this application
+// `main` is not allowed to return
+#[entry]
+fn main() -> ! {
+    // initialization
+
+    hprintln!("Hello, world!").unwrap();
+
+    loop {
+        // application logic
+    }
 }
 ```
 
@@ -440,15 +591,18 @@ name = "part01-blink"
 version = "0.1.0"
 
 [dependencies]
-panic-abort = "0.1.1"
+#panic-halt = "0.2.0"
+panic-semihosting = "0.5.1"
+cortex-m-rt = "0.6.7"
+cortex-m-semihosting = "0.3.2"
 
 [dependencies.stm32f1]
-version = "0.1.0"
+version = "0.6.0"
 features = ["stm32f100", "rt"]
 ```
 
-`memory.x` file, `.cargo/config` file, and a decent grasp of how this all fits
-together.
+`memory.x` file, `openocd.cfg`/`openocd_run.gdb`, `.cargo/config` files, and a decent grasp 
+of how this all fits together.
 
 One small detail: to minimize the executable size, we should always compile with `--release`
 flag. To optimize the usage of many crates, we should link with Link Time Optimization (LTO).
@@ -462,43 +616,6 @@ release profile:
 lto = true
 debug = true
 ```
-
-## Running!
-
-When we run our program now, we should find ourselves in a `gdb` console:
-
-```gdb
-Reading symbols from target\thumbv7m-none-eabi\debug\part01-blink...done.
-(gdb)
-```
-
-We should make sure that [OpenOCD is running (discussed previously)](#usb-and-st-link).
-Then, from `gdb` we can connect to it:
-
-```gdb
-(gdb) target remote :3333
-Remote debugging using :3333
-...
-```
-
-We can now load our program to MCU:
-
-```gdb
-(gdb) load
-Loading section .vector_table, size 0x130 lma 0x8000000
-Loading section .text, size 0x23e lma 0x8000130
-Start address 0x8000130, load size 878
-Transfer rate: 5 KB/sec, 439 bytes/write.
-```
-
-And then continue:
-
-```gdb
-(gdb) continue
-Continuing.
-```
-
-Of course we won't see anything else, because our program is empty right now.
 
 ## Lighting up the LEDs
 
@@ -949,10 +1066,9 @@ However, if we persist, we get to the end :)
 - [cortex-m-rt crate documentation](https://docs.rs/cortex-m-rt/0.4.0/cortex_m_rt/)
 - [svd2rust documentation](https://docs.rs/svd2rust/0.12.0/svd2rust)
 - [LED switching magic in japaric's older project for VL DISCOVERY board](https://japaric.github.io/vl/src/vl/led.rs.html#31-48)
-- [Discover the world of microcontrollers through Rust! (not this board, but very useful)][mcu-world]
+- [The Embedded Rust Book (not this board, but very useful)](https://rust-embedded.github.io/book/intro/install.html)
 - [stm32f100 datasheet][mcu-datasheet]
 
 [mcu-basics]: /resources/mcu-02/cortex-m-basics
 [mcu]: http://www.st.com/content/ccc/resource/technical/document/reference_manual/a2/2d/02/4b/78/57/41/a3/CD00246267.pdf/files/CD00246267.pdf/jcr:content/translations/en.CD00246267.pdf
-[mcu-world]: https://japaric.github.io/discovery/README.html
 [mcu-datasheet]: http://www.st.com/resource/en/datasheet/stm32f100cb.pdf
