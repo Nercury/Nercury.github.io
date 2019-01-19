@@ -44,7 +44,7 @@ Here it is, plugged into two breadboards, and powering it with 3.3V from `GND` a
 ![Discovery VL labels](/images/mcu-02/discovery-vl-breadboard.jpeg)
 
 The designers of this board clearly did not design it to be used this way:
-especially annoying is a parallel row of pins at the end of the board.
+especially annoying is the parallel row of pins at the end of the board.
 
 We connect to ST-Link over an USB cable.
 
