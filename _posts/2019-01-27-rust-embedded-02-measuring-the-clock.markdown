@@ -7,7 +7,7 @@ categories: rust embedded experiments
 
 (here, we continue using setup from the [previous tutorial](/rust/embedded/experiments/2018/04/29/rust-embedded-01-discovery-vl-flipping-bits.html))
 
-So, we have this [STM32VLDISCOVERY dev board](https://www.st.com/en/evaluation-tools/stm32vldiscovery.html).
+So, I have this [STM32VLDISCOVERY dev board](https://www.st.com/en/evaluation-tools/stm32vldiscovery.html).
 It has [the STM32F100RBT6B MCU](https://www.st.com/en/microcontrollers/stm32f100rb.html),
 capable of running at 24MHz.
 
@@ -15,7 +15,7 @@ On the board, there is a 8MHz crystal.
 
 ![Crystal MCU and board](/images/mcu-02-a/crystal-mcu-board.jpeg)
 
-Naturally, when are you new to microcontrollers (like me), you may have a few questions:
+Naturally, when you are new to microcontrollers (like me), you may have a few questions:
 
 - When we upload a program on this development board, at what speed it is actually running?
 - Is it using this external crystal?
