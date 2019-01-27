@@ -393,8 +393,8 @@ Well, surprisingly, it works. We have a chip running system clock at the maximum
 
 ![PLL clock working](/images/mcu-02-a/Speed04-pll-clock.jpg)
 
-However, the final result leaves a lot to be desired: half of peripheral 
-initialization code is in Rust (MCO), other half is in C (HSE-PLL-SYSCLK).
+However, the final result leaves a lot to be desired: the peripheral 
+initialization code is in Rust (MCO), while rcc initialization is in C (HSE-PLL-SYSCLK).
 The HAL on C side has some hidden state (for example, if we update clock speed
 on Rust side we need to call HAL function to update the configuration).
 HAL is also using this SysTick exception that runs updates from the Rust side.
