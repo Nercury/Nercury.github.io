@@ -27,7 +27,7 @@ Let's begin!
 ## The Reference Manual
 
 The reference manual ([can be found here](https://www.st.com/en/microcontrollers/stm32f100rb.html), [direct link](https://www.st.com/content/ccc/resource/technical/document/reference_manual/a2/2d/02/4b/78/57/41/a3/CD00246267.pdf/files/CD00246267.pdf/jcr:content/translations/en.CD00246267.pdf))
-has all the answers, but it is _a beast_. We deal with it with the following
+has all the answers, but it is _a beast_. We deal with it using the following
 approach:
 
 - First, we realize that it is impossible to remember everything.
