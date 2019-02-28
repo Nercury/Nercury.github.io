@@ -2,7 +2,7 @@
 title: Ironic Blog
 email: nercury@gmail.com
 description: >
-  The irony is that it is not really ironic.
+  Articles and tutorials about Rust, Embedded development and Computer Graphics.
 baseurl: "" # the subpath of your site, e.g. /blog/
 url: "http://nercury.github.io" # the base hostname & protocol for your site
 twitter_username: nercury
