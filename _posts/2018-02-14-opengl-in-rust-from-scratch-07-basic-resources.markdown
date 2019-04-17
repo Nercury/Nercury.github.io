@@ -341,10 +341,10 @@ impl Shader {
                 name.ends_with(file_extension)
             })
             .map(|&(_, kind)| kind)
-            .ok_or_else(|| format!("Can not determine shader type for resource {:?}", name))?;
+            .ok_or_else(|| format!("Can not determine shader type for resource {}", name))?;
 
         let source = res.load_cstring(name)
-            .map_err(|e| format!("Error loading resource {:?}: {}", name, e))?;
+            .map_err(|e| format!("Error loading resource {}: {:?}", name, e))?;
 
         Shader::from_source(gl, &source, shader_kind)
     }
