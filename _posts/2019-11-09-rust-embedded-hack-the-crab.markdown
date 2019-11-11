@@ -123,7 +123,11 @@ a button press, it turns on the LEDs, sends the beep, and then turns off the LED
 ## Resources
 
 - [Schematic diagram](/images/hack-the-crab/hack-the-crab.pdf)
+- [Device datasheet][device-datasheet]
+- [Reference manual][reference-manual]
+- [Device crate](https://crates.io/crates/stm32g0)
+- [HAL crate](https://crates.io/crates/stm32g0xx-hal)
 
-[mcu-link]: https://www.st.com/en/microcontrollers-microprocessors/stm32g0-series.html
+[mcu-link]: https://www.st.com/en/microcontrollers-microprocessors/stm32g030j6.html
 [device-datasheet]: https://www.st.com/resource/en/datasheet/stm32f030k6.pdf
 [reference-manual]: https://www.st.com/resource/en/reference_manual/dm00091010.pdf
