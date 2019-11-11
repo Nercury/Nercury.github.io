@@ -1,7 +1,7 @@
 ---
 layout: post
-title:  "Hack the Crab"
-date:   2019-11-09
+title:  "Hack the Crab at RustFest"
+date:   2019-11-11
 categories: rust embedded hack-the-crab
 ---
 
