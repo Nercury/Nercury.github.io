@@ -120,6 +120,26 @@ It is very basic and does not even use HAL.
 The example project starts a loop that is waiting for a button press. Once it detects
 a button press, it turns on the LEDs, sends the beep, and then turns off the LEDs.
 
+## The software, 2020 update
+
+Thanks to Vitaly Domnikov ([@dotcypress](https://twitter.com/dotcypress)), the crab can now play old nokia tunes!
+
+Clone the firmware from [here](https://github.com/Nercury/hack-the-crab).
+
+Install cargo flash (a probe-rs project):
+
+```
+cargo install cargo-flash
+```
+
+With your ST-Link probe attached to the crab, run
+
+```
+cargo flash --chip stm32g030J6Mx --release
+```
+
+No need for OpenOCD!
+
 ## Resources
 
 - [Schematic diagram](/images/hack-the-crab/hack-the-crab.pdf)
@@ -127,6 +147,8 @@ a button press, it turns on the LEDs, sends the beep, and then turns off the LED
 - [Reference manual][reference-manual]
 - [Device crate](https://crates.io/crates/stm32g0)
 - [HAL crate](https://crates.io/crates/stm32g0xx-hal)
+- [My Mini Factory 3D Print](https://www.myminifactory.com/object/3d-print-130765)
+- [KiCad project, 3D files](/resources/hack-the-crab/hack-the-crab.7z)
 
 [mcu-link]: https://www.st.com/en/microcontrollers-microprocessors/stm32g030j6.html
 [device-datasheet]: https://www.st.com/resource/en/datasheet/stm32g030j6.pdf
