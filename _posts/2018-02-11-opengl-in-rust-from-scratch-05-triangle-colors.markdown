@@ -54,9 +54,9 @@ We will configure the vertex shader to pick up this color information at locatio
 (continued)
 
 ```rust
-    gl::EnableVertexAttribArray(1); // this is "layout (location = 0)" in vertex shader
+    gl::EnableVertexAttribArray(1); // this is "layout (location = 1)" in vertex shader
     gl::VertexAttribPointer(
-        1, // index of the generic vertex attribute ("layout (location = 0)")
+        1, // index of the generic vertex attribute ("layout (location = 1)")
         3, // the number of components per generic vertex attribute
         gl::FLOAT, // data type
         gl::FALSE, // normalized (int-to-float conversion)
