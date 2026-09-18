@@ -1,0 +1,25 @@
+# Differences between the Jekyll reference snapshot and the Rust generator output that are
+# accepted on purpose. Everything not listed here fails `sitediff`.
+#
+#   [[file]]  path, reason                      ignore a file entirely
+#   [[drop]]  path, selector, contains?, side?  remove matching elements before comparing HTML
+#   [[line]]  path, pattern, side?              tolerate changed normalized lines matching a regex
+#
+# `path` is a glob over site-relative paths; `side` is "reference", "candidate" or "both" (default).
+
+[[drop]]
+path = "**/*.html"
+selector = "script"
+contains = "GoogleAnalyticsObject"
+side = "reference"
+reason = "D7: Google Analytics dropped (Universal Analytics is shut down)"
+
+[[line]]
+path = "feed.xml"
+pattern = '^rss/channel/(pubDate|lastBuildDate):'
+reason = "site build time"
+
+[[line]]
+path = "feed.xml"
+pattern = '^rss/channel/generator:'
+reason = "generator is no longer Jekyll"

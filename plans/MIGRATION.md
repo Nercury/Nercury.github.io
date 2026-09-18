@@ -120,23 +120,48 @@ build the source in Docker, and use that output as reference for the drifting pa
 
 ## Phase 2 — `sitediff`
 
-- [ ] File-set diff (missing / extra paths).
-- [ ] HTML: parse with `html5ever`; normalize inter-element whitespace, attribute order, entity
+- [x] File-set diff (missing / extra paths).
+- [x] HTML: parse with `html5ever`; normalize inter-element whitespace, attribute order, entity
       forms; **code blocks compared by text content only** (token spans stripped) while wrapper
       element/class structure is still compared.
-- [ ] `feed.xml`: structural compare; ignore `pubDate`/`lastBuildDate`/`generator`; item
+- [x] `feed.xml`: structural compare; ignore `pubDate`/`lastBuildDate`/`generator`; item
       `description` is unescaped and compared as normalized HTML.
-- [ ] CSS: byte compare, falling back to normalized compare (whitespace, trailing semicolons, color case).
-- [ ] Other assets: compare candidate file hashes against `archive/reference-site.manifest` (static files are pruned from the snapshot).
-- [ ] `sitediff.allow.toml`: entries = path glob + selector/pattern + mandatory `reason`.
+- [x] CSS: byte compare, falling back to normalized compare (whitespace, trailing semicolons, color case).
+- [x] Other assets: compare candidate file hashes against `archive/reference-site.manifest` (static files are pruned from the snapshot).
+- [x] `sitediff.allow.toml`: entries = path glob + selector/pattern + mandatory `reason`.
       Report unused allowlist entries.
-- [ ] Output: per-file summary, readable unified diff of normalized DOM, non-zero exit on differences.
+- [x] Output: per-file summary, readable unified diff of normalized DOM, non-zero exit on differences.
 
 **Exit:** reference vs itself → 0 diffs; reference vs a hand-mutated copy → every mutation reported.
 **Risk:** over-normalization hides real differences. Mitigation: mutation test set covers text
 change, attribute change, element reorder, missing file, changed code text.
 
 **Notes:**
+
+- Done 2026-09-18. Crate `crates/sitediff` (lib + bin): `scraper`/html5ever for HTML, `roxmltree`
+  for the feed, `similar` for line diffs, `globset` + `regex` + `toml` for the allowlist.
+- Approach: every file type is converted to a **canonical line form** (one DOM node per line,
+  indented), then line-diffed. What is normalized away is documented at the top of `src/html.rs`.
+- Usage: `cargo run -p sitediff -- archive/reference-site _site` (manifest and
+  `sitediff.allow.toml` are picked up by default). Flags: `--only <glob>` to iterate on one post,
+  `--limit <n>` files with hunks (default 5), `-q` summary only, `-v` list identical files,
+  `--no-manifest`. Exit code 1 on any unallowed difference.
+- Hunk markers: `-` reference, `+` candidate, `~` after the sign = line covered by the allowlist.
+- Allowlist has three rule kinds — `[[file]]`, `[[drop]]` (CSS selector + optional `contains`,
+  applied before comparison, per side), `[[line]]` (regex on normalized lines). `reason` is
+  mandatory; unused rules are reported as warnings (suppressed under `--only`).
+- Feed lines carry their full path (`rss/channel/item[3]/pubDate: ...`) so rules can target the
+  channel build date without also excusing item dates. `<description>` is unescaped and compared as HTML.
+- Static files pruned from the snapshot are verified by sha256 against `reference-site.manifest`.
+- `sitediff.allow.toml` seeded with: GA script drop (reference side), feed build dates, feed generator.
+- Exit criteria met via `cargo test -p sitediff` (`tests/mutations.rs`, runs against the real snapshot):
+  reference vs itself = all same; 10 meaningful mutations all reported (text, attribute, element
+  order, code text, space between inline elements, heading id, feed title, CSS value, missing file,
+  extra file); 6 cosmetic mutations not reported (block whitespace, token span class, token span
+  removed, attribute order, entity spelling, CSS formatting).
+- Known blind spots (accepted): leading/trailing space *inside* an inline element
+  (`<a> x</a>`), class token order, highlighter `<span>`s inside `<pre>`; CSS normalizer lowercases
+  anything hex-like after `#` (would also lowercase an id selector such as `#FACE`).
 
 ## Phase 3 — Generator skeleton
 
