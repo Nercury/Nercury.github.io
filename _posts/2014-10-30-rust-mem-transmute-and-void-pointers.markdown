@@ -22,16 +22,16 @@ Turns out that if you pass a value into mem::transmute, it will eat ownership of
 If you transmute it into something stupid like _*mut u8_ (read: __void__ pointer), it is now your responsibility
 to manage the result.
 
-{% highlight rust %}
+```rust
 let val: i32 = 333;
 let ptr: *mut u8 = unsafe { mem::transmute(&val) };
-{% endhighlight %}
+```
 
 Well, the above example compiles and runs, but the result is not really visible.
 Let's use something more debugable instead of int - a value that can print
 itself when it is created and destroyed:
 
-{% highlight rust %}
+```rust
 struct Val {
     value: i32
 }
@@ -46,64 +46,64 @@ impl Drop for Val {
         println!("destroyed {}", self.value);
     }
 }
-{% endhighlight %}
+```
 
 And modify the code:
 
-{% highlight rust %}
+```rust
 let val = Val::new(333);
 let ptr: *mut u8 = unsafe { mem::transmute(&val) };
-{% endhighlight %}
+```
 
 This prints:
 
-{% highlight console %}
+```console
 create 333
 destroyed 333
-{% endhighlight %}
+```
 
 Oh, wait... _We expected no destruction..._. Wel, duh, of course, because we transmuted
 the reference instead of actual value. If instead we wrap the value in a _Box_...
 
-{% highlight rust %}
+```rust
 let val = box Val::new(333);
 let ptr: *mut u8 = unsafe { mem::transmute(val) };
-{% endhighlight %}
+```
 
 We get:
 
-{% highlight console %}
+```console
 create 333
-{% endhighlight %}
+```
 
 Excellent, not destroyed! The box got eaten by transmute - nothing owns the _val_ no more.
 We have a memory leak! How nice.
 
 Of course, the same is going to work backwards too:
 
-{% highlight rust %}
+```rust
 let val = box Val::new(333);
 let ptr: *mut u8 = unsafe { mem::transmute(val) };
 
 let get_back_val: Box<Val> = unsafe { mem::transmute(ptr) };
-{% endhighlight %}
+```
 
 Output:
 
-{% highlight console %}
+```console
 create 333
 destroyed 333
-{% endhighlight %}
+```
 
 Turns out that when we get back the value from transmute, it is reintroduced
 in the current scope, and rust is generating a destructor for it as if
 we did the following:
 
-{% highlight rust %}
+```rust
 let val = box Val::new(333);
 // to-pointer and from-pointer removed
 let get_back_val: Box<Val> = val;
-{% endhighlight %}
+```
 
 This is excellent for taking control of the pointer and accidentally shooting yourself in the foot,
 because you can convert it back to anything and get varied garbage or crash horribly.
@@ -114,19 +114,19 @@ mechanism.
 Let's make an object that might store a value of arbitrary type and call it MaybeValue.
 It will have a mighty pointer inside, as well as the [TypeId][doc-type-id] of stored value:
 
-{% highlight rust %}
+```rust
 use std::intrinsics::TypeId;
 
 struct MaybeValue {
     ptr: *mut u8,
     type_id: TypeId,
 }
-{% endhighlight %}
+```
 
 We can use generics to create this value from any kind of type, box it and store it's pointer as
 well as type.
 
-{% highlight rust %}
+```rust
 impl MaybeValue {
     fn new<T: 'static>(value: T) -> MaybeValue {
         MaybeValue {
@@ -135,11 +135,11 @@ impl MaybeValue {
         }
     }
 }
-{% endhighlight %}
+```
 
 And we can also add method to take away the contained value, called _rob_ (to emphasize what it does):
 
-{% highlight rust %}
+```rust
 impl MaybeValue {
     // ...
 
@@ -162,11 +162,11 @@ impl MaybeValue {
         }
     }
 }
-{% endhighlight %}
+```
 
 Run it:
 
-{% highlight rust %}
+```rust
 fn main() {
     let mut maybe = MaybeValue::new(Val::new(333));
     let result = maybe.rob::<Val>();
@@ -175,19 +175,19 @@ fn main() {
         None => println!("No robing!")
     }
 }
-{% endhighlight %}
+```
 
 Prints:
 
-{% highlight console %}
+```console
 create 333
 Has robbed value 333
 destroyed 333
-{% endhighlight %}
+```
 
 Great! Should only rob once, even if we try to get value twice:
 
-{% highlight rust %}
+```rust
 fn main() {
     let mut maybe = MaybeValue::new(Val::new(333));
     for _ in range(0i, 2i) { // Do it twice:
@@ -198,28 +198,28 @@ fn main() {
         }
     }
 }
-{% endhighlight %}
+```
 
 Prints:
 
-{% highlight console %}
+```console
 create 333
 Has robbed value 333
 destroyed 333
 No robing!
-{% endhighlight %}
+```
 
 So, it is safe now, right? Well, what happens to value if no one robs it?
 
-{% highlight rust %}
+```rust
 fn main() {
     let mut maybe = MaybeValue::new(Val::new(333));
 }
-{% endhighlight %}
+```
 
-{% highlight console %}
+```console
 create 333
-{% endhighlight %}
+```
 
 Ooops! MaybeValue has no idea how to correctly destroy this pointer. We could
 implement Drop, but it won't know anything about the type, because it was only
@@ -228,7 +228,7 @@ available in new...
 What if instead we used a closure that knows how to drop it and is initialized
 inside _new_?
 
-{% highlight rust %}
+```rust
 struct MaybeValue {
     // ...
     destroy: |*mut u8|:'static + Send -> (),
@@ -254,17 +254,17 @@ impl Drop for MaybeValue {
         }
     }
 }
-{% endhighlight %}
+```
 
 To destroy it, we simply "untransmute" it back from pointer to real type
 so that rust can automatically dispose of it.
 
 And this indeed works out allright:
 
-{% highlight console %}
+```console
 create 333
 destroyed 333
-{% endhighlight %}
+```
 
 I like how Rust allows using powerful language constructs to wrap low level implementation,
 and keep this implementation safely locked. I truly believe that Rust is going to

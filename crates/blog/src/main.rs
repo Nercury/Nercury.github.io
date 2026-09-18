@@ -2,6 +2,7 @@ mod build;
 mod config;
 mod filters;
 mod front_matter;
+mod highlight;
 mod markdown;
 mod site;
 mod templates;

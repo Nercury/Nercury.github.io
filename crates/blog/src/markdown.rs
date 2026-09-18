@@ -1,38 +1,49 @@
-//! Markdown → HTML, shaped like the kramdown (GFM input) + Rouge output of the old Jekyll build.
+//! Markdown → HTML.
 //!
-//! pulldown-cmark does the parsing; this module rewrites the parts where kramdown's HTML differs:
-//! heading ids, code block wrappers, inline code classes and the `{% highlight %}` Liquid tag.
-//! Code is emitted as plain escaped text: highlighting happens client-side (MIGRATION D4).
+//! pulldown-cmark does the parsing; this module rewrites headings (kramdown-compatible ids, so
+//! existing deep links keep working, plus an anchor link) and code blocks (highlighted at build
+//! time, see `highlight.rs`).
 
 use std::collections::HashMap;
 use std::ops::Range;
 
+use anyhow::Result;
 use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag, TagEnd, html};
 
-/// Languages Rouge had a lexer for, as observed in the reference site. Fences with any other
-/// info string (`txt`, `plain`, `gdb`, `cfg`, `C`) were left as a bare `<pre><code>`.
-const ROUGE_LANGUAGES: &[&str] =
-    &["bash", "c", "c++", "console", "cpp", "cs", "csharp", "glsl", "haskell", "python", "rust", "text", "toml", "plaintext"];
+use crate::highlight::Highlighter;
 
-pub fn render(source: &str) -> String {
-    let (source, highlights) = extract_highlight_tags(source);
+/// GitHub's "link" octicon (MIT), shown next to a heading on hover.
+const ANCHOR_ICON: &str = r#"<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M7.775 3.275a.75.75 0 001.06 1.06l1.25-1.25a2 2 0 112.83 2.83l-2.5 2.5a2 2 0 01-2.83 0 .75.75 0 00-1.06 1.06 3.5 3.5 0 004.95 0l2.5-2.5a3.5 3.5 0 00-4.95-4.95l-1.25 1.25zm-4.69 9.64a2 2 0 010-2.83l2.5-2.5a2 2 0 012.83 0 .75.75 0 001.06-1.06 3.5 3.5 0 00-4.95 0l-2.5 2.5a3.5 3.5 0 004.95 4.95l1.25-1.25a.75.75 0 00-1.06-1.06l-1.25 1.25a2 2 0 01-2.83 0z"/></svg>"#;
 
+/// Where the HTML is going to be shown.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Flavor {
+    /// A page of the site: heading anchors and highlighted code, styled by the site's CSS.
+    Page,
+    /// Embedded in the feed, where no stylesheet applies: the hover-only anchor icon would be a
+    /// permanent link before every heading, and token spans would only double the feed's size.
+    Feed,
+}
+
+pub fn render(source: &str, highlighter: &Highlighter, flavor: Flavor) -> Result<String> {
     let options = Options::ENABLE_TABLES | Options::ENABLE_SMART_PUNCTUATION | Options::ENABLE_STRIKETHROUGH;
-    let events: Vec<(Event, Range<usize>)> = Parser::new_ext(&source, options).into_offset_iter().collect();
+    let events: Vec<(Event, Range<usize>)> = Parser::new_ext(source, options).into_offset_iter().collect();
     let mut ids = HeadingIds::default();
-    let events = rewrite(&source, events, &mut ids);
+    let events = rewrite(source, events, &mut ids, highlighter, flavor)?;
 
     let mut out = String::with_capacity(source.len() * 2);
     html::push_html(&mut out, events.into_iter());
-
-    for (index, block) in highlights.iter().enumerate() {
-        out = out.replace(&highlight_placeholder(index), block);
-    }
-    out
+    Ok(out)
 }
 
-/// Replaces headings, code blocks and inline code with pre-rendered HTML events.
-fn rewrite<'a>(source: &str, events: Vec<(Event<'a>, Range<usize>)>, ids: &mut HeadingIds) -> Vec<Event<'a>> {
+/// Replaces headings and code blocks with pre-rendered HTML events.
+fn rewrite<'a>(
+    source: &str,
+    events: Vec<(Event<'a>, Range<usize>)>,
+    ids: &mut HeadingIds,
+    highlighter: &Highlighter,
+    flavor: Flavor,
+) -> Result<Vec<Event<'a>>> {
     let mut out = Vec::with_capacity(events.len());
     let mut events = events.into_iter();
     while let Some((event, range)) = events.next() {
@@ -40,9 +51,13 @@ fn rewrite<'a>(source: &str, events: Vec<(Event<'a>, Range<usize>)>, ids: &mut H
             Event::Start(Tag::Heading { level, .. }) => {
                 let inner: Vec<_> = events.by_ref().take_while(|(e, _)| !matches!(e, Event::End(TagEnd::Heading(_)))).collect();
                 let mut inner_html = String::new();
-                html::push_html(&mut inner_html, rewrite(source, inner, ids).into_iter());
+                html::push_html(&mut inner_html, rewrite(source, inner, ids, highlighter, flavor)?.into_iter());
                 let id = ids.next(heading_raw_text(&source[range]));
-                out.push(Event::Html(format!("<{level} id=\"{id}\">{inner_html}</{level}>\n").into()));
+                let anchor = match flavor {
+                    Flavor::Page => format!("<a class=\"header-link\" href=\"#{id}\" aria-label=\"Link to this section\">{ANCHOR_ICON}</a>"),
+                    Flavor::Feed => String::new(),
+                };
+                out.push(Event::Html(format!("<{level} id=\"{id}\">{anchor}{inner_html}</{level}>\n").into()));
             }
             Event::Start(Tag::CodeBlock(kind)) => {
                 let mut code = String::new();
@@ -57,25 +72,16 @@ fn rewrite<'a>(source: &str, events: Vec<(Event<'a>, Range<usize>)>, ids: &mut H
                     CodeBlockKind::Fenced(info) => info.split_whitespace().next().unwrap_or(""),
                     CodeBlockKind::Indented => "",
                 };
-                out.push(Event::Html(code_block(language, &code).into()));
-            }
-            Event::Code(code) => {
-                out.push(Event::Html(format!("<code class=\"language-plaintext highlighter-rouge\">{}</code>", escape(&code)).into()));
+                let block = match flavor {
+                    Flavor::Page => highlighter.code_block(language, &code)?,
+                    Flavor::Feed => Highlighter::plain_code_block(language, &code),
+                };
+                out.push(Event::Html(block.into()));
             }
             other => out.push(other),
         }
     }
-    out
-}
-
-fn code_block(language: &str, code: &str) -> String {
-    let code = escape(code);
-    if language.is_empty() || ROUGE_LANGUAGES.contains(&language) {
-        let language = if language.is_empty() { "plaintext" } else { language };
-        format!("<div class=\"language-{language} highlighter-rouge\"><div class=\"highlight\"><pre class=\"highlight\"><code>{code}</code></pre></div></div>\n")
-    } else {
-        format!("<pre><code class=\"language-{language}\">{code}</code></pre>\n")
-    }
+    Ok(out)
 }
 
 /// kramdown's GFM parser derives ids from the heading's *source* text: lowercase, drop everything
@@ -113,53 +119,6 @@ fn heading_raw_text(block: &str) -> &str {
     }
 }
 
-/// Jekyll's `{% highlight lang %}` runs before Markdown and leaves a `<figure>` block behind.
-/// The tag bodies are lifted out here and spliced back into the final HTML, so Markdown never
-/// sees the code.
-fn extract_highlight_tags(source: &str) -> (String, Vec<String>) {
-    let mut out = String::with_capacity(source.len());
-    let mut blocks = Vec::new();
-    let mut rest = source;
-    while let Some(start) = rest.find("{% highlight ") {
-        let after_open = &rest[start + "{% highlight ".len()..];
-        let (Some(open_end), Some(close)) = (after_open.find("%}"), after_open.find("{% endhighlight %}")) else { break };
-        if open_end > close {
-            break;
-        }
-        let language = after_open[..open_end].split_whitespace().next().unwrap_or("text");
-        // Jekyll strips leading and trailing newlines of the tag body.
-        let code = after_open[open_end + 2..close].trim_matches(['\n', '\r']);
-        out.push_str(&rest[..start]);
-        out.push_str(&highlight_placeholder(blocks.len()));
-        blocks.push(format!(
-            "<figure class=\"highlight\"><pre><code class=\"language-{language}\" data-lang=\"{language}\">{}</code></pre></figure>",
-            escape(code)
-        ));
-        rest = &after_open[close + "{% endhighlight %}".len()..];
-    }
-    out.push_str(rest);
-    (out, blocks)
-}
-
-/// An HTML comment survives Markdown untouched, both as a block and inline.
-fn highlight_placeholder(index: usize) -> String {
-    format!("<!--highlight-block-{index}-->")
-}
-
-fn escape(text: &str) -> String {
-    let mut out = String::with_capacity(text.len());
-    for ch in text.chars() {
-        match ch {
-            '&' => out.push_str("&amp;"),
-            '<' => out.push_str("&lt;"),
-            '>' => out.push_str("&gt;"),
-            '"' => out.push_str("&quot;"),
-            _ => out.push(ch),
-        }
-    }
-    out
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -174,17 +133,19 @@ mod tests {
     }
 
     #[test]
-    fn code_blocks_by_language() {
-        let html = render("```rust\nlet a = 1 < 2;\n```\n\n```txt\nplain\n```\n\n```\nnone\n```\n");
-        assert!(html.contains("<div class=\"language-rust highlighter-rouge\"><div class=\"highlight\"><pre class=\"highlight\"><code>let a = 1 &lt; 2;\n</code>"));
-        assert!(html.contains("<pre><code class=\"language-txt\">plain\n</code></pre>"));
-        assert!(html.contains("<div class=\"language-plaintext highlighter-rouge\">"));
-    }
+    fn headings_get_id_and_anchor_code_is_highlighted() {
+        let highlighter = Highlighter::new("GitHub").unwrap();
+        let source = "## Why `Rust`?\n\nUse `x`.\n\n```rust\nlet a = 1 < 2;\n```\n\n    indented\n";
+        let html = render(source, &highlighter, Flavor::Page).unwrap();
+        assert!(html.contains("<h2 id=\"why-rust\"><a class=\"header-link\" href=\"#why-rust\""), "{html}");
+        assert!(html.contains("</a>Why <code>Rust</code>?</h2>"), "{html}");
+        assert!(html.contains("<p>Use <code>x</code>.</p>"));
+        assert!(html.contains("<pre class=\"highlight s-code\"><code class=\"language-rust\"><span"));
+        assert!(html.contains("<code class=\"language-plaintext\">"));
 
-    #[test]
-    fn highlight_tag_becomes_figure() {
-        let html = render("Before\n\n{% highlight rust %}\nfn a() {}\n\nfn b<T>() {}\n{% endhighlight %}\n\nAfter `x`\n");
-        assert!(html.contains("<figure class=\"highlight\"><pre><code class=\"language-rust\" data-lang=\"rust\">fn a() {}\n\nfn b&lt;T&gt;() {}</code></pre></figure>"));
-        assert!(html.contains("<code class=\"language-plaintext highlighter-rouge\">x</code>"));
+        let feed = render(source, &highlighter, Flavor::Feed).unwrap();
+        assert!(feed.contains("<h2 id=\"why-rust\">Why <code>Rust</code>?</h2>"), "{feed}");
+        assert!(!feed.contains("header-link") && !feed.contains("<svg") && !feed.contains("<span"));
+        assert!(feed.contains("<pre><code class=\"language-rust\">let a = 1 &lt; 2;\n</code></pre>"), "{feed}");
     }
 }

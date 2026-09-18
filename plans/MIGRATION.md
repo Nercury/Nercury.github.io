@@ -360,11 +360,11 @@ served), then push, then confirm the workflow deployed.
 
 ## Phase 8 — Pure server-side highlighting
 
-- [ ] `syntect` with CSS classes (no inline styles); generate a theme stylesheet.
-- [ ] Unify the three code block shapes into one; convert `{% highlight %}` blocks to fences (mechanical).
-- [ ] Server-side heading anchors replacing the jQuery script.
-- [ ] Remove `js/highlight.pack.js`, `js/jquery.min.js`, `css/styles/*`, `css/pygments/`, netdna font-awesome link (keep or inline the one icon used).
-- [ ] `sitediff` remains the content guard: code text and all non-code DOM must stay identical; wrapper/head changes go into a new, reviewed allowlist section.
+- [x] `syntect` with CSS classes (no inline styles); generate a theme stylesheet.
+- [x] Unify the three code block shapes into one; convert `{% highlight %}` blocks to fences (mechanical).
+- [x] Server-side heading anchors replacing the jQuery script.
+- [x] Remove `js/highlight.pack.js`, `js/jquery.min.js`, `css/styles/*`, `css/pygments/`, netdna font-awesome link (keep or inline the one icon used).
+- [x] `sitediff` remains the content guard: code text and all non-code DOM must stay identical; wrapper/head changes go into a new, reviewed allowlist section.
 - [ ] Visual check in a browser of one post per language.
 
 **Exit:** no client-side JS required for rendering; content diff clean.
@@ -372,6 +372,40 @@ served), then push, then confirm the workflow deployed.
 add `.sublime-syntax` files.
 
 **Notes:**
+
+- Implemented 2026-09-18; **visual check by the owner still open** (the one unticked box).
+- `crates/blog/src/highlight.rs`: `syntect` (pure-Rust `fancy-regex` build, no C dependency) with
+  `two-face` for the grammars and themes syntect lacks. Every language used on the blog has a
+  grammar — asserted by a test (`rust toml cpp c++ c C bash glsl cs haskell python`); `console`,
+  `txt`, `plain`, `text`, `cfg`, `gdb` are deliberately plain text. The feared GLSL/TOML gap did
+  not materialize thanks to two-face.
+- Tokens are CSS classes prefixed `s-` (no inline styles); colors come from a generated
+  `/css/syntax.css`. Theme is `syntax_theme` in `site.toml` (default `GitHub`); an unknown name
+  fails the build and lists the alternatives.
+- One code block shape: `<pre class="highlight s-code"><code class="language-x">tokens</code></pre>`.
+  Inline code is a bare `<code>`. All 67 `{% highlight %}` blocks (4 posts) were converted to
+  fences mechanically; the Liquid pre-pass is gone, Markdown sources contain no Liquid at all now.
+- Heading anchors are emitted at build time: `<a class="header-link" href="#id">` + inline SVG
+  (GitHub's MIT "link" octicon), replacing jQuery + font-awesome (which was only ever loaded from
+  the netdna CDN — no font files in the repo). Heading ids are unchanged, deep links keep working.
+- **Feed flavor** (`markdown::Flavor::Feed`): `site.posts[].content` is rendered without anchors
+  and without token spans. Found by reading the output, not by sitediff: anchors would have shown
+  as a permanent link icon before every heading in feed readers, and token spans took the feed
+  from 0.74 MB to 1.37 MB. Now 0.24 MB — smaller than the old feed, which carried Rouge's spans.
+- Removed: `js/highlight.pack.js` (55 KB), `js/jquery.min.js` (96 KB), `css/styles/*` (75 unused
+  highlight.js themes), `css/pygments/`, `css/font-awesome.css`, the unused
+  `_sass/_syntax-highlighting.scss`, the netdna link. Static files 178 → 106. **The site now has
+  no JavaScript and no third-party requests.**
+- Cost: highlighted HTML is about twice the size (all pages 1.18 MB → 2.37 MB; `ownership.html`
+  51 KB → 109 KB) because syntect emits nested scope spans. It compresses well and replaces 151 KB
+  of JS per uncached visit, but it is a real increase in raw page size.
+- sitediff: code blocks of any of the three shapes are normalized to `<codeblock language="…">` +
+  text (unit-tested: language and text changes still fail). Result vs the 2020 reference:
+  **110 same, 25 allowed, 74 ignored, 0 failing** — code text, code languages and everything outside
+  code are unchanged. New allowlist section "Phase 8" (scripts, removed/added stylesheets, anchors,
+  inline code classes, removed assets, `css/main.css` as a whole since styles were reworked).
+- Styles: `pre > code` now carries what highlight.js's theme used to provide (block display,
+  padding, horizontal scroll); `.header-link` lost its invalid `font-size: 0.9`.
 
 ## Phase 9 — Cleanup
 

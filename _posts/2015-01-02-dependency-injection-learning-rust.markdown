@@ -43,25 +43,25 @@ type and keep items of different types in the same map.
 I started making basic abstraction: the registry was going to contain all the
 getters for all defined items of different types:
 
-{% highlight rust %}
+```rust
 struct Registry {
     factories: HashMap<String, Box<Any>>,
 }
-{% endhighlight %}
+```
 
 I knew I could implement trait for any value. My idea was to make a trait that
 converts any compatible value to a getter of appropriate type:
 
-{% highlight rust %}
+```rust
 trait ToFactory<T> {
     fn to_factory<'r>(self) -> ||:'r -> T;
 }
-{% endhighlight %}
+```
 
 I figured I could try to use `|| -> T` as my getter, why not? I would then add
 it to registry like this:
 
-{% highlight rust %}
+```rust
 impl Registry {
     fn one<T: ToFactory<T>>(&mut self, id: &str, value: T) {
         self.factories.insert(
@@ -70,33 +70,33 @@ impl Registry {
         );
     }
 }
-{% endhighlight %}
+```
 
 Then, for a simple start, I attempted to implement `ToFactory` for an `i32`
 value. Returning a fixed value worked:
 
-{% highlight rust %}
+```rust
 impl ToFactory<i32> for i32 {
     fn to_factory<'r>(self) -> ||:'r -> i32 {
         || 5i32 // always return "5" just to try it...
     }
 }
-{% endhighlight %}
+```
 
 Wow, I thought. It is going to work, I thought. And then I tried to return
 cloned self:
 
-{% highlight rust %}
+```rust
 impl ToFactory<i32> for i32 {
     fn to_factory<'r>(self) -> ||:'r -> i32 {
         || self.clone()
     }
 }
-{% endhighlight %}
+```
 
 Success? Nope:
 
-{% highlight text %}
+```text
 <anon>:30:12: 30:16 error: captured variable `self` does not outlive the enclosing closure
 <anon>:30         || self.clone()
                      ^~~~
@@ -108,7 +108,7 @@ Success? Nope:
 <anon>:29     fn to_factory<'r>(self) -> ||:'r -> i32 {
 <anon>:30         || self.clone()
 <anon>:31     }
-{% endhighlight %}
+```
 
 [Playpen link for full code](http://is.gd/jQxIHr).
 
@@ -132,38 +132,38 @@ Even though it did not work with a closure, I knew it was certainly possible
 to manage without it. I just needed an interface... I mean... _trait_ that
 returns my value:
 
-{% highlight rust %}
+```rust
 trait Getter<T> {
     fn take(&self) -> T;
 }
-{% endhighlight %}
+```
 
 And, just for testing, I implemented `Getter<i32>` for `i32`, so I could
 return `i32` where `Getter<i32>` interface was required:
 
-{% highlight rust %}
+```rust
 impl Getter<i32> for i32 {
     fn take(&self) -> i32 {
         self.clone()
     }
 }
-{% endhighlight %}
+```
 
 Then, instead of a closure, `ToFactory` should return this trait:
 
-{% highlight rust %}
+```rust
 trait ToFactory<T> {
     fn to_factory<'r>(self) -> (Getter<T> + 'r);
 }
-{% endhighlight %}
+```
 
 Was it going to work? Well:
 
-{% highlight text %}
+```text
 <anon>:18:13: 18:47 error: the trait `core::kinds::Sized` is not implemented for the type `Getter<T>`
 <anon>:18             box value.to_factory() as Box<Any>
                       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-{% endhighlight %}
+```
 
 Why? What is this `Sized`, I thought. After few shameful attempts to
 transmute and store trait as an unsafe pointer instead of a `Box<Any>` blew up
@@ -172,15 +172,15 @@ should always be sized.
 
 I changed my factory to return an unknown getter:
 
-{% highlight rust %}
+```rust
 trait ToFactory<G> {
     fn to_factory<'r>(self) -> G;
 }
-{% endhighlight %}
+```
 
 I was surprised that I needed no `Sized` when I did this:
 
-{% highlight rust %}
+```rust
 impl Registry {
     fn one<
         T, // for type T
@@ -195,12 +195,12 @@ impl Registry {
         );
     }
 }
-{% endhighlight %}
+```
 
 Little did I know that this kind of signature, when used with an `i32` as an
 argument, will essentially be equivalent to this:
 
-{% highlight rust %}
+```rust
 impl Registry {
     fn one_i32(&mut self, id: &str, value: i32)
     {
@@ -210,7 +210,7 @@ impl Registry {
         );
     }
 }
-{% endhighlight %}
+```
 
 Notice that no actual `Getter<i32>` is getting boxed? And I thought
 I have just managed to shove the trait into the box!
@@ -218,7 +218,7 @@ I have just managed to shove the trait into the box!
 So, imagine my surprise when I saw this when I tested if I could get the
 value back:
 
-{% highlight rust %}
+```rust
 use std::any::{Any, AnyRefExt};
 
 impl Registry {
@@ -234,17 +234,17 @@ impl Registry {
         getter.take()
     }
 }
-{% endhighlight %}
-{% highlight text %}
+```
+```text
 <anon>:32:27: 32:54 error: the trait `core::kinds::Sized` is not implemented for the type `Getter<T>`
 <anon>:32         let getter = item.downcast_ref::<Getter<T>>().unwrap();
-{% endhighlight %}
+```
 
 Here we go... it needs `Sized`, again.
 
 What did I do? I tried to workaround it again.
 
-{% highlight rust %}
+```rust
 impl Registry {
     // <...>
 
@@ -255,7 +255,7 @@ impl Registry {
         getter.take()
     }
 }
-{% endhighlight %}
+```
 
 What? It doesn't work without the underlying type for getter getting exposed?
 
@@ -271,15 +271,15 @@ my getter would be constructed from varied underlying types.
 So I ended up implementing a wrapper struct for my `Getter<T>` trait that
 looked like this:
 
-{% highlight rust %}
+```rust
 pub struct Factory<'a, T> {
     getter: Box<Getter<T> + 'a>,
 }
-{% endhighlight %}
+```
 
 Then both `Registry` methods were greatly simplified:
 
-{% highlight rust %}
+```rust
 impl Registry {
     fn one<T: ToFactory<T> + 'static>(&mut self, id: &str, value: T) {
         self.factories.insert(
@@ -294,7 +294,7 @@ impl Registry {
         factory.take()
     }
 }
-{% endhighlight %}
+```
 
 [Playpen example with complete code](http://is.gd/bCLHVU).
 

@@ -47,17 +47,16 @@ $on-laptop:        800px;
         "layout"
 ;
 
-.highlighter-rouge span.err, .highlight span.err {
-    border: none;
-}
-
 .header-link {
   position: absolute;
   float: left;
   margin-left: -38px;
   width: 38px;
   opacity: 0;
-  font-size: 0.9;
+
+  svg {
+    vertical-align: middle;
+  }
 }
 
 blockquote {

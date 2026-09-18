@@ -10,9 +10,8 @@
 [[drop]]
 path = "**/*.html"
 selector = "script"
-contains = "GoogleAnalyticsObject"
 side = "reference"
-reason = "D7: Google Analytics dropped (Universal Analytics is shut down)"
+reason = "D7 + Phase 8: Google Analytics dropped; highlight.js, jQuery and the heading-anchor script replaced by build-time rendering (the new site has no scripts at all)"
 
 [[line]]
 path = "feed.xml"
@@ -25,11 +24,6 @@ pattern = '^rss/channel/generator:'
 reason = "generator is no longer Jekyll"
 
 [[line]]
-path = "css/main.css"
-pattern = '^\s*color:(black|#000)$'
-reason = "grass emits the named color `black` as #000; same color"
-
-[[line]]
 path = "resources/mcu-02/cortex-m-basics.html"
 pattern = '^\s*("GPIOB_CRL"|"a"|" are the MODE bits.*|"re the MODE bits.*|<code class="highlighter-rouge language-plaintext">)$'
 reason = "source typo fixed: `GPIOB_CRL`` a`re -> `GPIOB_CRL` are (old build rendered a stray code span)"
@@ -38,3 +32,43 @@ reason = "source typo fixed: `GPIOB_CRL`` a`re -> `GPIOB_CRL` are (old build ren
 path = "{feed.xml,rust/opengl/tutorial/2018/07/25/opengl-in-rust-from-scratch-12-buffers.html}"
 pattern = '^\s*("\(src/render_gl/buffer\.rs, modified Buffer(<B>( struct\)|::new function\)))?"|<b>|" ?(struct\)|::new function\))")$'
 reason = "source bug fixed: bare Buffer<B> in prose was rendered as an unclosed <b> tag; now escaped"
+
+# ---------------------------------------------------------------------------------------------
+# Phase 8: highlighting and heading anchors moved from the browser to the build.
+# Code text, code block languages and everything outside code are still compared.
+# ---------------------------------------------------------------------------------------------
+
+[[drop]]
+path = "**/*.html"
+selector = 'link[href="/css/pygments/default.css"], link[href="/css/font-awesome.css"], link[href*="netdna.bootstrapcdn.com"], link[href="/css/styles/color-brewer.css"]'
+side = "reference"
+reason = "Phase 8: stylesheets for Rouge tokens, highlight.js and font-awesome are gone"
+
+[[drop]]
+path = "**/*.html"
+selector = 'link[href="/css/syntax.css"]'
+side = "candidate"
+reason = "Phase 8: generated stylesheet for build-time syntax highlighting"
+
+[[drop]]
+path = "{**/*.html,feed.xml}"
+selector = "a.header-link"
+side = "candidate"
+reason = "Phase 8: heading anchors are emitted at build time (jQuery used to inject them in the browser)"
+
+[[line]]
+path = "{**/*.html,feed.xml}"
+pattern = '^\s*<code( class="highlighter-rouge language-plaintext")?>$'
+reason = "Phase 8: inline code no longer carries Rouge's classes"
+
+[[file]]
+path = "css/main.css"
+reason = "Phase 8: code block and anchor styles reworked (reviewed visually, not by diff)"
+
+[[file]]
+path = "css/syntax.css"
+reason = "Phase 8: generated stylesheet for build-time syntax highlighting"
+
+[[file]]
+path = "{js/**,css/styles/**,css/pygments/**,css/font-awesome.css}"
+reason = "Phase 8: highlight.js, jQuery, 75 unused highlight.js themes, pygments and font-awesome CSS removed"

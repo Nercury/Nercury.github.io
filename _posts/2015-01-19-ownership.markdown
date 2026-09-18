@@ -36,18 +36,18 @@ familiar with it.
 
 What happens to `i` at the end of the `main` function?
 
-{% highlight rust %}
+```rust
 fn main() {
     let i = 5;
 }
-{% endhighlight %}
+```
 
 It goes out of scope and dies, right?
 
 If we pass this `i` to another function `foo`, how
 many times will it "die"?
 
-{% highlight rust %}
+```rust
 fn main() {
     let i = 5;
     foo(i); // call function foo
@@ -56,7 +56,7 @@ fn main() {
 fn foo(i: i64) { // another function foo
     // something
 }
-{% endhighlight %}
+```
 
 Well, it will "die" twice. First, at the end of `foo`,
 and then at the end of `main`. If you modify it in `foo`,
@@ -83,12 +83,12 @@ used as a function argument. Exactly like a built-in integer.
 
 For example, this simple struct will be copy-able by default:
 
-{% highlight rust %}
+```rust
 #[derive(Copy, Clone)]
 struct Info {
     value: i64,
 }
-{% endhighlight %}
+```
 
 Note that we had to _tell_ the compiler that it is `Copy` - otherwise
 it would __always be moved__ to another
@@ -113,38 +113,38 @@ Let's see some examples!
 To demonstrate how the data is moving around, we will create
 a new struct and call it `Bob`.
 
-{% highlight rust %}
+```rust
 struct Bob {
     name: String,
 }
-{% endhighlight %}
+```
 
 In Bob constructor `new`, we will announce that it was created:
 
-{% highlight rust %}
+```rust
 impl Bob {
     fn new(name: &str) -> Bob {
         println!("new bob {:?}", name); // announce
         Bob { name: name.to_string() }
     }
 }
-{% endhighlight %}
+```
 
 When Bob gets destroyed (sorry, Bob!), we will print its name
 by implementing built-in `Drop::drop` trait method:
 
-{% highlight rust %}
+```rust
 impl Drop for Bob {
     fn drop(&mut self) {
         println!("del bob {:?}", self.name);
     }
 }
-{% endhighlight %}
+```
 
 And to make bob value format-able when outputing to console,
 we will implement the built-in `Debug::fmt` trait method:
 
-{% highlight rust %}
+```rust
 use std::fmt;
 
 impl fmt::Debug for Bob {
@@ -152,18 +152,18 @@ impl fmt::Debug for Bob {
         write!(f, "bob {:?}", self.name)
     }
 }
-{% endhighlight %}
+```
 
 ### Let's put it to the Test!
 
 When we create Bob in the `main` function, we get a predictable
 result:
 
-{% highlight rust %}
+```rust
 fn main() {
     Bob::new("A");
 }
-{% endhighlight %}
+```
 
     new bob "A"
     del bob "A"
@@ -172,12 +172,12 @@ OK, it got deleted somehow - but when exactly?
 
 Let's insert a "print" statement at the end of function:
 
-{% highlight rust %}
+```rust
 fn main() {
     Bob::new("A");
     println!("end is near");
 }
-{% endhighlight %}
+```
 
     new bob "A"
     del bob "A"
@@ -189,12 +189,12 @@ value was not assigned to anything, so the compiler called our
 
 What if we _bind_ the returned value to a _variable_?
 
-{% highlight rust %}
+```rust
 fn main() {
     let bob = Bob::new("A");
     println!("end is near");
 }
-{% endhighlight %}
+```
 
 ```
 new bob "A"
@@ -216,7 +216,7 @@ another function.
 
 Let's pass our bob value to a function named `black_hole`:
 
-{% highlight rust %}
+```rust
 fn black_hole(bob: Bob) {
     println!("imminent shrinkage {:?}", bob);
 }
@@ -226,7 +226,7 @@ fn main() {
     black_hole(bob);
     println!("end is near");
 }
-{% endhighlight %}
+```
 
     new bob "A"
     imminent shrinkage bob "A"
@@ -240,13 +240,13 @@ It got destroyed in the black hole, and not at the end of `main`!
 But wait... What happens if we try to send `Bob` to the black hole
 twice?
 
-{% highlight rust %}
+```rust
 fn main() {
     let bob = Bob::new("A");
     black_hole(bob);
     black_hole(bob);
 }
-{% endhighlight %}
+```
 
 ```bash
 <anon>:33:16: 33:19 error: use of moved value: `bob`
@@ -287,12 +287,12 @@ All the owned values can be mutated: we just need to put them to
 __mut__ slot with __let__. For example, we can mutate some
 part of bob, like a `name`:
 
-{% highlight rust %}
+```rust
 fn main() {
     let mut bob = Bob::new("A");
     bob.name = "mutant".to_string();
 }
-{% endhighlight %}
+```
 
     new bob "A"
     del bob "mutant"
@@ -302,7 +302,7 @@ We created it with name "A", but deleted a "mutant".
 If we give this value to another function `mutate`, we can also
 assign it to `mut` slot there:
 
-{% highlight rust %}
+```rust
 fn mutate(value: Bob) {
     let mut bob = value;
     bob.name = "mutant".to_string();
@@ -311,7 +311,7 @@ fn mutate(value: Bob) {
 fn main() {
     mutate(Bob::new("A"));
 }
-{% endhighlight %}
+```
 
     new bob "A"
     del bob "mutant"
@@ -322,17 +322,17 @@ Useful to know: the function arguments can also be upgraded to _mutable_,
 because they are also bindable slots that work the same way as a `let` slot.
 So function from previous example can be shortened:
 
-{% highlight rust %}
+```rust
 fn mutate(mut value: Bob) { // use mut directly before the arg name
     value.name = "mutant".to_string();
 }
-{% endhighlight %}
+```
 
 ### Replacing a value in mutable slot
 
 What happens if we try to overwrite a value in some `mut` slot? Let's see:
 
-{% highlight rust %}
+```rust
 fn main() {
     let mut bob = Bob::new("A");
     println!(""); // skip line to make output nicer
@@ -345,7 +345,7 @@ fn main() {
         println!(""); // skip line
     }
 }
-{% endhighlight %}
+```
 
     new bob "A"
 
@@ -414,11 +414,11 @@ wrapping a small pointer to the heap location on the __stack__.
 
 For example, we can create our `Bob` in the heap memory like this:
 
-{% highlight rust %}
+```rust
 fn main() {
     let bob = Box::new(Bob::new("A"));
 }
-{% endhighlight %}
+```
 
     new bob "A"
     del bob "A"
@@ -459,14 +459,14 @@ as long as there is least one handle for it.
 
 For example, we can make a bob instance managed by `Rc` handle this way:
 
-{% highlight rust %}
+```rust
 use std::rc::Rc;
 
 fn main() {
     let bob = Rc::new(Bob::new("A"));
     println!("{:?}", bob);
 }
-{% endhighlight %}
+```
 
     new bob A
     Rc(bob A)
@@ -479,23 +479,23 @@ destroyed by it. But instead it would be more convenient to make it
 accept __any__ type `T` that implements `Debug` trait (so we can print it).
 We are going to make it _generic_:
 
-{% highlight rust %}
+```rust
 fn black_hole<T>(value: T) where T: fmt::Debug {
     println!("imminent shrinkage {:?}", value);
 }
-{% endhighlight %}
+```
 
 Works the same, and we will not need to change it for every new type change.
 
 Now, back to sending `Rc<Bob>` to the black hole!
 
-{% highlight rust %}
+```rust
 fn main() {
     let bob = Rc::new(Bob::new("A"));
     black_hole(bob.clone()); // clone call
     println!("{:?}", bob);
 }
-{% endhighlight %}
+```
 
     new bob "A"
     imminent shrinkage bob "A"
@@ -521,7 +521,7 @@ it can be additionally wrapped in the `RefCell` type which allows a mutable
 borrow of a reference to our single bob instance. In the following example
 it will be mutated it in the `mutate` function.
 
-{% highlight rust %}
+```rust
 fn mutate(bob: Rc<RefCell<Bob>>) {
     bob.borrow_mut().name = "mutant".to_string();
 }
@@ -531,7 +531,7 @@ fn main() {
     mutate(bob.clone());
     println!("{:?}", bob);
 }
-{% endhighlight %}
+```
 
     new bob "A"
     RefCell { value: bob "mutant" }
@@ -566,7 +566,7 @@ because the ownership model is in itself thread-safe.
 Consider what happens when we send two values into a new Rust thread, a
 `Bob` (movable) and an integer (copyable):
 
-{% highlight rust %}
+```rust
 use std::thread;
 
 fn main() {
@@ -580,7 +580,7 @@ fn main() {
     println!("waiting for thread to end");
     child.join();
 }
-{% endhighlight %}
+```
 
     new bob "A"
     waiting for thread to end
@@ -604,7 +604,7 @@ the thread returns it back somehow. If we wanted, we could
 return it to the main thread over `child.join()` (the `join` waits for
 the thread to finish).
 
-{% highlight rust %}
+```rust
 fn main() {
     let mut bob = Bob::new("A");
 
@@ -623,7 +623,7 @@ fn main() {
 fn mutate(bob: &mut Bob) {
     bob.name = "mutant".to_string();
 }
-{% endhighlight %}
+```
 
     new bob "A"
     waiting for thread to end

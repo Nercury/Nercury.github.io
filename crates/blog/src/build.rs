@@ -7,9 +7,12 @@ use anyhow::{Context, Result, bail};
 use liquid::Object;
 use liquid::model::Value;
 
-use crate::markdown;
+use crate::highlight::Highlighter;
+use crate::markdown::{self, Flavor};
 use crate::site::{Format, Site};
 use crate::templates::{self, Templates};
+
+const SYNTAX_CSS: &str = "css/syntax.css";
 
 pub struct Summary {
     pub documents: usize,
@@ -28,13 +31,22 @@ pub fn build(site: &Site, out: &Path) -> Result<Summary> {
     let templates = Templates::load(&site.root)?;
 
     // Posts first: `site.posts[].content` must exist before any template runs. Liquid is not
-    // applied to Markdown sources (the only tag they use, `highlight`, is handled by the
-    // Markdown renderer).
-    let post_content: Vec<String> = site.posts.iter().map(|post| markdown::render(&post.body)).collect();
+    // applied to Markdown sources.
+    let highlighter = Highlighter::new(&site.config.syntax_theme)?;
+    let post_content: Vec<String> = site
+        .posts
+        .iter()
+        .map(|post| markdown::render(&post.body, &highlighter, Flavor::Page).with_context(|| format!("rendering {}", post.source)))
+        .collect::<Result<_>>()?;
 
     let mut site_object = templates::site_object(&site.config);
-    let posts = site.posts.iter().zip(&post_content).map(|(post, content)| Value::Object(templates::document_object(post, Some(content))));
-    site_object.insert("posts".into(), Value::Array(posts.collect()));
+    // `site.posts[].content` is what the feed embeds: rendered without anchors and token spans.
+    let mut posts = Vec::with_capacity(site.posts.len());
+    for post in &site.posts {
+        let content = markdown::render(&post.body, &highlighter, Flavor::Feed).with_context(|| format!("rendering {}", post.source))?;
+        posts.push(Value::Object(templates::document_object(post, Some(&content))));
+    }
+    site_object.insert("posts".into(), Value::Array(posts));
     let pages = site.pages.iter().map(|page| Value::Object(templates::document_object(page, None)));
     site_object.insert("pages".into(), Value::Array(pages.collect()));
     let site_value = Value::Object(site_object);
@@ -55,7 +67,7 @@ pub fn build(site: &Site, out: &Path) -> Result<Summary> {
         let output = (|| {
             let content = match (content, document.format) {
                 (Some(content), _) => content.clone(),
-                (None, Format::Markdown) => markdown::render(&document.body),
+                (None, Format::Markdown) => markdown::render(&document.body, &highlighter, Flavor::Page)?,
                 (None, Format::Scss) => return scss(site, &document.body),
                 (None, Format::Plain) => templates.render_body(&document.body, &globals)?,
             };
@@ -68,6 +80,14 @@ pub fn build(site: &Site, out: &Path) -> Result<Summary> {
         std::fs::write(&target, output).with_context(|| format!("writing {}", target.display()))?;
         count += 1;
     }
+
+    // Colors for the token classes emitted by the highlighter; linked from `_includes/head.html`.
+    let syntax_css = out.join(SYNTAX_CSS);
+    if syntax_css.exists() {
+        bail!("{SYNTAX_CSS} is generated; remove the source file with the same output path");
+    }
+    create_parent(&syntax_css)?;
+    std::fs::write(&syntax_css, highlighter.css()?).with_context(|| format!("writing {}", syntax_css.display()))?;
 
     Ok(Summary { documents: count, statics: site.statics.len() })
 }

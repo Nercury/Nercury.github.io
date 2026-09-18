@@ -19,16 +19,16 @@ I find that this sentence neatly summarizes the use case for dependency injectio
 It is used to move the responsibility of object creation away from
 object user. For example, consider the creation of this simple object:
 
-{% highlight rust %}
+```rust
 let house = House::new(Bricks::new());
-{% endhighlight %}
+```
 
 Suddenly the house user has to care about Bricks. It would be
 neat if we could just write:
 
-{% highlight rust %}
+```rust
 let house = House::create();
-{% endhighlight %}
+```
 
 And someone else would take care of injecting the right dependency. Now,
 should we add that responsibility to House? Probably not - House already
@@ -56,7 +56,7 @@ I imagine this DI component to be usable at the project layer, for plugging-in
 existing libraries. There would be some kind of container for all object
 factory methods:
 
-{% highlight rust %}
+```rust
 let mut container = di::Container::new();
 container.define("bricks", |container| {
     Bricks::new()
@@ -66,7 +66,7 @@ container.define("house", |container| {
 });
 
 let house: House = container.get("house");
-{% endhighlight %}
+```
 
 Yuck, a string hashmap based solution. I would prefer to avoid
 going over hashmap for every object instantiation. But we might
@@ -78,7 +78,7 @@ should receive only those objects it can use.
 
 First, let's get rid of "container", and use "args" array:
 
-{% highlight rust %}
+```rust
 let mut container = di::Container::new();
 container.define("bricks", |args| {
     Bricks::new()
@@ -88,7 +88,7 @@ container.define("house", |args| {
 }).with_param<Bricks>("bricks");
 
 let house: House = container.get("house");
-{% endhighlight %}
+```
 
 At the first glance this looks a bit uglier, but it is actually
 can be much more faster: we can have some magic inside that
@@ -105,7 +105,7 @@ It will have all the dependent factories mapped as direct
 calls, as well as all types and argument counts
 already validated. The result might look like this:
 
-{% highlight rust %}
+```rust
 // First, define the dependencies and factories.
 let mut registry = di::Registry::new();
 registry.define("bricks", |args| {
@@ -123,7 +123,7 @@ let house_factory = container.get<House>("house");
 
 // Create as many houses as needed.
 let house = house_factory.create();
-{% endhighlight %}
+```
 
 We only need one hashmap lookup to get `house_factory`, and then
 we can use it to create our stream of objects without any lookup.
@@ -141,11 +141,11 @@ But.. Maybe we could use real types for factory arguments instead of
 
 For example, if I do this:
 
-{% highlight rust %}
+```rust
 registry.define("house", |bricks: Bricks| {
     House::new(bricks)
 }).with(["bricks"]);
-{% endhighlight %}
+```
 
 Can I find out the argument type and count and _do the right thing_?
 Quick search lends me some nice hits on

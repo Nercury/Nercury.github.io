@@ -138,19 +138,14 @@ code {
     box-shadow:inset 0 0 3px 0 #f1f1f1;
 }
 
-.highlight code {
-    padding: 0.5em;
-    display: block;
-}
-
-.highlight code.language-text {
-    overflow-x: scroll;
-}
-
 pre {
     border-radius: 3px;
 
+    // Code blocks are highlighted at build time; token colors come from /css/syntax.css.
     > code {
+        display: block;
+        padding: 0.5em;
+        overflow-x: auto;
         border: 0;
         box-shadow:inset 0 0 3px 0 #f1f1f1;
     }

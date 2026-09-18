@@ -15,9 +15,16 @@ pub struct Config {
     pub url: String,
     pub twitter_username: Option<String>,
     pub github_username: Option<String>,
+    /// Color theme for highlighted code (a two-face embedded theme name).
+    #[serde(default = "default_syntax_theme")]
+    pub syntax_theme: String,
     /// Root-relative paths that are not part of the site.
     #[serde(default)]
     pub exclude: Vec<String>,
+}
+
+fn default_syntax_theme() -> String {
+    "GitHub".to_string()
 }
 
 impl Config {

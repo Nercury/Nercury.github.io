@@ -7,6 +7,10 @@ url = "http://nercury.github.io"
 twitter_username = "nercury"
 github_username = "Nercury"
 
+# Color theme for highlighted code: a two-face embedded theme name (GitHub, OneHalfLight,
+# InspiredGithub, SolarizedLight, ...). An unknown name makes the build list all of them.
+syntax_theme = "GitHub"
+
 # Build settings
 # Paths (relative to the repository root) that are not part of the site. Names starting with
 # `_`, `.`, `#` or ending with `~` are always skipped, like Jekyll does.
