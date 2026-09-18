@@ -1,0 +1,7 @@
+[workspace]
+resolver = "2"
+members = ["crates/blog", "crates/sitediff"]
+
+[workspace.lints.rust]
+# Nightly is used only for features already stabilized but not yet in beta/stable.
+unstable_features = "forbid"
