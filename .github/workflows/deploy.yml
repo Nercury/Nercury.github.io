@@ -40,9 +40,6 @@ jobs:
       - name: Build drafts (smoke test)
         run: cargo run --release -p blog -- build --drafts --out "$RUNNER_TEMP/site-with-drafts"
 
-      - name: Compare with reference snapshot
-        run: cargo run --release -p sitediff -- archive/reference-site _site --limit 20
-
       - uses: actions/configure-pages@v6
         if: github.event_name != 'pull_request'
 

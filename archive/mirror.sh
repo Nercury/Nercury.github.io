@@ -21,9 +21,10 @@ rm -rf "$OUT"; mkdir -p "$OUT"; : > "$REPORT"
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 touch "$work/done" "$work/static" "$work/queue"
 
-# Source files that Jekyll copies verbatim (no front matter, not underscore-prefixed, not tooling).
+# Source files that are copied verbatim (no front matter, not underscore-prefixed, not tooling).
+# Keep in sync with `exclude` in site.toml.
 git ls-files \
-  | grep -v -E '^(_|\.|archive/|crates/|plans/|Cargo\.|site\.toml$|rust-toolchain\.toml$)' \
+  | grep -v -E '^(_|\.|archive/|crates/|plans/|Cargo\.|site\.toml$|rust-toolchain\.toml$|sitediff\.allow\.toml$)' \
   | grep -v -E '^(about\.md|index\.html|feed\.xml|css/main\.scss)$' \
   | grep -v -E '\.md$' > "$work/static"
 

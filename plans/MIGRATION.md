@@ -41,6 +41,7 @@ GitHub Actions → Pages.
 | D7 | Drop Google Analytics | Phase 1 showed the snippet **is** emitted on every live page; its removal is an allowlisted diff. |
 | D8 | Deploy with GitHub Actions (`upload-pages-artifact` + `deploy-pages`); no `gh-pages` branch | Requires manual switch of Pages source in repo settings. |
 | D9 | "Nearly the same" is defined by an explicit allowlist file, never fuzzy thresholds | Auditable. |
+| D11 | `sitediff` is a **manual tool, not a deploy gate** (owner decision after go-live). The 2020 snapshot stays in the repo as a fixed baseline. | New posts and edits to old ones (e.g. a paragraph added at the top) would fail a gate forever; content will drift from 2020 by design. Risk: a generator regression is only caught if someone runs sitediff — run it after any change to `crates/blog` or a dependency bump, and read the diff (expected: new/edited content only). |
 | D10 | Rust nightly, edition 2024, **no feature gates**: only features already stabilized but not yet in beta/stable. Enforced by `unstable_features = "forbid"` workspace lint. Interesting uses logged in `plans/DEV_BRIEF.md`. Floating `nightly` locally; CI pins a dated nightly in the workflow (see Phase 7 notes). | Low risk: code is at most ~12 weeks ahead of stable. Lint does not cover dependencies. |
 
 ## Target layout
@@ -308,8 +309,8 @@ generator code to serve one occurrence, edit the input instead.
 
 - [x] `.github/workflows/deploy.yml`: checkout → pinned nightly toolchain (from `rust-toolchain.toml`) + cache → `cargo run --release -p blog -- build` → `upload-pages-artifact` → `deploy-pages` (on push to master).
 - [x] PR/branch job: build + `sitediff archive/reference-site _site` as a gate.
-- [ ] **Manual (owner):** Settings → Pages → Source = GitHub Actions.
-- [ ] First push of master (workflow included); after deploy, run the mirror script against live and `sitediff` it against `_site`.
+- [x] **Manual (owner):** Settings → Pages → Source = GitHub Actions.
+- [x] First push of master (workflow included); after deploy, run the mirror script against live and `sitediff` it against `_site`.
 - [ ] Close/delete stale dependabot bundler branches.
 
 **Exit:** live site served from the Actions artifact, diff clean.
@@ -343,6 +344,14 @@ served), then push, then confirm the workflow deployed.
      `KEEP_STATIC=1`, then `cargo run -p sitediff -- "$TEMP/live-after" _site --no-manifest`
      → expect all same. (First end-to-end run of mirror.sh's pruning path if KEEP_STATIC is unset.)
   5. Delete the stale remote branches `dependabot/bundler/*`.
+- **Live 2026-09-18 09:29 UTC.** Verified: `KEEP_STATIC=1 mirror.sh` of the new live site vs a fresh
+  local `_site` → 207 same, 1 allowed (feed build time); no GA; all 178 static files byte-identical
+  as served. The first workflow run passed on the Linux runner, so Windows and Linux builds agree.
+  mirror.sh reported a false `404 /sitediff.allow.toml`: its static-file list did not know the file
+  (added after Phase 1). Fixed; the list must track `exclude` in `site.toml`.
+- **Gate removed after go-live (D11).** The workflow now runs tests, the site build and the drafts
+  smoke build, then deploys. `cargo test` still exercises sitediff against the snapshot itself
+  (reference vs reference, mutations), which does not depend on site content.
 - Follow-up worth doing at go-live: `archive/Gemfile.lock` keeps Dependabot raising Ruby security
   alerts/PRs for a lockfile nobody uses. Either disable Dependabot for the repo or rename the
   archived file (e.g. `Gemfile.lock.txt`).
@@ -368,7 +377,7 @@ add `.sublime-syntax` files.
 
 - [ ] `site.url` → `https`.
 - [ ] Fix the two broken links recorded in Phase 1 notes (then allowlist or re-baseline).
-- [ ] Remove dead assets; decide whether `archive/reference-site/` stays in the repo (it is the CI gate — if kept, freeze the allowlist; if removed, drop the gate).
+- [ ] Remove dead assets. (`archive/reference-site/` stays as the fixed 2020 baseline for manual sitediff runs — D11.)
 - [ ] README: how to write a post, build, preview, run sitediff.
 - [ ] Optional: `blog serve` with file watching.
 
