@@ -503,7 +503,7 @@ pub struct Buffer<B> where B: BufferType {
 To explain this to compiler, we add a `_marker` field of
 the same type, but wrap it in the `PhantomData`:
 
-(src/render_gl/buffer.rs, modified Buffer<B> struct)
+(src/render_gl/buffer.rs, modified Buffer&lt;B&gt; struct)
 
 ```rust
 pub struct Buffer<B> where B: BufferType {
@@ -525,7 +525,7 @@ You can read more on that in the [`PhantomData` documentation](https://doc.rust-
 We also need to modify `new` function to create this `PhantomData`. That's
 easy, and the compiler can infer the generic `PhantomData` type:
 
-(src/render_gl/buffer.rs, modified Buffer<B>::new function)
+(src/render_gl/buffer.rs, modified Buffer&lt;B&gt;::new function)
 
 ```rust
     pub fn new(gl: &gl::Gl) -> Buffer<B> {

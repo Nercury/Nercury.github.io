@@ -107,7 +107,7 @@ bits for 8 pins and `GPIOx_CRH` holds the configuration bits for the remaining 8
 
 The four configuration bits are divided into two MODE bits and two CNF bits - 
 with MODE bits occupying lower bit positions. For example, in the case GPIO port B, 
-bits 0 and 1 of `GPIOB_CRL`` a`re the MODE bits and bits 2 and 3 are the CNF bits for pin 0. 
+bits 0 and 1 of `GPIOB_CRL` are the MODE bits and bits 2 and 3 are the CNF bits for pin 0. 
 The MODE bits can have the following values:
 
   * `00` - Input mode (reset state)

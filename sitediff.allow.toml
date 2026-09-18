@@ -28,3 +28,13 @@ reason = "generator is no longer Jekyll"
 path = "css/main.css"
 pattern = '^\s*color:(black|#000)$'
 reason = "grass emits the named color `black` as #000; same color"
+
+[[line]]
+path = "resources/mcu-02/cortex-m-basics.html"
+pattern = '^\s*("GPIOB_CRL"|"a"|" are the MODE bits.*|"re the MODE bits.*|<code class="highlighter-rouge language-plaintext">)$'
+reason = "source typo fixed: `GPIOB_CRL`` a`re -> `GPIOB_CRL` are (old build rendered a stray code span)"
+
+[[line]]
+path = "{feed.xml,rust/opengl/tutorial/2018/07/25/opengl-in-rust-from-scratch-12-buffers.html}"
+pattern = '^\s*("\(src/render_gl/buffer\.rs, modified Buffer(<B>( struct\)|::new function\)))?"|<b>|" ?(struct\)|::new function\))")$'
+reason = "source bug fixed: bare Buffer<B> in prose was rendered as an unclosed <b> tag; now escaped"

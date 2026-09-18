@@ -498,7 +498,7 @@ nalgebra = "0.16"
 extern crate nalgebra;
 ```
 
-We can then use 'nalgebra's `Vector4` type in our `ColorBuffer` struct:
+We can then use ‘nalgebra’s `Vector4` type in our `ColorBuffer` struct:
 
 (src/render_gl/mod.rs, added)
 

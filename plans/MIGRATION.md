@@ -240,19 +240,49 @@ Ruby tolerates — moot once removed.
 
 ## Phase 5 — Markdown parity (highest risk)
 
-- [ ] kramdown-compatible heading id generation (incl. duplicates `-1`, `-2`, stripping rules).
-- [ ] Smart typography matching kramdown (quotes, dashes, ellipsis) — compare against pulldown-cmark's smart punctuation, patch where they differ.
-- [ ] Code block wrappers exactly as listed under Ground truth, including the known/unknown-to-Rouge
+- [x] kramdown-compatible heading id generation (incl. duplicates `-1`, `-2`, stripping rules).
+- [x] Smart typography matching kramdown (quotes, dashes, ellipsis) — compare against pulldown-cmark's smart punctuation, patch where they differ.
+- [x] Code block wrappers exactly as listed under Ground truth, including the known/unknown-to-Rouge
       language split (hardcode the set of languages observed in the reference).
-- [ ] `{% highlight %}` pre-pass → `figure.highlight` output.
-- [ ] Inline code classes; tables; raw HTML passthrough; list/paragraph nesting (`about.md`).
-- [ ] Iterate post by post, oldest → newest; log every divergence and its resolution (D6 order) in Notes.
+- [x] `{% highlight %}` pre-pass → `figure.highlight` output.
+- [x] Inline code classes; tables; raw HTML passthrough; list/paragraph nesting (`about.md`).
+- [x] Iterate post by post, oldest → newest; log every divergence and its resolution (D6 order) in Notes.
 
 **Exit:** all 25 posts + pages diff clean modulo allowlist; every allowlist entry has a reason.
 **Failure mode:** a long tail of kramdown quirks. Stop rule: if a quirk needs >~50 lines of
 generator code to serve one occurrence, edit the input instead.
 
 **Notes:**
+
+- Done 2026-09-18. `sitediff archive/reference-site _site` → **204 same, 4 allowed, 0 failing**
+  (exit 0). The feared long tail did not materialize: the first implementation took 28 differing
+  pages to 4.
+- `crates/blog/src/markdown.rs`: pulldown-cmark (tables, smart punctuation, strikethrough) with an
+  event rewrite pass for headings, code blocks and inline code; `{% highlight %}` bodies are lifted
+  out before parsing (HTML-comment placeholder) and spliced back as `<figure class="highlight">`.
+- Heading ids: the old build used kramdown's **GFM** parser, whose id rule differs from classic
+  kramdown — derived from the heading *source* text: lowercase, keep word chars/`-`/space, spaces →
+  `-`, no stripping of leading digits (`1-connect-the-wires`), repeats get `-1`, `-2`.
+- Rouge-known languages are hardcoded from the reference (`ROUGE_LANGUAGES`); others (`txt`,
+  `plain`, `gdb`, `cfg`, `C`) stay bare `<pre><code class="language-x">`. Unlabelled and indented
+  blocks → `language-plaintext`. A new post using a language outside the list gets the bare form
+  until the list is extended (moot after Phase 8).
+- pulldown-cmark's smart punctuation matched kramdown on every page; no custom typography code.
+- Divergences and resolutions (D6 order). All four were **bugs/ambiguities in the sources**:
+  1. `transmute` post: `___text___` → kramdown `<strong><em>`, CommonMark `<em><strong>`.
+     Input edit to `**_text_**`: exact parity.
+  2. `nalgebra` post: stray opening quote in `'nalgebra's`; kramdown `‘`, pulldown `’`.
+     Input edit to literal `‘nalgebra’s`: exact parity (the stray quote is preserved, fix in Phase 9 if wanted).
+  3. `cortex-m-basics.md`: typo `` `GPIOB_CRL`` a`re `` rendered as a stray code span by kramdown;
+     not reproducible in CommonMark without raw HTML. Typo fixed → allowlisted (4 lines).
+  4. `12-buffers` post: bare `Buffer<B>` in prose (2 places). kramdown emitted `<b>` and closed it
+     at paragraph end (live site shows "Buffer **struct)**"); pulldown would leave it unclosed and
+     bold the rest of the page. Escaped as `Buffer&lt;B&gt;` → allowlisted (page + feed).
+  Lesson for authoring: generics in prose need backticks; CommonMark passes unknown tags through raw.
+- The feed already diffs clean (only allowlisted build date/generator + item 4 above), which covers
+  most of Phase 6.
+- Not verified here: **visual** result of highlight.js over un-tokenized code (D4 risk). Needs a
+  look in a browser: `python -m http.server -d _site 4000`.
 
 ## Phase 6 — Feed and drafts
 

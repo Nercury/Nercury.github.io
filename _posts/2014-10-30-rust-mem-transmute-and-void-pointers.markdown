@@ -272,7 +272,7 @@ be amazing tool for building both high and low level applications.
 
 [Full code of this contrived container](Nercury/ccc99ec11f49043c14ed).
 
-___Disclaimer: I am newbie in rust, use this as an example only and do not trust my code!___
+**_Disclaimer: I am newbie in rust, use this as an example only and do not trust my code!_**
 
 [unsafe-code]:          http://doc.rust-lang.org/guide-unsafe.html
 [doc-mem-transmute]:    http://doc.rust-lang.org/std/mem/fn.transmute.html
