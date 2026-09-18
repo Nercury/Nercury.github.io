@@ -365,7 +365,7 @@ served), then push, then confirm the workflow deployed.
 - [x] Server-side heading anchors replacing the jQuery script.
 - [x] Remove `js/highlight.pack.js`, `js/jquery.min.js`, `css/styles/*`, `css/pygments/`, netdna font-awesome link (keep or inline the one icon used).
 - [x] `sitediff` remains the content guard: code text and all non-code DOM must stay identical; wrapper/head changes go into a new, reviewed allowlist section.
-- [ ] Visual check in a browser of one post per language.
+- [x] Visual check in a browser of one post per language. (Owner, 2026-09-18: all good, `GitHub` theme kept.)
 
 **Exit:** no client-side JS required for rendering; content diff clean.
 **Risk:** syntect's bundled grammars lack/underperform for GLSL, TOML, gdb → plain text fallback, or
@@ -409,12 +409,39 @@ add `.sublime-syntax` files.
 
 ## Phase 9 — Cleanup
 
-- [ ] `site.url` → `https`.
-- [ ] Fix the two broken links recorded in Phase 1 notes (then allowlist or re-baseline).
-- [ ] Remove dead assets. (`archive/reference-site/` stays as the fixed 2020 baseline for manual sitediff runs — D11.)
-- [ ] README: how to write a post, build, preview, run sitediff.
-- [ ] Optional: `blog serve` with file watching.
+- [x] `site.url` → `https`.
+- [x] Fix the two broken links recorded in Phase 1 notes (then allowlist or re-baseline).
+- [x] Remove dead assets. (`archive/reference-site/` stays as the fixed 2020 baseline for manual sitediff runs — D11.)
+- [x] README: how to write a post, build, preview, run sitediff.
+- [x] Optional: `blog serve` with file watching.
 
 **Exit:** README accurate; no Jekyll artifacts outside `archive/`.
 
 **Notes:**
+
+- Done 2026-09-18.
+- `site.url` is `https://` (GitHub already redirected http → https). Canonical links and feed links
+  follow. **Feed `<guid>`s deliberately stay `http://…`** (hardcoded in `feed.xml` with a comment):
+  the guid is an item's identity in feed readers, and changing it would resurface every old post as
+  new for subscribers.
+- Content fixes (all allowlisted under "Phase 9"): `docs.gl` link, gist link (both verified 200),
+  stray opening quote before "nalgebra's". No known broken internal links remain (mirror.sh crawl).
+- `blog serve [--drafts] [--port 4000]`: tiny_http + mtime polling (no watcher dependency), resolves
+  URLs like GitHub Pages (directory index, extensionless → `.html`, percent-decoding for `/c++/`),
+  refuses `..`, survives failed builds. No live reload. Removes the need for Python to preview.
+- `README.md` (authoring, commands, deployment, sitediff) — excluded from the site via `site.toml`.
+- Dead assets: everything tied to the old client-side stack went in Phase 8. A scan found 34
+  published files under `artwork/` and `images/` that no page, draft or stylesheet references
+  (working files such as `.blend`, `.xcf`, `.art`, `.obj`, and images apparently prepared for
+  unwritten posts). **Left in place**: they may be linked from outside or wanted for drafts, and
+  removing them would break their URLs. Owner's call.
+- Final state vs the 2020 reference: `sitediff` → 0 failing (106 same, 29 allowed, 74 ignored).
+
+## Status
+
+Migration complete. Open items, none blocking:
+- Owner: delete stale remote branches `dependabot/bundler/*`; decide about Dependabot vs
+  `archive/Gemfile.lock` (Phase 7 notes); decide about the 34 unreferenced assets (above).
+- When everything used has reached stable Rust, consider switching `rust-toolchain.toml` and the
+  workflow pin to `stable` (DEV_BRIEF).
+- D11 habit: run `sitediff` after generator or dependency changes.

@@ -24,7 +24,7 @@ touch "$work/done" "$work/static" "$work/queue"
 # Source files that are copied verbatim (no front matter, not underscore-prefixed, not tooling).
 # Keep in sync with `exclude` in site.toml.
 git ls-files \
-  | grep -v -E '^(_|\.|archive/|crates/|plans/|Cargo\.|site\.toml$|rust-toolchain\.toml$|sitediff\.allow\.toml$)' \
+  | grep -v -E '^(_|\.|archive/|crates/|plans/|Cargo\.|site\.toml$|rust-toolchain\.toml$|sitediff\.allow\.toml$|README\.md$)' \
   | grep -v -E '^(about\.md|index\.html|feed\.xml|css/main\.scss)$' \
   | grep -v -E '\.md$' > "$work/static"
 

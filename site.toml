@@ -3,7 +3,7 @@ title = "Ironic Blog"
 email = "nercury@gmail.com"
 description = "Articles and tutorials about Rust, Embedded development and Computer Graphics.\n"
 baseurl = ""
-url = "http://nercury.github.io"
+url = "https://nercury.github.io"
 twitter_username = "nercury"
 github_username = "Nercury"
 
@@ -19,6 +19,7 @@ exclude = [
     "crates",
     "plans",
     "target",
+    "README.md",
     "Cargo.toml",
     "Cargo.lock",
     "rust-toolchain.toml",

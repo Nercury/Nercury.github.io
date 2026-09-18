@@ -81,7 +81,7 @@ by number of items in vector (`vertices.len()`), and then casting it to whatever
 correct `*const f32` pointer, while OpenGL needs `*const GLvoid`. We perform explicit cast here.
 - We set `gl::STATIC_DRAW` usage hint, pretty much like in C
 
-I suggest [docs.gl](docs.gl) site for OpenGL documentation. For example, 
+I suggest [docs.gl](https://docs.gl) site for OpenGL documentation. For example, 
 [glBufferData function page contains comprehensive documentation with examples and information about supported OpenGL versions](http://docs.gl/gl4/glBufferData). 
 Very useful.
 

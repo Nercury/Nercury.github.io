@@ -72,3 +72,32 @@ reason = "Phase 8: generated stylesheet for build-time syntax highlighting"
 [[file]]
 path = "{js/**,css/styles/**,css/pygments/**,css/font-awesome.css}"
 reason = "Phase 8: highlight.js, jQuery, 75 unused highlight.js themes, pygments and font-awesome CSS removed"
+
+# ---------------------------------------------------------------------------------------------
+# Phase 9: cleanup. Deliberate content/config fixes relative to the 2020 snapshot.
+# ---------------------------------------------------------------------------------------------
+
+[[line]]
+path = "**/*.html"
+pattern = '^\s*<link href="https?://nercury\.github\.io/[^"]*" rel="canonical">$'
+reason = "Phase 9: site.url is https now"
+
+[[line]]
+path = "feed.xml"
+pattern = '^rss/channel/(link|atom:link@href|item\[\d+\]/link): "https?://nercury\.github\.io/'
+reason = "Phase 9: site.url is https now (item guids deliberately stay http, so they are NOT covered here)"
+
+[[line]]
+path = "{feed.xml,rust/opengl/tutorial/2018/02/11/opengl-in-rust-from-scratch-04-triangle.html}"
+pattern = '^\s*<a href="(docs\.gl|https://docs\.gl)">$'
+reason = "Phase 9: broken relative link to docs.gl fixed"
+
+[[line]]
+path = "{feed.xml,rust/pointers/2014/10/30/rust-mem-transmute-and-void-pointers.html}"
+pattern = '^\s*<a href="(https://gist\.github\.com/)?Nercury/ccc99ec11f49043c14ed">$'
+reason = "Phase 9: broken relative link to the gist fixed"
+
+[[line]]
+path = "{feed.xml,rust/opengl/tutorial/2018/07/27/opengl-in-rust-from-scratch-13-safe-triangle-nalgebra.html}"
+pattern = '^\s*"We can then use ‘?nalgebra’s "$'
+reason = "Phase 9: stray opening quote before nalgebra removed"
