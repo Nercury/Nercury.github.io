@@ -204,16 +204,39 @@ change, attribute change, element reorder, missing file, changed code text.
 
 ## Phase 4 — Templates
 
-- [ ] `liquid` crate with partials from `_includes/`, nested layouts from `_layouts/`.
-- [ ] Objects: `site` (config, `posts` newest-first, `pages` in reference order, `time`), `page`, `post`, `content`, `jekyll.version` (allowlisted in feed anyway).
-- [ ] Filters as needed: `date` (`%-d` support), `date_to_rfc822`, `xml_escape`, `prepend`, `replace`.
-- [ ] Remove the GA block from `_includes/head.html` (D7).
+- [x] `liquid` crate with partials from `_includes/`, nested layouts from `_layouts/`.
+- [x] Objects: `site` (config, `posts` newest-first, `pages` in reference order, `time`), `page`, `post`, `content`, `jekyll.version` (allowlisted in feed anyway).
+- [x] Filters as needed: `date` (`%-d` support), `date_to_rfc822`, `xml_escape`, `prepend`, `replace`.
+- [x] Remove the GA block from `_includes/head.html` (D7).
 
 **Exit:** `index.html`, `/about/`, and page chrome of all posts diff clean (article body may still differ).
 **Risk:** the `{% if (site.GH_ENV == "gh_pages") %}` parenthesized condition is invalid Liquid that
 Ruby tolerates — moot once removed.
 
 **Notes:**
+
+- Done 2026-09-18. New modules in `crates/blog`: `templates.rs` (partials from `_includes`, layout
+  chain from `_layouts`, `site`/`page` objects), `filters.rs` (`xml_escape`, `date_to_rfc822`),
+  `markdown.rs` (plain CommonMark stub, replaced in Phase 5).
+- Exit criteria met: `index.html` **same**; `about/` differs by one smart apostrophe (Phase 5
+  typography); a chrome-only run (temporary `[[drop]] article.post-content` on both sides) shows
+  all 28 HTML pages identical outside the article, except `…12-buffers.html`, where stray `<b>`
+  from the unported Markdown body swallows the footer in the parsed tree (body issue, Phase 5).
+  The chrome-only trick is worth reusing: copy the allowlist, add that drop rule, pass `--allow`.
+- `liquid` 0.26 with `liquid-lib`'s `jekyll` feature for the unquoted `{% include head.html %}`.
+  Layouts and includes are used **unchanged**, apart from the two edits below. The stdlib `date`
+  filter handles `%b %-d, %Y` correctly.
+- Template edits: GA block removed from `_includes/head.html` (D7); `feed.xml` generator string
+  no longer claims Jekyll (already allowlisted).
+- **Strictness difference:** Ruby Liquid renders a missing key as empty; this crate errors on
+  `{{ page.missing }}`. `page.title`, `date`, `layout`, `permalink` are always defined (nil when
+  absent). `{% if page.author %}` on a missing key is fine. Any *new* key output without an `if`
+  guard must be present in every document's front matter.
+- **Deviation from Jekyll:** Liquid is not run over Markdown sources. No source contains `{{ }}`,
+  and the only tag used, `{% highlight %}`, is handled by the Markdown renderer in Phase 5. Rust
+  code with `{{` in future posts is therefore safe without `{% raw %}`.
+- All other front matter keys pass through to templates as `page.<key>` (YAML → Liquid values).
+- Dates: front matter times are treated as UTC (as on the old GitHub build); `site.time` is build time.
 
 ## Phase 5 — Markdown parity (highest risk)
 

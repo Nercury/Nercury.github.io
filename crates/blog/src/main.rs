@@ -1,7 +1,10 @@
 mod build;
 mod config;
+mod filters;
 mod front_matter;
+mod markdown;
 mod site;
+mod templates;
 
 use std::path::PathBuf;
 

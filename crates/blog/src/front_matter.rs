@@ -14,6 +14,9 @@ pub struct FrontMatter {
     #[serde(default)]
     tags: Words,
     pub permalink: Option<String>,
+    /// Any other key; exposed to templates as `page.<key>`.
+    #[serde(flatten)]
+    pub extra: std::collections::BTreeMap<String, serde_yaml_ng::Value>,
 }
 
 /// Jekyll accepts both `categories: a b` and `categories: [a, b]`.
