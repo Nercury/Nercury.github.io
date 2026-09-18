@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <title>Rust and OpenGL from scratch - Compiling Shaders</title>
+    <meta name="description" content="Articles and tutorials about Rust, Embedded development and Computer Graphics.
+">
+
+    <link rel="shortcut icon" type="image/png" href="/favicon.ico"/>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/pygments/default.css">
+    <link rel="stylesheet" href="/css/font-awesome.css">
+    <link rel="canonical" href="http://nercury.github.io/rust/opengl/tutorial/2018/02/10/opengl-in-rust-from-scratch-03-compiling-shaders.html">
+    <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles/color-brewer.css">
+
+    <script src="/js/highlight.pack.js"></script>
+
+    <script src="/js/jquery.min.js"></script>
+    
+    <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+      ga('create', 'UA-56288576-1', 'auto');
+      ga('require', 'displayfeatures');
+      ga('send', 'pageview');
+    </script>
+    
+    <script>
+        $(function() {
+            hljs.initHighlightingOnLoad();
+            return $("h1, h2, h3, h4, h5, h6").each(function(i, el) {
+                console.log(el);
+                var $el, icon, id;
+                $el = $(el);
+                id = $el.attr('id');
+                icon = '<i class="fa fa-link"></i>';
+                if (id) {
+                  return $el.prepend($("<a />").addClass("header-link").attr("href", "#" + id).html(icon));
+                }
+            });
+        });
+    </script>
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Ironic Blog</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+        
+          
+          <a class="page-link" href="/about/">About Me</a>
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <div class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Rust and OpenGL from scratch - Compiling Shaders</h1>
+    <p class="post-meta">Feb 10, 2018</p>
+  </header>
+
+  <article class="post-content">
+    <p>Welcome back!</p>
+
+<p><a href="/rust/opengl/tutorial/2018/02/09/opengl-in-rust-from-scratch-02-opengl-context.html">Previously</a>,
+we have loaded OpenGL context for SDL window, to handle user input
+and output pixels.</p>
+
+<p>In this lesson, we will work towards rendering the classic OpenGL triangle. Classic, because
+every every OpenGL tutorial does this.</p>
+
+<p>But first, we will learn how to create safe abstractions in Rust, and we will
+build tools for compiling a shader and linking a program.</p>
+
+<h2 id="modern-opengl">“Modern” OpenGL</h2>
+
+<p>We will be using what is called “modern OpenGL”. Turns out, long ago, it wasn’t so
+modern. We won’t discuss graphics pipeline here from the beginning: instead, I suggest
+you follow along using another “modern OpenGL tutorial”. I will be using
+<a href="https://learnopengl.com/">this awesome tutorial as the base</a>.
+This lesson will cover more Rust-y side of
+<a href="https://learnopengl.com/Getting-started/Hello-Triangle">“Hello Triangle” part</a>.</p>
+
+<h2 id="additional-opengl-context-setup">Additional OpenGL context setup</h2>
+
+<p>Previous part of <a href="https://learnopengl.com/Getting-started/Hello-Window">learnopengl.com lesson talks about creating a window</a>. We’ve mostly done that,
+except I forgot a few things.</p>
+
+<p>First, we need to specify the minimal OpenGL version to use. In our case, we can do that
+using SDL gl attributes:</p>
+
+<p>(main.rs, incomplete)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">gl_attr</span> <span class="o">=</span> <span class="n">video_subsystem</span><span class="nf">.gl_attr</span><span class="p">();</span>
+
+<span class="n">gl_attr</span><span class="nf">.set_context_profile</span><span class="p">(</span><span class="nn">sdl2</span><span class="p">::</span><span class="nn">video</span><span class="p">::</span><span class="nn">GLProfile</span><span class="p">::</span><span class="n">Core</span><span class="p">);</span>
+<span class="n">gl_attr</span><span class="nf">.set_context_version</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">);</span>
+
+<span class="k">let</span> <span class="n">window</span> <span class="o">=</span> <span class="o">...</span> <span class="c">// create the window</span>
+</code></pre></div></div>
+
+<p>I will be using quite recent (Core 4.5) version here, but feel free to dial it down
+if your context can not be created, down to <code class="language-plaintext highlighter-rouge">Core 3.3</code> used in <code class="language-plaintext highlighter-rouge">learnopengl.com</code> tutorial.</p>
+
+<p>Second, we need to set up our viewport. We can do it once, just before <code class="language-plaintext highlighter-rouge">ClearColor</code>:</p>
+
+<p>(main.rs, incomplete)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">unsafe</span> <span class="p">{</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="nf">Viewport</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">900</span><span class="p">,</span> <span class="mi">700</span><span class="p">);</span> <span class="c">// set viewport</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="nf">ClearColor</span><span class="p">(</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h3 id="i-see-unsafe-code">I see unsafe code</h3>
+
+<p>Yeah, me too. Let’s continue.</p>
+
+<h2 id="shader">Shader</h2>
+
+<p>We will make a helper function to compile a shader from string, and then another function
+to link compiled shaders into a program.</p>
+
+<p>First try:</p>
+
+<p>(main.rs, at the end)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">shader_from_source</span><span class="p">(</span><span class="n">source</span><span class="p">:</span> <span class="o">&amp;</span><span class="nb">str</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLuint</span> <span class="p">{</span>
+    <span class="c">// continue here</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Given a source code, this function should return shader id (as an int).</p>
+
+<p>However, the shader creation may fail, and we may want to retrieve the error message.
+For that, we will change return type to <code class="language-plaintext highlighter-rouge">Result&lt;gl::types::GLuint, String&gt;</code>. If <code class="language-plaintext highlighter-rouge">Result</code> is <code class="language-plaintext highlighter-rouge">Ok</code>, we will
+get shader id, otherwise we can extract an error message from <code class="language-plaintext highlighter-rouge">Err</code>.</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">shader_from_source</span><span class="p">(</span><span class="n">source</span><span class="p">:</span> <span class="o">&amp;</span><span class="nb">str</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLuint</span><span class="p">,</span> <span class="nb">String</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="o">...</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Let’s start by obtaining shader object id:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">shader_from_source</span><span class="p">(</span><span class="n">source</span><span class="p">:</span> <span class="o">&amp;</span><span class="nb">str</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLuint</span><span class="p">,</span> <span class="nb">String</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">id</span> <span class="o">=</span> <span class="k">unsafe</span> <span class="p">{</span> <span class="nn">gl</span><span class="p">::</span><span class="nf">CreateShader</span><span class="p">(</span><span class="nn">gl</span><span class="p">::</span><span class="n">VERTEX_SHADER</span><span class="p">)</span> <span class="p">};</span>
+
+    <span class="c">// continue here</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Ha! We need to specify the shader type. Let’s improve the function signature and add
+the shader type to it. <code class="language-plaintext highlighter-rouge">type</code> is a reserved keyword in Rust, but we can name it <code class="language-plaintext highlighter-rouge">kind</code>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">shader_from_source</span><span class="p">(</span>
+    <span class="n">source</span><span class="p">:</span> <span class="o">&amp;</span><span class="nb">str</span><span class="p">,</span>
+    <span class="n">kind</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLuint</span>
+<span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLuint</span><span class="p">,</span> <span class="nb">String</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">id</span> <span class="o">=</span> <span class="k">unsafe</span> <span class="p">{</span> <span class="nn">gl</span><span class="p">::</span><span class="nf">CreateShader</span><span class="p">(</span><span class="n">kind</span><span class="p">)</span> <span class="p">};</span>
+
+    <span class="c">// continue here</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Next, we need to set the source for the shader object using <a href="http://docs.gl/gl4/glShaderSource">glShaderSource</a> function.</p>
+
+<p>However, it is C function, so the third <code class="language-plaintext highlighter-rouge">string</code> argument passed to it has to be zero terminated C string.
+Rust strings are not zero terminated, and they can even contain 0 values inside.</p>
+
+<p>There are two ways to deal with this: convert Rust string slice <code class="language-plaintext highlighter-rouge">&amp;str</code> to <code class="language-plaintext highlighter-rouge">CString</code> inside this function,
+or let function caller deal with that. I am going to choose the second option, because <code class="language-plaintext highlighter-rouge">CString</code>s can
+also be created directly from bytes, and we will later load our shaders from files, which can be read
+as ASCII into byte arrays.</p>
+
+<p>Let’s change function parameter from <code class="language-plaintext highlighter-rouge">&amp;str</code> to <code class="language-plaintext highlighter-rouge">&amp;std::ffi::CStr</code>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// import namespace to avoid repeating `std::ffi` everywhere</span>
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">ffi</span><span class="p">::{</span><span class="n">CString</span><span class="p">,</span> <span class="n">CStr</span><span class="p">};</span>
+
+<span class="k">fn</span> <span class="nf">shader_from_source</span><span class="p">(</span>
+    <span class="n">source</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">CStr</span><span class="p">,</span> <span class="c">// modified</span>
+    <span class="n">kind</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLenum</span>
+<span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLuint</span><span class="p">,</span> <span class="nb">String</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">id</span> <span class="o">=</span> <span class="k">unsafe</span> <span class="p">{</span> <span class="nn">gl</span><span class="p">::</span><span class="nf">CreateShader</span><span class="p">(</span><span class="n">kind</span><span class="p">)</span> <span class="p">};</span>
+
+    <span class="c">// continue here</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">&amp;CStr</code> can be borrowed from owned <code class="language-plaintext highlighter-rouge">CString</code> the same way a <code class="language-plaintext highlighter-rouge">&amp;str</code> is borrowed from a <code class="language-plaintext highlighter-rouge">String</code>.
+Oh, and by the way, <a href="https://doc.rust-lang.org/book/second-edition/ch04-00-understanding-ownership.html">knowing basics about Rust’s ownership and borrowing would be required from now on</a>.</p>
+
+<p>With that, we can set shader source and compile it:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">unsafe</span> <span class="p">{</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="nf">ShaderSource</span><span class="p">(</span><span class="n">id</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">source</span><span class="nf">.as_ptr</span><span class="p">(),</span> <span class="nn">std</span><span class="p">::</span><span class="nn">ptr</span><span class="p">::</span><span class="nf">null</span><span class="p">());</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="nf">CompileShader</span><span class="p">(</span><span class="n">id</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c">// continue here</span>
+</code></pre></div></div>
+
+<p>We could return <code class="language-plaintext highlighter-rouge">Ok(id)</code> now and move on, however, we <strong>really</strong> need to see a proper
+error message if the shader fails to compile.</p>
+
+<p>Therefore, we obtain the shader compilation status:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">success</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLint</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="k">unsafe</span> <span class="p">{</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="nf">GetShaderiv</span><span class="p">(</span><span class="n">id</span><span class="p">,</span> <span class="nn">gl</span><span class="p">::</span><span class="n">COMPILE_STATUS</span><span class="p">,</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">success</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>And if it is <code class="language-plaintext highlighter-rouge">0</code>, we will return an error string, otherwise <code class="language-plaintext highlighter-rouge">Ok(id)</code>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">if</span> <span class="n">success</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">{</span>
+    <span class="c">// continue here</span>
+<span class="p">}</span>
+
+<span class="nf">Ok</span><span class="p">(</span><span class="n">id</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>We will need to write returned error to buffer, therefore we need to know the required length of this buffer.</p>
+
+<p>We get the <code class="language-plaintext highlighter-rouge">len</code> by querying <code class="language-plaintext highlighter-rouge">GL_INFO_LOG_LENGTH</code> for the shader object:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">len</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLint</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+<span class="k">unsafe</span> <span class="p">{</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="nf">GetShaderiv</span><span class="p">(</span><span class="n">id</span><span class="p">,</span> <span class="nn">gl</span><span class="p">::</span><span class="n">INFO_LOG_LENGTH</span><span class="p">,</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">len</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c">// continue here</span>
+</code></pre></div></div>
+
+<p>For our buffer, we allocate <code class="language-plaintext highlighter-rouge">Vec</code> of the correct length and fill it with spaces. Then
+we create <code class="language-plaintext highlighter-rouge">CString</code> from it (which is going to reuse the same allocation, as well as append 0 at the end):</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// allocate buffer of correct size</span>
+<span class="k">let</span> <span class="k">mut</span> <span class="n">buffer</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">u8</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">Vec</span><span class="p">::</span><span class="nf">with_capacity</span><span class="p">(</span><span class="n">len</span> <span class="k">as</span> <span class="nb">usize</span> <span class="o">+</span> <span class="mi">1</span><span class="p">);</span>
+<span class="c">// fill it with len spaces</span>
+<span class="n">buffer</span><span class="nf">.extend</span><span class="p">([</span><span class="n">b</span><span class="sc">' '</span><span class="p">]</span><span class="nf">.iter</span><span class="p">()</span><span class="nf">.cycle</span><span class="p">()</span><span class="nf">.take</span><span class="p">(</span><span class="n">len</span> <span class="k">as</span> <span class="nb">usize</span><span class="p">));</span>
+<span class="c">// convert buffer to CString</span>
+<span class="k">let</span> <span class="n">error</span><span class="p">:</span> <span class="n">CString</span> <span class="o">=</span> <span class="k">unsafe</span> <span class="p">{</span> <span class="nn">CString</span><span class="p">::</span><span class="nf">from_vec_unchecked</span><span class="p">(</span><span class="n">buffer</span><span class="p">)</span> <span class="p">};</span>
+
+<span class="c">// continue here</span>
+</code></pre></div></div>
+
+<p>This code might be a tad confusing:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">[</span><span class="n">b</span><span class="sc">' '</span><span class="p">]</span><span class="nf">.iter</span><span class="p">()</span><span class="nf">.cycle</span><span class="p">()</span><span class="nf">.take</span><span class="p">(</span><span class="n">len</span> <span class="k">as</span> <span class="nb">usize</span><span class="p">)</span>
+</code></pre></div></div>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">[b' ']</code> is a single-item stack-allocated array which contains ASCII “space” byte.</li>
+  <li><code class="language-plaintext highlighter-rouge">.iter()</code> obtains iterator over it.</li>
+  <li><code class="language-plaintext highlighter-rouge">.cycle()</code> repeats this iterator forever, yielding infinite number of spaces.</li>
+  <li><code class="language-plaintext highlighter-rouge">.take(len as usize)</code> limits returned items to <code class="language-plaintext highlighter-rouge">len</code>.</li>
+</ul>
+
+<p>The <code class="language-plaintext highlighter-rouge">buffer.extend(...)</code> for its argument accepts iterator, from which it appends new items.
+Iterators are zero-cost, they require no additional allocations and compile down to
+compact instructions.</p>
+
+<p>With that, we can ask OpenGL to write shader info log into our <code class="language-plaintext highlighter-rouge">error</code> value:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">unsafe</span> <span class="p">{</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="nf">GetShaderInfoLog</span><span class="p">(</span>
+        <span class="n">id</span><span class="p">,</span>
+        <span class="n">len</span><span class="p">,</span>
+        <span class="nn">std</span><span class="p">::</span><span class="nn">ptr</span><span class="p">::</span><span class="nf">null_mut</span><span class="p">(),</span>
+        <span class="n">error</span><span class="nf">.as_ptr</span><span class="p">()</span> <span class="k">as</span> <span class="o">*</span><span class="k">mut</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLchar</span>
+    <span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c">// continue here</span>
+</code></pre></div></div>
+
+<p>And finally, we can return an error:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">return</span> <span class="nf">Err</span><span class="p">(</span><span class="n">error</span><span class="nf">.to_string_lossy</span><span class="p">()</span><span class="nf">.into_owned</span><span class="p">());</span>
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">error.to_string_lossy()</code> converts <code class="language-plaintext highlighter-rouge">CString</code> to Rust String, replacing any invalid unicode
+characters with unicode error character. <code class="language-plaintext highlighter-rouge">to_string_lossy</code> is implemented on <code class="language-plaintext highlighter-rouge">CStr</code>, but we were
+able to call it on <code class="language-plaintext highlighter-rouge">CString</code>, because it inherits all <code class="language-plaintext highlighter-rouge">CStr</code> methods. However,
+<code class="language-plaintext highlighter-rouge">to_string_lossy</code> returns a value that can be either String or <code class="language-plaintext highlighter-rouge">&amp;str</code>, so we use <code class="language-plaintext highlighter-rouge">into_owned</code> to
+obtain a definite String. This last unfortunate step requires an additional allocation, but this
+is the error handling path, so hopefully it is not a big deal.</p>
+
+<p>Congratulations! You have just created your first safe API for a bunch of unsafe functions!</p>
+
+<p>However, there are some things we can do to make this API nicer.</p>
+
+<h3 id="extracting-cstring-creation-from-shader_from_source">Extracting CString creation from <code class="language-plaintext highlighter-rouge">shader_from_source</code></h3>
+
+<p>We can extract the lines that help us create new empty <code class="language-plaintext highlighter-rouge">CString</code> to another function.
+We might need it later:</p>
+
+<p>(main.rs, append at the end)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">create_whitespace_cstring_with_len</span><span class="p">(</span><span class="n">len</span><span class="p">:</span> <span class="nb">usize</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">CString</span> <span class="p">{</span>
+    <span class="c">// allocate buffer of correct size</span>
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">buffer</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">u8</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">Vec</span><span class="p">::</span><span class="nf">with_capacity</span><span class="p">(</span><span class="n">len</span> <span class="o">+</span> <span class="mi">1</span><span class="p">);</span>
+    <span class="c">// fill it with len spaces</span>
+    <span class="n">buffer</span><span class="nf">.extend</span><span class="p">([</span><span class="n">b</span><span class="sc">' '</span><span class="p">]</span><span class="nf">.iter</span><span class="p">()</span><span class="nf">.cycle</span><span class="p">()</span><span class="nf">.take</span><span class="p">(</span><span class="n">len</span><span class="p">));</span>
+    <span class="c">// convert buffer to CString</span>
+    <span class="k">unsafe</span> <span class="p">{</span> <span class="nn">CString</span><span class="p">::</span><span class="nf">from_vec_unchecked</span><span class="p">(</span><span class="n">buffer</span><span class="p">)</span> <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>And use it in original location:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">error</span> <span class="o">=</span> <span class="nf">create_whitespace_cstring_with_len</span><span class="p">(</span><span class="n">len</span> <span class="k">as</span> <span class="nb">usize</span><span class="p">);</span>
+</code></pre></div></div>
+
+<h3 id="creating-a-newtype-for-shader-object">Creating a newtype for shader object</h3>
+
+<p>Instead of returning a shader object id, we can return a struct named <code class="language-plaintext highlighter-rouge">Shader</code> that wraps
+this <code class="language-plaintext highlighter-rouge">id</code>. This returned struct would have no overhead, and will consume exactly the same
+amount of bytes as <code class="language-plaintext highlighter-rouge">gl::types::GLuint</code>, but can be much more convenient to use:</p>
+
+<p>(main.rs, above shader_from_source function)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Shader</span> <span class="p">{</span>
+    <span class="n">id</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLuint</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="c">// continue here</span>
+</code></pre></div></div>
+
+<p>And then implement <code class="language-plaintext highlighter-rouge">from_source</code> function for Shader:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Shader</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">from_source</span><span class="p">(</span>
+        <span class="n">source</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">CStr</span><span class="p">,</span>
+        <span class="n">kind</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLenum</span>
+    <span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="n">Shader</span><span class="p">,</span> <span class="nb">String</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="n">id</span> <span class="o">=</span> <span class="nf">shader_from_source</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">kind</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+        <span class="nf">Ok</span><span class="p">(</span><span class="n">Shader</span> <span class="p">{</span> <span class="n">id</span> <span class="p">})</span>
+    <span class="p">}</span>
+
+    <span class="c">// continue here</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">create</code> does not have <code class="language-plaintext highlighter-rouge">self</code> first parameter, and is akin to static functions in Java-like languages.
+It is called using <code class="language-plaintext highlighter-rouge">Shader::from_source</code> syntax and acts as a constructor.</p>
+
+<p>The return type of it is <code class="language-plaintext highlighter-rouge">Result&lt;Shader, String&gt;</code>, which may be either the successfully created <code class="language-plaintext highlighter-rouge">Shader</code>,
+or an error <code class="language-plaintext highlighter-rouge">String</code>.</p>
+
+<p>The question mark <code class="language-plaintext highlighter-rouge">?</code> at the end of <code class="language-plaintext highlighter-rouge">let id = shader_from_source(source, kind)?;</code> line
+does the same as would this code:</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">id</span> <span class="o">=</span> <span class="k">match</span> <span class="nf">shader_from_source</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">kind</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nf">Ok</span><span class="p">(</span><span class="n">id</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="n">id</span><span class="p">,</span>
+    <span class="nf">Err</span><span class="p">(</span><span class="n">error</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="k">return</span> <span class="nf">Err</span><span class="p">(</span><span class="n">error</span><span class="nf">.into</span><span class="p">()),</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<p>In case the Result was Ok, this block would unwrap id from Ok and assign it to <code class="language-plaintext highlighter-rouge">id</code> variable,
+and in case of Err, the function would return with the same error value.</p>
+
+<p>There is much more to error handling in Rust,
+<a href="https://doc.rust-lang.org/book/second-edition/ch09-02-recoverable-errors-with-result.html">and I highly recommend to not skip learning about it</a>.</p>
+
+<h3 id="additional-constructor-methods-for-shader">Additional constructor methods for Shader</h3>
+
+<p>Now our shader can be created like this:</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">shader</span> <span class="o">=</span> <span class="nn">Shader</span><span class="p">::</span><span class="nf">from_source</span><span class="p">(</span>
+    <span class="o">&amp;</span><span class="nn">CStr</span><span class="p">::</span><span class="nf">from_bytes_with_nul</span><span class="p">(</span><span class="n">b</span><span class="s">"&lt;source code here&gt;</span><span class="se">\0</span><span class="s">"</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">(),</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="n">VERTEX_SHADER</span>
+<span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p>We can create two more helper methods, <code class="language-plaintext highlighter-rouge">from_vert_source</code> and <code class="language-plaintext highlighter-rouge">from_frag_source</code>, so that we can skip
+<code class="language-plaintext highlighter-rouge">gl::VERTEX_SHADER</code> parameter:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Shader</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">from_source</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="p">{</span> <span class="o">...</span> <span class="p">}</span>
+
+    <span class="k">fn</span> <span class="nf">from_vert_source</span><span class="p">(</span><span class="n">source</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">CStr</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="n">Shader</span><span class="p">,</span> <span class="nb">String</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="nn">Shader</span><span class="p">::</span><span class="nf">from_source</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="nn">gl</span><span class="p">::</span><span class="n">VERTEX_SHADER</span><span class="p">)</span>
+    <span class="p">}</span>
+
+    <span class="k">fn</span> <span class="nf">from_frag_source</span><span class="p">(</span><span class="n">source</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">CStr</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="n">Shader</span><span class="p">,</span> <span class="nb">String</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="nn">Shader</span><span class="p">::</span><span class="nf">from_source</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="nn">gl</span><span class="p">::</span><span class="n">FRAGMENT_SHADER</span><span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c">// continue here</span>
+</code></pre></div></div>
+
+<h3 id="resource-cleanup">Resource cleanup</h3>
+
+<p>As implemented, our Shader type leaks shader id without cleaning it up.</p>
+
+<p>To clean it up, we will implement <code class="language-plaintext highlighter-rouge">Drop</code> trait for the <code class="language-plaintext highlighter-rouge">Shader</code>:</p>
+
+<p>(after <code class="language-plaintext highlighter-rouge">impl Shader {}</code> block)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Drop</span> <span class="k">for</span> <span class="n">Shader</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="k">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">unsafe</span> <span class="p">{</span>
+            <span class="nn">gl</span><span class="p">::</span><span class="nf">DeleteShader</span><span class="p">(</span><span class="k">self</span><span class="py">.id</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Rust will ensure that <code class="language-plaintext highlighter-rouge">gl::DeleteShader</code> is called exactly once for every shader object id.</p>
+
+<h2 id="moving-shader-implementation-into-another-module">Moving Shader implementation into another module</h2>
+
+<p>I am going to call new module <code class="language-plaintext highlighter-rouge">render_gl</code>, because it will contain utilities such
+as the shader for gl rendering.</p>
+
+<p>Let’s wrap everything bellow the main function into <code class="language-plaintext highlighter-rouge">pub mod render_gl {}</code> block.
+Modules do not inherit imports from the parent modules. Therefore we will need to add
+<code class="language-plaintext highlighter-rouge">use gl;</code> at the top of child <code class="language-plaintext highlighter-rouge">render_gl</code> module. Moreover, by default
+Rust imports <code class="language-plaintext highlighter-rouge">std</code> to the root crate module; therefore we will need <code class="language-plaintext highlighter-rouge">use std;</code> in child too.</p>
+
+<p>If you try to use <code class="language-plaintext highlighter-rouge">render_gl::Shader</code> from this module in main and compile our app,
+you will get errors saying that <code class="language-plaintext highlighter-rouge">Shader is private</code>;
+we will need to add <code class="language-plaintext highlighter-rouge">pub</code> keywords for anything we want to be visible from the outside of the module.
+In our case, it is the <code class="language-plaintext highlighter-rouge">Shader</code> struct with the <code class="language-plaintext highlighter-rouge">create...</code> methods.</p>
+
+<p>With all of that sorted out, the full module code looks like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">render_gl</span> <span class="p">{</span>
+    <span class="k">use</span> <span class="n">gl</span><span class="p">;</span>
+    <span class="k">use</span> <span class="n">std</span><span class="p">;</span>
+    <span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">ffi</span><span class="p">::{</span><span class="n">CString</span><span class="p">,</span> <span class="n">CStr</span><span class="p">};</span>
+
+    <span class="k">pub</span> <span class="k">struct</span> <span class="n">Shader</span> <span class="p">{</span>
+        <span class="n">id</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLuint</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">impl</span> <span class="n">Shader</span> <span class="p">{</span>
+        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">from_source</span><span class="p">(</span>
+            <span class="n">source</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">CStr</span><span class="p">,</span>
+            <span class="n">kind</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLenum</span>
+        <span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="n">Shader</span><span class="p">,</span> <span class="nb">String</span><span class="o">&gt;</span> <span class="p">{</span>
+            <span class="k">let</span> <span class="n">id</span> <span class="o">=</span> <span class="nf">shader_from_source</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">kind</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+            <span class="nf">Ok</span><span class="p">(</span><span class="n">Shader</span> <span class="p">{</span> <span class="n">id</span> <span class="p">})</span>
+        <span class="p">}</span>
+
+        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">from_vert_source</span><span class="p">(</span><span class="n">source</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">CStr</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="n">Shader</span><span class="p">,</span> <span class="nb">String</span><span class="o">&gt;</span> <span class="p">{</span>
+            <span class="nn">Shader</span><span class="p">::</span><span class="nf">from_source</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="nn">gl</span><span class="p">::</span><span class="n">VERTEX_SHADER</span><span class="p">)</span>
+        <span class="p">}</span>
+
+        <span class="k">pub</span> <span class="k">fn</span> <span class="nf">from_frag_source</span><span class="p">(</span><span class="n">source</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">CStr</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="n">Shader</span><span class="p">,</span> <span class="nb">String</span><span class="o">&gt;</span> <span class="p">{</span>
+            <span class="nn">Shader</span><span class="p">::</span><span class="nf">from_source</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="nn">gl</span><span class="p">::</span><span class="n">FRAGMENT_SHADER</span><span class="p">)</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="k">impl</span> <span class="n">Drop</span> <span class="k">for</span> <span class="n">Shader</span> <span class="p">{</span>
+        <span class="k">fn</span> <span class="k">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+            <span class="k">unsafe</span> <span class="p">{</span>
+                <span class="nn">gl</span><span class="p">::</span><span class="nf">DeleteShader</span><span class="p">(</span><span class="k">self</span><span class="py">.id</span><span class="p">);</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="k">fn</span> <span class="nf">shader_from_source</span><span class="p">(</span>
+        <span class="n">source</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">CStr</span><span class="p">,</span>
+        <span class="n">kind</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLenum</span>
+    <span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLuint</span><span class="p">,</span> <span class="nb">String</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="n">id</span> <span class="o">=</span> <span class="k">unsafe</span> <span class="p">{</span> <span class="nn">gl</span><span class="p">::</span><span class="nf">CreateShader</span><span class="p">(</span><span class="n">kind</span><span class="p">)</span> <span class="p">};</span>
+        <span class="k">unsafe</span> <span class="p">{</span>
+            <span class="nn">gl</span><span class="p">::</span><span class="nf">ShaderSource</span><span class="p">(</span><span class="n">id</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">source</span><span class="nf">.as_ptr</span><span class="p">(),</span> <span class="nn">std</span><span class="p">::</span><span class="nn">ptr</span><span class="p">::</span><span class="nf">null</span><span class="p">());</span>
+            <span class="nn">gl</span><span class="p">::</span><span class="nf">CompileShader</span><span class="p">(</span><span class="n">id</span><span class="p">);</span>
+        <span class="p">}</span>
+
+        <span class="k">let</span> <span class="k">mut</span> <span class="n">success</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLint</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+        <span class="k">unsafe</span> <span class="p">{</span>
+            <span class="nn">gl</span><span class="p">::</span><span class="nf">GetShaderiv</span><span class="p">(</span><span class="n">id</span><span class="p">,</span> <span class="nn">gl</span><span class="p">::</span><span class="n">COMPILE_STATUS</span><span class="p">,</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">success</span><span class="p">);</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">success</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">{</span>
+            <span class="k">let</span> <span class="k">mut</span> <span class="n">len</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLint</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+            <span class="k">unsafe</span> <span class="p">{</span>
+                <span class="nn">gl</span><span class="p">::</span><span class="nf">GetShaderiv</span><span class="p">(</span><span class="n">id</span><span class="p">,</span> <span class="nn">gl</span><span class="p">::</span><span class="n">INFO_LOG_LENGTH</span><span class="p">,</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">len</span><span class="p">);</span>
+            <span class="p">}</span>
+
+            <span class="k">let</span> <span class="n">error</span> <span class="o">=</span> <span class="nf">create_whitespace_cstring_with_len</span><span class="p">(</span><span class="n">len</span> <span class="k">as</span> <span class="nb">usize</span><span class="p">);</span>
+
+            <span class="k">unsafe</span> <span class="p">{</span>
+                <span class="nn">gl</span><span class="p">::</span><span class="nf">GetShaderInfoLog</span><span class="p">(</span>
+                    <span class="n">id</span><span class="p">,</span>
+                    <span class="n">len</span><span class="p">,</span>
+                    <span class="nn">std</span><span class="p">::</span><span class="nn">ptr</span><span class="p">::</span><span class="nf">null_mut</span><span class="p">(),</span>
+                    <span class="n">error</span><span class="nf">.as_ptr</span><span class="p">()</span> <span class="k">as</span> <span class="o">*</span><span class="k">mut</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLchar</span>
+                <span class="p">);</span>
+            <span class="p">}</span>
+
+            <span class="k">return</span> <span class="nf">Err</span><span class="p">(</span><span class="n">error</span><span class="nf">.to_string_lossy</span><span class="p">()</span><span class="nf">.into_owned</span><span class="p">());</span>
+        <span class="p">}</span>
+
+        <span class="nf">Ok</span><span class="p">(</span><span class="n">id</span><span class="p">)</span>
+    <span class="p">}</span>
+
+    <span class="k">fn</span> <span class="nf">create_whitespace_cstring_with_len</span><span class="p">(</span><span class="n">len</span><span class="p">:</span> <span class="nb">usize</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">CString</span> <span class="p">{</span>
+        <span class="c">// allocate buffer of correct size</span>
+        <span class="k">let</span> <span class="k">mut</span> <span class="n">buffer</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">u8</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">Vec</span><span class="p">::</span><span class="nf">with_capacity</span><span class="p">(</span><span class="n">len</span> <span class="o">+</span> <span class="mi">1</span><span class="p">);</span>
+        <span class="c">// fill it with len spaces</span>
+        <span class="n">buffer</span><span class="nf">.extend</span><span class="p">([</span><span class="n">b</span><span class="sc">' '</span><span class="p">]</span><span class="nf">.iter</span><span class="p">()</span><span class="nf">.cycle</span><span class="p">()</span><span class="nf">.take</span><span class="p">(</span><span class="n">len</span><span class="p">));</span>
+        <span class="c">// convert buffer to CString</span>
+        <span class="k">unsafe</span> <span class="p">{</span> <span class="nn">CString</span><span class="p">::</span><span class="nf">from_vec_unchecked</span><span class="p">(</span><span class="n">buffer</span><span class="p">)</span> <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h3 id="moving-render_gl-module-into-another-file">Moving render_gl module into another file</h3>
+
+<p>It is quite simple: create a new file named <code class="language-plaintext highlighter-rouge">render_gl.rs</code> in <code class="language-plaintext highlighter-rouge">src</code>, and move the contents of
+<code class="language-plaintext highlighter-rouge">pub mod render_gl {  }</code> block into it. Then, add a seminocol at the end of <code class="language-plaintext highlighter-rouge">pub mod render_gl</code>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">render_gl</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>When the Rust compiler encounters a module name with no block <code class="language-plaintext highlighter-rouge">{}</code>, it tries to load the contents
+from a file named with the same name and suffixed with <code class="language-plaintext highlighter-rouge">.rs</code>; in this case it would be <code class="language-plaintext highlighter-rouge">render_gl.rs</code>.
+If such a file does not exist, it will then try to load contents from <code class="language-plaintext highlighter-rouge">render_gl/mod.rs</code> file (this
+is useful to further subdivide submodules into smaller ones). If that also fails, then we get a
+compilation error.</p>
+
+<p>Module references usually appear near the top of the file, bellow <code class="language-plaintext highlighter-rouge">extern crate</code> references.
+We can move <code class="language-plaintext highlighter-rouge">pub mod render_gl;</code> there.</p>
+
+<h2 id="program">Program</h2>
+
+<p>Linking program requires these OpenGL calls:</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">program_id</span> <span class="o">=</span> <span class="k">unsafe</span> <span class="p">{</span> <span class="nn">gl</span><span class="p">::</span><span class="nf">CreateProgram</span><span class="p">()</span> <span class="p">};</span>
+
+<span class="k">unsafe</span> <span class="p">{</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="nf">AttachShader</span><span class="p">(</span><span class="n">program_id</span><span class="p">,</span> <span class="n">vert_shader_id</span><span class="p">);</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="nf">AttachShader</span><span class="p">(</span><span class="n">program_id</span><span class="p">,</span> <span class="n">frag_shader_id</span><span class="p">);</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="nf">LinkProgram</span><span class="p">(</span><span class="n">program_id</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>We can add a function to out <code class="language-plaintext highlighter-rouge">Shader</code> struct to retrieve shader id:</p>
+
+<p>(render_gl.rs, at the end of <code class="language-plaintext highlighter-rouge">impl Shader</code> block)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Shader</span> <span class="p">{</span>
+    <span class="o">...</span>
+
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">id</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLuint</span> <span class="p">{</span>
+        <span class="k">self</span><span class="py">.id</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>This makes <code class="language-plaintext highlighter-rouge">Shader</code> struct useful even if we never create abstraction for linking
+a program:</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">vert_shader</span> <span class="o">=</span> <span class="nn">Shader</span><span class="p">::</span><span class="nf">from_vert_source</span><span class="p">(</span><span class="o">..</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+<span class="k">let</span> <span class="n">frag_shader</span> <span class="o">=</span> <span class="nn">Shader</span><span class="p">::</span><span class="nf">from_frag_source</span><span class="p">(</span><span class="o">..</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+
+<span class="k">let</span> <span class="n">program_id</span> <span class="o">=</span> <span class="k">unsafe</span> <span class="p">{</span> <span class="nn">gl</span><span class="p">::</span><span class="nf">CreateProgram</span><span class="p">()</span> <span class="p">};</span>
+
+<span class="k">unsafe</span> <span class="p">{</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="nf">AttachShader</span><span class="p">(</span><span class="n">program_id</span><span class="p">,</span> <span class="n">vert_shader</span><span class="nf">.id</span><span class="p">());</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="nf">AttachShader</span><span class="p">(</span><span class="n">program_id</span><span class="p">,</span> <span class="n">frag_shader</span><span class="nf">.id</span><span class="p">());</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="nf">LinkProgram</span><span class="p">(</span><span class="n">program_id</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>One small thing: <code class="language-plaintext highlighter-rouge">glDeleteShader</code> won’t delete the shader if it is still
+attached to program. Therefore we detach the shader after linking it:</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">vert_shader</span> <span class="o">=</span> <span class="nn">Shader</span><span class="p">::</span><span class="nf">from_vert_source</span><span class="p">(</span><span class="o">..</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+<span class="k">let</span> <span class="n">frag_shader</span> <span class="o">=</span> <span class="nn">Shader</span><span class="p">::</span><span class="nf">from_frag_source</span><span class="p">(</span><span class="o">..</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+
+<span class="k">let</span> <span class="n">program_id</span> <span class="o">=</span> <span class="k">unsafe</span> <span class="p">{</span> <span class="nn">gl</span><span class="p">::</span><span class="nf">CreateProgram</span><span class="p">()</span> <span class="p">};</span>
+
+<span class="k">unsafe</span> <span class="p">{</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="nf">AttachShader</span><span class="p">(</span><span class="n">program_id</span><span class="p">,</span> <span class="n">vert_shader</span><span class="nf">.id</span><span class="p">());</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="nf">AttachShader</span><span class="p">(</span><span class="n">program_id</span><span class="p">,</span> <span class="n">frag_shader</span><span class="nf">.id</span><span class="p">());</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="nf">LinkProgram</span><span class="p">(</span><span class="n">program_id</span><span class="p">);</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="nf">DetachShader</span><span class="p">(</span><span class="n">program_id</span><span class="p">,</span> <span class="n">vert_shader</span><span class="nf">.id</span><span class="p">());</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="nf">DetachShader</span><span class="p">(</span><span class="n">program_id</span><span class="p">,</span> <span class="n">frag_shader</span><span class="nf">.id</span><span class="p">());</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>We will follow the same pattern as for <code class="language-plaintext highlighter-rouge">Shader</code> struct for our new <code class="language-plaintext highlighter-rouge">Program</code> struct.
+We will wrap the OpenGL program object id, add a static method
+that creates the program and links it to specified shaders, and a drop function
+that deletes the program object:</p>
+
+<p>(at the top of render_gl.rs file, bellow <code class="language-plaintext highlighter-rouge">use</code> statements)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">struct</span> <span class="n">Program</span> <span class="p">{</span>
+    <span class="n">id</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLuint</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span> <span class="n">Program</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">from_shaders</span><span class="p">(</span><span class="n">shaders</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="n">Shader</span><span class="p">])</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="n">Program</span><span class="p">,</span> <span class="nb">String</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="n">program_id</span> <span class="o">=</span> <span class="k">unsafe</span> <span class="p">{</span> <span class="nn">gl</span><span class="p">::</span><span class="nf">CreateProgram</span><span class="p">()</span> <span class="p">};</span>
+
+        <span class="k">for</span> <span class="n">shader</span> <span class="n">in</span> <span class="n">shaders</span> <span class="p">{</span>
+            <span class="k">unsafe</span> <span class="p">{</span> <span class="nn">gl</span><span class="p">::</span><span class="nf">AttachShader</span><span class="p">(</span><span class="n">program_id</span><span class="p">,</span> <span class="n">shader</span><span class="nf">.id</span><span class="p">());</span> <span class="p">}</span>
+        <span class="p">}</span>
+
+        <span class="k">unsafe</span> <span class="p">{</span> <span class="nn">gl</span><span class="p">::</span><span class="nf">LinkProgram</span><span class="p">(</span><span class="n">program_id</span><span class="p">);</span> <span class="p">}</span>
+
+        <span class="c">// continue with error handling here</span>
+
+        <span class="k">for</span> <span class="n">shader</span> <span class="n">in</span> <span class="n">shaders</span> <span class="p">{</span>
+            <span class="k">unsafe</span> <span class="p">{</span> <span class="nn">gl</span><span class="p">::</span><span class="nf">DetachShader</span><span class="p">(</span><span class="n">program_id</span><span class="p">,</span> <span class="n">shader</span><span class="nf">.id</span><span class="p">());</span> <span class="p">}</span>
+        <span class="p">}</span>
+
+        <span class="nf">Ok</span><span class="p">(</span><span class="n">Program</span> <span class="p">{</span> <span class="n">id</span><span class="p">:</span> <span class="n">program_id</span> <span class="p">})</span>
+    <span class="p">}</span>
+
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">id</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLuint</span> <span class="p">{</span>
+        <span class="k">self</span><span class="py">.id</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">impl</span> <span class="n">Drop</span> <span class="k">for</span> <span class="n">Program</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="k">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">unsafe</span> <span class="p">{</span>
+            <span class="nn">gl</span><span class="p">::</span><span class="nf">DeleteProgram</span><span class="p">(</span><span class="k">self</span><span class="py">.id</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">from_shaders</code> has a single <code class="language-plaintext highlighter-rouge">shaders</code> parameter, that takes a <em>slice</em> (<code class="language-plaintext highlighter-rouge">&amp;[]</code>) of
+<code class="language-plaintext highlighter-rouge">Shader</code> structs. They are required just for the linking.</p>
+
+<p>We also need the error handling, which is very similar to error handling of a shader program:</p>
+
+<p>(render_gl.rs, bellow <code class="language-plaintext highlighter-rouge">gl::LinkProgram</code>)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">success</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLint</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="k">unsafe</span> <span class="p">{</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="nf">GetProgramiv</span><span class="p">(</span><span class="n">program_id</span><span class="p">,</span> <span class="nn">gl</span><span class="p">::</span><span class="n">LINK_STATUS</span><span class="p">,</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">success</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">if</span> <span class="n">success</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">len</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLint</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="k">unsafe</span> <span class="p">{</span>
+        <span class="nn">gl</span><span class="p">::</span><span class="nf">GetProgramiv</span><span class="p">(</span><span class="n">program_id</span><span class="p">,</span> <span class="nn">gl</span><span class="p">::</span><span class="n">INFO_LOG_LENGTH</span><span class="p">,</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">len</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="k">let</span> <span class="n">error</span> <span class="o">=</span> <span class="nf">create_whitespace_cstring_with_len</span><span class="p">(</span><span class="n">len</span> <span class="k">as</span> <span class="nb">usize</span><span class="p">);</span>
+
+    <span class="k">unsafe</span> <span class="p">{</span>
+        <span class="nn">gl</span><span class="p">::</span><span class="nf">GetProgramInfoLog</span><span class="p">(</span>
+            <span class="n">program_id</span><span class="p">,</span>
+            <span class="n">len</span><span class="p">,</span>
+            <span class="nn">std</span><span class="p">::</span><span class="nn">ptr</span><span class="p">::</span><span class="nf">null_mut</span><span class="p">(),</span>
+            <span class="n">error</span><span class="nf">.as_ptr</span><span class="p">()</span> <span class="k">as</span> <span class="o">*</span><span class="k">mut</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLchar</span>
+        <span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="k">return</span> <span class="nf">Err</span><span class="p">(</span><span class="n">error</span><span class="nf">.to_string_lossy</span><span class="p">()</span><span class="nf">.into_owned</span><span class="p">());</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Instead of <code class="language-plaintext highlighter-rouge">GetShaderiv</code>, we use <code class="language-plaintext highlighter-rouge">GetProgramiv</code>, instead of <code class="language-plaintext highlighter-rouge">GetShaderInfoLog</code> we use <code class="language-plaintext highlighter-rouge">GetProgramInfoLog</code>,
+and instead of <code class="language-plaintext highlighter-rouge">COMPILE_STATUS</code> we use <code class="language-plaintext highlighter-rouge">LINK_STATUS</code>.</p>
+
+<h2 id="using-our-shader-and-program-structs">Using our Shader and Program structs</h2>
+
+<p>Let’s add <code class="language-plaintext highlighter-rouge">glUseProgram</code> for our <code class="language-plaintext highlighter-rouge">Program</code> struct:</p>
+
+<p>(render_gl.rs, impl Program)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">fn</span> <span class="nf">set_used</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">unsafe</span> <span class="p">{</span>
+        <span class="nn">gl</span><span class="p">::</span><span class="nf">UseProgram</span><span class="p">(</span><span class="k">self</span><span class="py">.id</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>I picked the name <code class="language-plaintext highlighter-rouge">set_used</code>, because <code class="language-plaintext highlighter-rouge">use</code> is unfortunately a reserved keyword.</p>
+
+<p>Then, right before the <code class="language-plaintext highlighter-rouge">'main</code> loop, we can compile our vertex and shader programs:</p>
+
+<p>(main.rs, before loop)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">ffi</span><span class="p">::</span><span class="n">CString</span><span class="p">;</span>
+
+<span class="k">let</span> <span class="n">vert_shader</span> <span class="o">=</span> <span class="nn">render_gl</span><span class="p">::</span><span class="nn">Shader</span><span class="p">::</span><span class="nf">from_vert_source</span><span class="p">(</span>
+    <span class="o">&amp;</span><span class="nn">CString</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nd">include_str!</span><span class="p">(</span><span class="s">"triangle.vert"</span><span class="p">))</span><span class="nf">.unwrap</span><span class="p">()</span>
+<span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+
+<span class="k">let</span> <span class="n">frag_shader</span> <span class="o">=</span> <span class="nn">render_gl</span><span class="p">::</span><span class="nn">Shader</span><span class="p">::</span><span class="nf">from_frag_source</span><span class="p">(</span>
+    <span class="o">&amp;</span><span class="nn">CString</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nd">include_str!</span><span class="p">(</span><span class="s">"triangle.frag"</span><span class="p">))</span><span class="nf">.unwrap</span><span class="p">()</span>
+<span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+
+<span class="c">// continue here</span>
+</code></pre></div></div>
+
+<ul>
+  <li>We may include <code class="language-plaintext highlighter-rouge">use</code> block anywhere. I add <code class="language-plaintext highlighter-rouge">use std::ffi::CString</code> close to <code class="language-plaintext highlighter-rouge">CString</code> usage,
+because ideally we would move this code together with the <code class="language-plaintext highlighter-rouge">use</code> to another function or file.</li>
+  <li>When be borrow <code class="language-plaintext highlighter-rouge">&amp;</code> <code class="language-plaintext highlighter-rouge">CString</code>, it is coerced into <code class="language-plaintext highlighter-rouge">&amp;CStr</code>. <a href="https://doc.rust-lang.org/book/first-edition/deref-coercions.html">This is the same mechanism
+that makes <code class="language-plaintext highlighter-rouge">&amp;String</code> or <code class="language-plaintext highlighter-rouge">&amp;Vec&lt;T&gt;</code> arguments work for <code class="language-plaintext highlighter-rouge">&amp;str</code> or <code class="language-plaintext highlighter-rouge">&amp;[T]</code> parameters</a>.</li>
+  <li><code class="language-plaintext highlighter-rouge">include_str!</code> macro embeds a UTF-8 file contents as a static <code class="language-plaintext highlighter-rouge">&amp;str</code> value. Essentially the file
+gets compiled into our executable as string.</li>
+  <li><code class="language-plaintext highlighter-rouge">.unwrap</code> for <code class="language-plaintext highlighter-rouge">CString::new</code> is needed because Rust’s UTF-8 strings may contain 0 in the middle and be valid.
+This should basically never happen, so we use <code class="language-plaintext highlighter-rouge">unwrap</code> to panic the program if it does.</li>
+  <li><code class="language-plaintext highlighter-rouge">.unwarp</code> on <code class="language-plaintext highlighter-rouge">Shader::from_*_source_...</code> functions will panic and terminate our program with a debug
+message if shaders fail to compile. This is temporary way we handle the compilation.</li>
+</ul>
+
+<p>Then, we link our shaders:</p>
+
+<p>(main.rs, before loop)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">shader_program</span> <span class="o">=</span> <span class="nn">render_gl</span><span class="p">::</span><span class="nn">Program</span><span class="p">::</span><span class="nf">from_shaders</span><span class="p">(</span>
+    <span class="o">&amp;</span><span class="p">[</span><span class="n">vert_shader</span><span class="p">,</span> <span class="n">frag_shader</span><span class="p">]</span>
+<span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+
+<span class="c">// continue here</span>
+</code></pre></div></div>
+
+<p>And finally, use them:</p>
+
+<p>(main.rs, before loop)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">shader_program</span><span class="nf">.set_used</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p>Add <code class="language-plaintext highlighter-rouge">triangle.vert</code> to <code class="language-plaintext highlighter-rouge">src</code>:</p>
+
+<p>(triangle.vert)</p>
+
+<div class="language-glsl highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#version 330 core
+</span>
+<span class="k">layout</span> <span class="p">(</span><span class="n">location</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="k">in</span> <span class="kt">vec3</span> <span class="n">Position</span><span class="p">;</span>
+
+<span class="kt">void</span> <span class="nf">main</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="nb">gl_Position</span> <span class="o">=</span> <span class="kt">vec4</span><span class="p">(</span><span class="n">Position</span><span class="p">,</span> <span class="mi">1</span><span class="p">.</span><span class="mi">0</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>As well as <code class="language-plaintext highlighter-rouge">triangle.frag</code>:</p>
+
+<p>(triangle.frag)</p>
+
+<div class="language-glsl highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#version 330 core
+</span>
+<span class="k">out</span> <span class="kt">vec4</span> <span class="n">Color</span><span class="p">;</span>
+
+<span class="kt">void</span> <span class="nf">main</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="n">Color</span> <span class="o">=</span> <span class="kt">vec4</span><span class="p">(</span><span class="mi">1</span><span class="p">.</span><span class="mi">0</span><span class="n">f</span><span class="p">,</span> <span class="mi">0</span><span class="p">.</span><span class="mi">5</span><span class="n">f</span><span class="p">,</span> <span class="mi">0</span><span class="p">.</span><span class="mi">2</span><span class="n">f</span><span class="p">,</span> <span class="mi">1</span><span class="p">.</span><span class="mi">0</span><span class="n">f</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>However, we won’t see anything on screen yet, because we are not sending
+any draw commands to OpenGL yet.</p>
+
+<p>We will remedy that <a href="/rust/opengl/tutorial/2018/02/11/opengl-in-rust-from-scratch-04-triangle.html">the next time</a>.</p>
+
+<p>As always, <a href="https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-03">the code for this part is available on github</a>.</p>
+
+  </article>
+
+</div>
+
+      </div>
+    </div>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col  footer-col-1">
+        <ul class="contact-list">
+          <li>Nerijus Arlauskas</li>
+          <li><a href="mailto:nercury@gmail.com">nercury@gmail.com</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-2">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/Nercury">
+              <span class="icon  icon--github">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/>
+                </svg>
+              </span>
+
+              <span class="username">Nercury</span>
+            </a>
+          </li>
+          
+
+          
+          <li>
+            <a href="https://twitter.com/nercury">
+              <span class="icon  icon--twitter">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809
+                  c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/>
+                </svg>
+              </span>
+
+              <span class="username">nercury</span>
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-3">
+        <p class="text">Articles and tutorials about Rust, Embedded development and Computer Graphics.
+</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>

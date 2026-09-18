@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <title>Embedded Rust Experiments - Flipping some bits high on STM32VLDISCOVERY board</title>
+    <meta name="description" content="Articles and tutorials about Rust, Embedded development and Computer Graphics.
+">
+
+    <link rel="shortcut icon" type="image/png" href="/favicon.ico"/>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/pygments/default.css">
+    <link rel="stylesheet" href="/css/font-awesome.css">
+    <link rel="canonical" href="http://nercury.github.io/rust/embedded/experiments/2018/04/29/rust-embedded-01-discovery-vl-flipping-bits.html">
+    <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles/color-brewer.css">
+
+    <script src="/js/highlight.pack.js"></script>
+
+    <script src="/js/jquery.min.js"></script>
+    
+    <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+      ga('create', 'UA-56288576-1', 'auto');
+      ga('require', 'displayfeatures');
+      ga('send', 'pageview');
+    </script>
+    
+    <script>
+        $(function() {
+            hljs.initHighlightingOnLoad();
+            return $("h1, h2, h3, h4, h5, h6").each(function(i, el) {
+                console.log(el);
+                var $el, icon, id;
+                $el = $(el);
+                id = $el.attr('id');
+                icon = '<i class="fa fa-link"></i>';
+                if (id) {
+                  return $el.prepend($("<a />").addClass("header-link").attr("href", "#" + id).html(icon));
+                }
+            });
+        });
+    </script>
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Ironic Blog</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+        
+          
+          <a class="page-link" href="/about/">About Me</a>
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <div class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Embedded Rust Experiments - Flipping some bits high on STM32VLDISCOVERY board</h1>
+    <p class="post-meta">Apr 29, 2018</p>
+  </header>
+
+  <article class="post-content">
+    <p>Here I will document the steps to get started with STM32VLDISCOVERY board.</p>
+
+<p>We will take my favourite “from scratch” approach. That way, we build the final
+thing step by step while building our understanding of how it all fits together.</p>
+
+<p>I am new to Cortex-M, and I am new to Rust’s embedded development, so please excuse me if 
+I get some terminology horribly wrong. I am also learning along the way, and then
+I try to present what I have learned in a sequential, easy to understand way.</p>
+
+<h2 id="documentation">Documentation</h2>
+
+<p>Go to ST site and <a href="http://www.st.com/en/evaluation-tools/stm32vldiscovery.html">locate the board documentation</a>.</p>
+
+<p>Board uses STM32F100RBT6B Cortex-M3 microcontroller (MCU). <a href="http://www.st.com/en/microcontrollers/stm32f100rb.html">Locate the documentation of this MCU too</a>.
+The page has many PDFs. <a href="http://www.st.com/content/ccc/resource/technical/document/reference_manual/a2/2d/02/4b/78/57/41/a3/CD00246267.pdf/files/CD00246267.pdf/jcr:content/translations/en.CD00246267.pdf">We are interested in what is called the “reference manual”</a>. 
+It’s big (<a href="https://www.st.com/content/ccc/resource/technical/document/reference_manual/a2/2d/02/4b/78/57/41/a3/CD00246267.pdf/files/CD00246267.pdf/jcr:content/translations/en.CD00246267.pdf">direct link</a>.</p>
+
+<p>The final code <a href="https://github.com/Nercury/embedded-experiments/tree/master/part01-blink">is available on the github</a>.</p>
+
+<h2 id="connection-to-the-board">Connection to the board</h2>
+
+<p>The board contains the MCU and everything that is required to run it,
+as well as a programmer called ST-Link.</p>
+
+<p><img src="/images/mcu-02/discovery-vl-labels.jpg" alt="Discovery VL labels" /></p>
+
+<p>By default it is configured to program the MCU on the board. However,
+we can change some jumpers, connect 4 wires to pins marked “SWD” and use ST-Link 
+to program similar MCU on another board designed by us (however it is likely
+we won’t do this, because we will get distracted by more recent shiny MCUs). This
+board is good for testing this MCU, because all the pins are accessible 
+and plugable to a breadboard.</p>
+
+<p>Here it is, plugged into two breadboards, and powering it with 3.3V from <code class="language-plaintext highlighter-rouge">GND</code> and
+<code class="language-plaintext highlighter-rouge">3V3</code> pins. As you can see, it lights up an external LED.</p>
+
+<p><img src="/images/mcu-02/discovery-vl-breadboard.jpeg" alt="Discovery VL labels" /></p>
+
+<p>The designers of this board clearly did not design it to be used this way:
+especially annoying is the parallel row of pins at the end of the board.</p>
+
+<p>We connect to ST-Link over an USB cable.</p>
+
+<h2 id="usb-and-st-link">USB and ST-Link</h2>
+
+<p>We will make sure that we have a connection to our board by installing OpenOCD (which
+will be used to upload our program to MCU).</p>
+
+<p>Make sure your rust version is at least <code class="language-plaintext highlighter-rouge">1.31</code></p>
+
+<p>Here we can find the set up instructions for OpenOCD (and other tools):</p>
+<ul>
+  <li><a href="https://rust-embedded.github.io/book/intro/install/linux.html">Linux</a>,</li>
+  <li><a href="https://rust-embedded.github.io/book/intro/install/windows.html">Windows</a> and</li>
+  <li><a href="https://rust-embedded.github.io/book/intro/install/macos.html">macOS</a>.</li>
+</ul>
+
+<p>Follow them and install tools for our platform.</p>
+
+<p>For Windows, you can download the driver <a href="http://www.st.com/en/evaluation-tools/stm32vldiscovery.html">from the board page we’ve visited before</a>.</p>
+
+<p>Then, follow the instructions to <a href="https://rust-embedded.github.io/book/intro/install/verify.html">verify that you have connection to the board</a> with one
+caveat: change <code class="language-plaintext highlighter-rouge">openocd</code> call to use different device than the book says. Our
+device in our board is <code class="language-plaintext highlighter-rouge">STM32F100RB</code>. We can browse installed <code class="language-plaintext highlighter-rouge">OpenOCD</code> <code class="language-plaintext highlighter-rouge">scripts</code>
+to locate the board <code class="language-plaintext highlighter-rouge">cfg</code> file and use it as <code class="language-plaintext highlighter-rouge">-f</code> command line option.</p>
+
+<p>With OpenOCD 0.10, this works for me:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>openocd <span class="nt">-f</span> interface/stlink-v2-1.cfg <span class="nt">-f</span> target/stm32f1x.cfg
+</code></pre></div></div>
+
+<p>It is likely that you will receive this error on Windows:</p>
+
+<pre><code class="language-plain">...
+Error: libusb_open() failed with LIBUSB_ERROR_NOT_SUPPORTED
+</code></pre>
+
+<p>Windows has multiple mechanisms to load drivers. OpenOCD uses WinUSB. 
+I had to use Zadig tool to install WinUSB version of STM32 STLink driver.
+Follow the <a href="https://github.com/foss-for-synopsys-dwc-arc-processors/arc_gnu_eclipse/wiki/How-to-Use-OpenOCD-on-Windows">instructions here</a>, except our driver should be named
+“STM32 STLink”.</p>
+
+<p><img src="/images/mcu-02/st-link-blink.gif" alt="Discovery VL labels" /></p>
+
+<p>If the LED starts blinking, the connection is successful! You should leave the OpenOCD
+running in another terminal window.</p>
+
+<h2 id="back-to-rust">Back to Rust</h2>
+
+<p>We will need Rust <code class="language-plaintext highlighter-rouge">1.31</code> (stable).</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>rustc <span class="nt">-V</span>
+rustc 1.31.1 <span class="o">(</span>b6c32da9b 2018-12-18<span class="o">)</span>
+</code></pre></div></div>
+
+<p>We will bootstrap a Rust project from scratch.</p>
+
+<p>First, let’s create a simple Rust project:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>cargo new <span class="nt">--bin</span> blink
+<span class="nb">cd </span>blink
+</code></pre></div></div>
+
+<p>This generates the familiar “Hello, world!” project for us:</p>
+
+<p>(src/main.rs)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"Hello, world!"</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<blockquote>
+  <p>Here we are not using Rust 2018, so remove <code class="language-plaintext highlighter-rouge">edition = "2018"</code> from Cargo/toml file.</p>
+</blockquote>
+
+<h3 id="no-std">No std</h3>
+
+<p>MCUs have small, constrained environments. Convenient things like heap require 
+more work or are not used at all. We start by disabling Rust’s standard library:</p>
+
+<p>(at the top of main.rs)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#![no_std]</span>
+</code></pre></div></div>
+
+<p>And guess what, the <code class="language-plaintext highlighter-rouge">println!</code> macro no longer exists:</p>
+
+<pre><code class="language-txt">error: cannot find macro `println!` in this scope
+</code></pre>
+
+<p>So we remove it:</p>
+
+<p>(main.rs, full)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#![no_std]</span>
+
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>We get another error when compiling:</p>
+
+<pre><code class="language-txt">error: language item required, but not found: `eh_personality`
+</code></pre>
+
+<p>The <code class="language-plaintext highlighter-rouge">eh_personality</code> is used to implement stack unwinding in case a panic occurs.</p>
+
+<p>But this is very dependent on the platform we are compiling to; right up to this point we
+attempted to compile <code class="language-plaintext highlighter-rouge">no_std</code> executable for windows/linux/mac; it’s time we switch our target architecture
+to the one required by our MCU.</p>
+
+<h2 id="arm-target">ARM target</h2>
+
+<p>Our board has Cortex-M3 MCU, and the rust “target” name for it is <code class="language-plaintext highlighter-rouge">thumbv7m-none-eabi</code>.
+This identifier is the best-effort combination of names that describe instruction set (thumbv7m),
+operating system (none) and executable format (ELF ABI). It does not have “hf” suffix at the end
+because our MCU does not support hardware floating point operations.</p>
+
+<p>If we used another Cortex-M MCU, we would choose another target triple:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">thumbv6m-none-eabi</code>, for the Cortex-M0 and Cortex-M1 processors</li>
+  <li><code class="language-plaintext highlighter-rouge">thumbv7m-none-eabi</code>, for the Cortex-M3 processor</li>
+  <li><code class="language-plaintext highlighter-rouge">thumbv7em-none-eabi</code>, for the Cortex-M4 and Cortex-M7 processors</li>
+  <li><code class="language-plaintext highlighter-rouge">thumbv7em-none-eabihf</code>, for the Cortex-M4F and Cortex-M7F processors</li>
+</ul>
+
+<p>Rustup can download core library for our target:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>rustup target add thumbv7m-none-eabi
+</code></pre></div></div>
+
+<p>From now on, when we compile our program, we use <code class="language-plaintext highlighter-rouge">--target thumbv7m-none-eabi</code> flag:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>cargo build <span class="nt">--target</span> thumbv7m-none-eabi
+</code></pre></div></div>
+
+<p>When we try to compile it now, we see that <code class="language-plaintext highlighter-rouge">eh_personality</code> error disappeared, and 
+instead we get:</p>
+
+<pre><code class="language-txt">error: `#[panic_handler]` function required, but not found
+</code></pre>
+
+<p>With <code class="language-plaintext highlighter-rouge">#![no_std]</code> flag the standard library got removed, and now nothing implements
+the panic handler. There is a crate though that simply halts the program on panic, 
+<code class="language-plaintext highlighter-rouge">panic-halt</code>:</p>
+
+<p>(Cargo.toml)</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[dependencies]</span>
+<span class="py">panic-halt</span> <span class="p">=</span> <span class="s">"0.2.0"</span>
+</code></pre></div></div>
+
+<p>(src/main.rs)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="n">crate</span> <span class="n">panic_halt</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>Now, the <code class="language-plaintext highlighter-rouge">panic_handler</code> error is gone, but we got the next one:</p>
+
+<pre><code class="language-txt">error: requires `start` lang_item
+</code></pre>
+
+<h2 id="cortex-m-runtime">Cortex-M Runtime</h2>
+
+<p>Turns out that the main function is not the first thing that is called when the program starts.
+On Windows, the entry function is <code class="language-plaintext highlighter-rouge">mainCRTStartup</code>, which initializes some things and
+only then it calls the <code class="language-plaintext highlighter-rouge">main</code>.</p>
+
+<p>There is also a similar story when we build executable for our MCU: 
+<em>something</em> on the MCU has to invoke our main function, like when we press the reset 
+button, or when the MCU boots up. And the Rust can’t know
+about it, therefore it tells us to define our own <code class="language-plaintext highlighter-rouge">start</code> function, which can then
+call the familiar <code class="language-plaintext highlighter-rouge">main</code>.</p>
+
+<p>There is a library we can link into our program that provides a minimal runtime for
+Cortex-M microcontrollers: it has a reset handler which calls our main, and also
+defines the <code class="language-plaintext highlighter-rouge">start</code> lang item.</p>
+
+<p>Let’s add it to <code class="language-plaintext highlighter-rouge">Cargo.toml</code> dependencies:</p>
+
+<p>(Cargo.toml)</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[dependencies]</span>
+<span class="py">cortex-m-rt</span> <span class="p">=</span> <span class="s">"0.6.7"</span>
+</code></pre></div></div>
+
+<p>Now we can read <a href="https://docs.rs/cortex-m-rt/0.6.7/cortex_m_rt/">the documentation for cortex-m-rt</a>
+to find out exactly how to write our main function:</p>
+
+<p>(src/main.rs, whole file)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#![no_std]</span>
+<span class="nd">#![no_main]</span>
+
+<span class="k">extern</span> <span class="n">crate</span> <span class="n">panic_halt</span><span class="p">;</span>
+<span class="k">extern</span> <span class="n">crate</span> <span class="n">cortex_m_rt</span><span class="p">;</span>
+
+<span class="k">use</span> <span class="nn">cortex_m_rt</span><span class="p">::</span><span class="n">entry</span><span class="p">;</span>
+
+<span class="c">// use `main` as the entry point of this application</span>
+<span class="c">// `main` is not allowed to return</span>
+<span class="nd">#[entry]</span>
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="o">!</span> <span class="p">{</span>
+    <span class="c">// initialization</span>
+
+    <span class="k">loop</span> <span class="p">{</span>
+        <span class="c">// application logic</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Let’s build it:</p>
+
+<pre><code class="language-txt">cargo rustc --target thumbv7m-none-eabi -- \
+            -C linker=arm-none-eabi-ld -C link-arg=-nostartfiles -C link-arg=-Tlink.x
+</code></pre>
+
+<pre><code class="language-txt">note: C:\Program Files (x86)\GNU Tools ARM Embedded\7 2017-q4-major\bin\arm-none-eabi-ld.exe: 
+    cannot open linker script file memory.x: No such file or directory
+</code></pre>
+
+<p>When linking the executable, the linker picks up information about our MCU from
+file <code class="language-plaintext highlighter-rouge">memory.x</code>, which describes certain memory locations on our MCU. Different MCUs will
+have different values there, so ideally we would need to figure them out from the datasheet.</p>
+
+<p>But if you are using the same board, go ahead and create the same file:</p>
+
+<p>(memory.x)</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">MEMORY</span>
+<span class="p">{</span>
+  <span class="o">/*</span> <span class="n">NOTE</span> <span class="n">K</span> <span class="o">=</span> <span class="n">KiBi</span> <span class="o">=</span> <span class="mi">1024</span> <span class="nb">bytes</span> <span class="o">*/</span>
+  <span class="o">/*</span> <span class="n">Adjust</span> <span class="n">these</span> <span class="n">memory</span> <span class="n">regions</span> <span class="n">to</span> <span class="n">match</span> <span class="n">your</span> <span class="n">device</span> <span class="n">memory</span> <span class="n">layout</span> <span class="o">*/</span>
+  <span class="n">FLASH</span> <span class="p">:</span> <span class="n">ORIGIN</span> <span class="o">=</span> <span class="mh">0x08000000</span><span class="p">,</span> <span class="n">LENGTH</span> <span class="o">=</span> <span class="mi">128</span><span class="n">K</span>
+  <span class="n">RAM</span> <span class="p">:</span> <span class="n">ORIGIN</span> <span class="o">=</span> <span class="mh">0x20000000</span><span class="p">,</span> <span class="n">LENGTH</span> <span class="o">=</span> <span class="mi">8</span><span class="n">K</span>
+<span class="p">}</span>
+
+<span class="n">_stack_start</span> <span class="o">=</span> <span class="n">ORIGIN</span><span class="p">(</span><span class="n">RAM</span><span class="p">)</span> <span class="o">+</span> <span class="n">LENGTH</span><span class="p">(</span><span class="n">RAM</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>The linker is able to find it in the root project directory.
+However, in my project I have a workspace, with crates designed to work with
+different chips.</p>
+
+<p>So I will add a build file that will explicitly pick <code class="language-plaintext highlighter-rouge">memory.x</code> from the crate
+directory instead of the workspace root:</p>
+
+<p>(build.rs, added)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">env</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">fs</span><span class="p">::</span><span class="n">File</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">io</span><span class="p">::</span><span class="n">Write</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">path</span><span class="p">::</span><span class="n">PathBuf</span><span class="p">;</span>
+
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="c">// Put the linker script somewhere the linker can find it</span>
+    <span class="k">let</span> <span class="n">out</span> <span class="o">=</span> <span class="o">&amp;</span><span class="nn">PathBuf</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="nn">env</span><span class="p">::</span><span class="nf">var_os</span><span class="p">(</span><span class="s">"OUT_DIR"</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">());</span>
+    <span class="nn">File</span><span class="p">::</span><span class="nf">create</span><span class="p">(</span><span class="n">out</span><span class="nf">.join</span><span class="p">(</span><span class="s">"memory.x"</span><span class="p">))</span>
+        <span class="nf">.unwrap</span><span class="p">()</span>
+        <span class="nf">.write_all</span><span class="p">(</span><span class="nd">include_bytes!</span><span class="p">(</span><span class="s">"memory.x"</span><span class="p">))</span>
+        <span class="nf">.unwrap</span><span class="p">();</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"cargo:rustc-link-search={}"</span><span class="p">,</span> <span class="n">out</span><span class="nf">.display</span><span class="p">());</span>
+
+    <span class="c">// Only re-run the build script when memory.x is changed,</span>
+    <span class="c">// instead of when any part of the source code changes.</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"cargo:rerun-if-changed=memory.x"</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Finally, we should be able to build it!</p>
+
+<pre><code class="language-txt">cargo rustc --target thumbv7m-none-eabi -- \
+            -C linker=arm-none-eabi-ld -C link-arg=-Tlink.x
+</code></pre>
+
+<pre><code class="language-txt">Finished dev [unoptimized + debuginfo] target(s) in 0.18s
+</code></pre>
+
+<h2 id="cargoconfig-file">.cargo/config file</h2>
+
+<p>It is more convenient to put these <code class="language-plaintext highlighter-rouge">-C</code> configuration bits into
+<code class="language-plaintext highlighter-rouge">.cargo/config</code> file. That way cargo will pick these flags automatically when
+building the appropriate architecture.</p>
+
+<p>Let’s create <code class="language-plaintext highlighter-rouge">.cargo/config</code> for our project. It follows <code class="language-plaintext highlighter-rouge">toml</code> file format, but does
+not have <code class="language-plaintext highlighter-rouge">.toml</code> extension:</p>
+
+<p>(.cargo/config)</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[build]</span>
+<span class="c"># Pick ONE of these compilation targets</span>
+<span class="c"># target = "thumbv6m-none-eabi"    # Cortex-M0 and Cortex-M0+</span>
+<span class="py">target</span> <span class="p">=</span> <span class="s">"thumbv7m-none-eabi"</span>    <span class="c"># Cortex-M3</span>
+<span class="c"># target = "thumbv7em-none-eabi"   # Cortex-M4 and Cortex-M7 (no FPU)</span>
+<span class="c"># target = "thumbv7em-none-eabihf" # Cortex-M4F and Cortex-M7F (with FPU)</span>
+</code></pre></div></div>
+
+<p>This eliminates the need of <code class="language-plaintext highlighter-rouge">--target thumbv7m-none-eabi</code> parameter. It is now the default,
+and this should work the same as before:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>cargo rustc <span class="nt">--</span> <span class="nt">-C</span> <span class="nv">linker</span><span class="o">=</span>arm-none-eabi-ld <span class="nt">-C</span> link-arg<span class="o">=</span><span class="nt">-Tlink</span>.x
+</code></pre></div></div>
+
+<p>Then we can put other <code class="language-plaintext highlighter-rouge">-C</code> options in <code class="language-plaintext highlighter-rouge">config</code> file too:</p>
+
+<p>(.cargo/config, whole file)</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[build]</span>
+<span class="c"># Pick ONE of these compilation targets</span>
+<span class="c"># target = "thumbv6m-none-eabi"    # Cortex-M0 and Cortex-M0+</span>
+<span class="py">target</span> <span class="p">=</span> <span class="s">"thumbv7m-none-eabi"</span>    <span class="c"># Cortex-M3</span>
+<span class="c"># target = "thumbv7em-none-eabi"   # Cortex-M4 and Cortex-M7 (no FPU)</span>
+<span class="c"># target = "thumbv7em-none-eabihf" # Cortex-M4F and Cortex-M7F (with FPU)</span>
+
+
+<span class="py">rustflags</span> <span class="p">=</span> <span class="p">[</span>
+  <span class="c"># LLD (shipped with the Rust toolchain) is used as the default linker</span>
+  <span class="s">"-C"</span><span class="p">,</span> <span class="s">"link-arg=-Tlink.x"</span><span class="p">,</span>
+
+  <span class="c"># if you run into problems with LLD switch to the GNU linker by commenting out</span>
+  <span class="c"># this line</span>
+  <span class="s">"-C"</span><span class="p">,</span> <span class="s">"linker=arm-none-eabi-ld"</span><span class="p">,</span>
+
+  <span class="c"># if you need to link to pre-compiled C libraries provided by a C toolchain</span>
+  <span class="c"># use GCC as the linker by commenting out both lines above and then</span>
+  <span class="c"># uncommenting the three lines below</span>
+  <span class="c"># "-C", "linker=arm-none-eabi-gcc",</span>
+  <span class="c"># "-C", "link-arg=-Wl,-Tlink.x",</span>
+  <span class="c"># "-C", "link-arg=-nostartfiles",</span>
+<span class="p">]</span>
+</code></pre></div></div>
+
+<p>Now we can build our project with simple <code class="language-plaintext highlighter-rouge">cargo build</code>.</p>
+
+<h2 id="running">Running</h2>
+
+<p>Similarly, we can configure <code class="language-plaintext highlighter-rouge">cargo run</code> to load our binary in the MCU
+and start executing it.</p>
+
+<p>Let’s expand <code class="language-plaintext highlighter-rouge">.cargo/config</code> with these options:</p>
+
+<p>(.cargo/config, add at the end)</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">[target.'cfg(all(target_arch</span> <span class="p">=</span> <span class="s">"arm"</span><span class="p">,</span> <span class="err">target_os</span> <span class="err">=</span> <span class="s">"none"</span><span class="err">))</span><span class="s">']</span><span class="err">
+</span><span class="c"># uncomment ONE of these three option to make `cargo run` start a GDB session</span>
+<span class="c"># which option to pick depends on your system</span>
+<span class="c">#runner = "arm-none-eabi-gdb -q -x openocd.gdb"</span>
+<span class="py">runner</span> <span class="p">=</span> <span class="s">"arm-none-eabi-gdb -q -x openocd_run.gdb"</span>
+<span class="c"># runner = "gdb-multiarch -q -x openocd.gdb"</span>
+<span class="c"># runner = "gdb -q -x openocd.gdb"</span>
+</code></pre></div></div>
+
+<p>Then, let’s create <code class="language-plaintext highlighter-rouge">openocd_run.gdb</code> file and write gdb commands into it:</p>
+
+<p>(openocd_run.gdb)</p>
+
+<pre><code class="language-gdb">target extended-remote :3333
+
+# print demangled symbols
+set print asm-demangle on
+
+# detect unhandled exceptions, hard faults and panics
+break DefaultHandler
+break UserHardFault
+break rust_begin_unwind
+
+monitor arm semihosting enable
+load
+continue
+</code></pre>
+
+<p>We also need a <code class="language-plaintext highlighter-rouge">openocd.cfg</code> file:</p>
+
+<p>(openocd.cfg)</p>
+
+<pre><code class="language-cfg">source [find interface/stlink-v2-1.cfg]
+source [find target/stm32f1x.cfg]
+</code></pre>
+
+<p>Here we use the correct STLink interface script and the device configuration.</p>
+
+<p>To continue, the OpenOCD must be running in the background and the red
+led on the MCU dev board should be blinking.</p>
+
+<pre><code class="language-txt">cargo run
+</code></pre>
+
+<pre><code class="language-txt">Running `arm-none-eabi-gdb -q -x openocd_run.gdb C:\Users\...\embedded-experiments\target\thumbv7m-none-eabi\debug\part01-blink`
+...
+semihosting is enabled
+Loading section .vector_table, size 0x400 lma 0x8000000
+Loading section .text, size 0x2f8 lma 0x8000400
+Loading section .rodata, size 0xd0 lma 0x80006f8
+Start address 0x8000404, load size 1992
+Transfer rate: 6 KB/sec, 664 bytes/write.
+</code></pre>
+
+<p><em>Something</em> has happened. It would be great if we could print a “Hello world”
+somehow. Luckily, the chip supports semihosting, and can send back
+signals with messages.</p>
+
+<p>Let’s include <code class="language-plaintext highlighter-rouge">cortex-m-semihosting</code> crate in dependencies:</p>
+
+<p>(Cargo.toml)</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[dependencies]</span>
+<span class="py">cortex-m-semihosting</span> <span class="p">=</span> <span class="s">"0.3.2"</span>
+</code></pre></div></div>
+
+<p>Then add a reference to the crate in <code class="language-plaintext highlighter-rouge">main.rs</code>:</p>
+
+<p>(src/main.rs)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="n">crate</span> <span class="n">cortex_m_semihosting</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>And pull <code class="language-plaintext highlighter-rouge">hprintln</code> macro from it:</p>
+
+<p>(src/main.rs)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">cortex_m_semihosting</span><span class="p">::</span><span class="n">hprintln</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>And then modify the <code class="language-plaintext highlighter-rouge">main</code> function:</p>
+
+<p>(src/main.rs)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[entry]</span>
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="o">!</span> <span class="p">{</span>
+    <span class="c">// initialization</span>
+
+    <span class="nd">hprintln!</span><span class="p">(</span><span class="s">"Hello, world!"</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+
+    <span class="k">loop</span> <span class="p">{</span>
+        <span class="c">// application logic</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Let’s run it again:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>cargo run
+</code></pre></div></div>
+
+<p>We should see:</p>
+
+<pre><code class="language-txt">Hello, world!
+</code></pre>
+
+<p>In <strong>OpenOCD</strong> terminal.</p>
+
+<h2 id="semihosting-abort">Semihosting abort</h2>
+
+<p>Instead of the <code class="language-plaintext highlighter-rouge">panic_halt</code>, which halts program on panic (and should probably be used
+in production), we can use <code class="language-plaintext highlighter-rouge">panic_semihosting</code> crate when we have this semihosting link.</p>
+
+<p>This way we will receive way more information about any panic in our program.</p>
+
+<p>This is simple: we replace <code class="language-plaintext highlighter-rouge">panic_halt</code> crate with <code class="language-plaintext highlighter-rouge">panic_semihosting</code>.</p>
+
+<p>(Cargo.toml)</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[dependencies]</span>
+<span class="c">#panic-halt = "0.2.0"</span>
+<span class="py">panic-semihosting</span> <span class="p">=</span> <span class="s">"0.5.1"</span>
+</code></pre></div></div>
+
+<p>And reference the appropriate crate:</p>
+
+<p>(src/main.rs)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="n">crate</span> <span class="n">panic_semihosting</span><span class="p">;</span>
+<span class="c">//extern crate panic_halt;</span>
+</code></pre></div></div>
+
+<h2 id="the-device-crate">The device crate</h2>
+
+<p>We can now control the device by reading and writing data to the correct memory locations.</p>
+
+<p>Luckily, there is a <code class="language-plaintext highlighter-rouge">stm32f1</code> device crate, that wraps it all in a nicer API.</p>
+
+<p>(Cargo.toml)</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[dependencies.stm32f1]</span>
+<span class="py">version</span> <span class="p">=</span> <span class="s">"0.6.0"</span>
+<span class="py">features</span> <span class="p">=</span> <span class="p">[</span><span class="s">"stm32f100"</span><span class="p">,</span> <span class="s">"rt"</span><span class="p">]</span>
+</code></pre></div></div>
+
+<p>We select the device we want with <code class="language-plaintext highlighter-rouge">stm32f100</code> feature flag (<a href="https://crates.io/crates/stm32f1">see the list of devices in crate
+README</a>), and we can also add <code class="language-plaintext highlighter-rouge">rt</code> feature, which brings
+in <code class="language-plaintext highlighter-rouge">cortex-m-rt</code> we added previously.</p>
+
+<p>We can remove <code class="language-plaintext highlighter-rouge">cortex-m-rt</code> crate now:</p>
+
+<p>(Cargo.toml)</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[dependencies]</span>
+<span class="c"># cortex-m-rt = "0.6.7"</span>
+</code></pre></div></div>
+
+<p>We are now left with this <code class="language-plaintext highlighter-rouge">main.rs</code>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#![no_std]</span>
+<span class="nd">#![no_main]</span>
+
+<span class="k">extern</span> <span class="n">crate</span> <span class="n">stm32f1</span><span class="p">;</span>
+<span class="k">extern</span> <span class="n">crate</span> <span class="n">panic_semihosting</span><span class="p">;</span>
+<span class="c">//extern crate panic_halt;</span>
+<span class="k">extern</span> <span class="n">crate</span> <span class="n">cortex_m_rt</span><span class="p">;</span>
+<span class="k">extern</span> <span class="n">crate</span> <span class="n">cortex_m_semihosting</span><span class="p">;</span>
+
+<span class="k">use</span> <span class="nn">cortex_m_rt</span><span class="p">::</span><span class="n">entry</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">cortex_m_semihosting</span><span class="p">::</span><span class="n">hprintln</span><span class="p">;</span>
+
+<span class="c">// use `main` as the entry point of this application</span>
+<span class="c">// `main` is not allowed to return</span>
+<span class="nd">#[entry]</span>
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="k">-&gt;</span> <span class="o">!</span> <span class="p">{</span>
+    <span class="c">// initialization</span>
+
+    <span class="nd">hprintln!</span><span class="p">(</span><span class="s">"Hello, world!"</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+
+    <span class="k">loop</span> <span class="p">{</span>
+        <span class="c">// application logic</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>This (Cargo.toml):</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[package]</span>
+<span class="py">name</span> <span class="p">=</span> <span class="s">"part01-blink"</span>
+<span class="py">version</span> <span class="p">=</span> <span class="s">"0.1.0"</span>
+
+<span class="nn">[dependencies]</span>
+<span class="c">#panic-halt = "0.2.0"</span>
+<span class="py">panic-semihosting</span> <span class="p">=</span> <span class="s">"0.5.1"</span>
+<span class="py">cortex-m-rt</span> <span class="p">=</span> <span class="s">"0.6.7"</span>
+<span class="py">cortex-m-semihosting</span> <span class="p">=</span> <span class="s">"0.3.2"</span>
+
+<span class="nn">[dependencies.stm32f1]</span>
+<span class="py">version</span> <span class="p">=</span> <span class="s">"0.6.0"</span>
+<span class="py">features</span> <span class="p">=</span> <span class="p">[</span><span class="s">"stm32f100"</span><span class="p">,</span> <span class="s">"rt"</span><span class="p">]</span>
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">memory.x</code> file, <code class="language-plaintext highlighter-rouge">openocd.cfg</code>/<code class="language-plaintext highlighter-rouge">openocd_run.gdb</code>, <code class="language-plaintext highlighter-rouge">.cargo/config</code> files, and a decent grasp 
+of how this all fits together.</p>
+
+<p>One small detail: to minimize the executable size, we should always compile with <code class="language-plaintext highlighter-rouge">--release</code>
+flag. To optimize the usage of many crates, we should link with Link Time Optimization (LTO).
+And we can also enable debugging in release mode. We can set this up in <code class="language-plaintext highlighter-rouge">Cargo.toml</code>
+release profile:</p>
+
+<p>(Cargo.toml, at the end)</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[profile.release]</span>
+<span class="py">lto</span> <span class="p">=</span> <span class="kc">true</span>
+<span class="py">debug</span> <span class="p">=</span> <span class="kc">true</span>
+</code></pre></div></div>
+
+<h2 id="lighting-up-the-leds">Lighting up the LEDs</h2>
+
+<p>In our case, we are interested in turning on the built-in LEDs on our board.</p>
+
+<p><img src="/images/mcu-02/leds-pc8-pc9.jpeg" alt="Image of PC8 and PC9 LEDs" /></p>
+
+<p>What do those PC8 and PC9 names mean?</p>
+
+<h3 id="ports">Ports</h3>
+
+<p>MCU’s inputs and outputs are grouped into <em>ports</em>. Ports are named <code class="language-plaintext highlighter-rouge">A</code>, <code class="language-plaintext highlighter-rouge">B</code>, <code class="language-plaintext highlighter-rouge">C</code> and so on.
+On this MCU, each port has 16 <em>pins</em>, that correspond to physical pins on the board.
+They are named from <code class="language-plaintext highlighter-rouge">0</code> to <code class="language-plaintext highlighter-rouge">15</code>. So, the pin <code class="language-plaintext highlighter-rouge">9</code> on port <code class="language-plaintext highlighter-rouge">C</code> would be named <code class="language-plaintext highlighter-rouge">PC9</code>.</p>
+
+<h3 id="port-io">Port I/O</h3>
+
+<p>Each pin can be individually configured to be either an <em>input</em> or an <em>output</em>.</p>
+
+<h4 id="input">Input</h4>
+
+<p>In <em>input</em> mode, pin is configured to <em>sense</em> the voltage applied to it. By default
+the pin is configured to sense digital logic, that means that low voltage will
+be read as <code class="language-plaintext highlighter-rouge">0</code>, while the high voltage will be read as <code class="language-plaintext highlighter-rouge">1</code>. Some pins can also
+be configured to read analog voltage, by employing an internal Analog-Digital 
+Converter (ADC for short).</p>
+
+<p>But what does the pin sense when there is nothing connected to it? Well, any
+ambient voltage around it! Think of it as a very undefined behavior. For that reason
+the inputs can be configured to be tied to high (pull-up) or low (pull-down) voltage
+over the high-value resistor. The pin can then read any value that is connected to this pin
+and does not have such a high resistance, effectively overriding the default 
+pull-up or pull-down.</p>
+
+<h4 id="output">Output</h4>
+
+<p>An output in so-called push-pull configuration either sources high voltage when the
+output is <code class="language-plaintext highlighter-rouge">1</code> or drains low voltage when the output is <code class="language-plaintext highlighter-rouge">0</code>. Without heavy terminology,
+you would read <code class="language-plaintext highlighter-rouge">1</code>/<code class="language-plaintext highlighter-rouge">0</code> if the output is <code class="language-plaintext highlighter-rouge">1</code>/<code class="language-plaintext highlighter-rouge">0</code>.</p>
+
+<p>Output pin can also have other configurations. For example, this MCU can configure pin
+to actively drain current only when the output is <code class="language-plaintext highlighter-rouge">0</code>, and do nothing (think - pin unconnected)
+when the output is <code class="language-plaintext highlighter-rouge">1</code>. Such configuration is called open-drain.</p>
+
+<h3 id="voltage">Voltage</h3>
+
+<p>What is called Low and High voltage?</p>
+
+<h4 id="low">Low</h4>
+
+<p>Low corresponds to digital value <code class="language-plaintext highlighter-rouge">0</code>, and it is the so-called “ground” value. The pin
+for it is named <code class="language-plaintext highlighter-rouge">GND</code>.</p>
+
+<h4 id="high">High</h4>
+
+<p>High voltage corresponds to <code class="language-plaintext highlighter-rouge">1</code> and is the voltage at which the MCU is operating. 
+In this case, MCU is working at 3.3V even though the USB cable supplies 5V.
+There is a small voltage regulator chip on our board that supplies 3.3V voltage
+to our MCU.</p>
+
+<p>It is simply easier to talk about <code class="language-plaintext highlighter-rouge">high</code> and <code class="language-plaintext highlighter-rouge">low</code> than name the exact voltage values.
+It is usually the case that some pins on MCU can read higher voltage (in our case it may
+be 5V) than the MCU itself is operating on. That would still be “high” for a digital input
+pin. If the pins can <em>actually</em> read higher voltage, well, it’s best to <a href="http://www.st.com/resource/en/datasheet/stm32f100cb.pdf">read the datasheet
+to find out</a>. Quick answer: yes, this MCU GPIO ports can do that, 
+but not in pull-up/pull-down mode (Section 5.3.13).</p>
+
+<h3 id="gpio-on-our-mcu">GPIO on our MCU</h3>
+
+<p>With this background information, we can start reading section <strong>7.1</strong> of <a href="http://www.st.com/content/ccc/resource/technical/document/reference_manual/a2/2d/02/4b/78/57/41/a3/CD00246267.pdf/files/CD00246267.pdf/jcr:content/translations/en.CD00246267.pdf">the reference manual</a>
+and take some notes.</p>
+
+<p>We find that ports have registers:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">GPIOx_CRL</code>, <code class="language-plaintext highlighter-rouge">GPIOx_CRH</code> are <em>configuration</em> registers;</li>
+  <li><code class="language-plaintext highlighter-rouge">GPIOx_IDR</code>, <code class="language-plaintext highlighter-rouge">GPIOx_ODR</code> <em>data</em> registers;</li>
+  <li><code class="language-plaintext highlighter-rouge">GPIOx_BSRR</code> <em>set/reset</em> register;</li>
+  <li><code class="language-plaintext highlighter-rouge">GPIOx_BRR</code> <em>reset</em> register;</li>
+  <li><code class="language-plaintext highlighter-rouge">GPIOx_LCKR</code> <em>locking</em> register.</li>
+</ul>
+
+<p>At this point it is unclear what exactly they all mean, but we should
+remember this terminology and continue reading.</p>
+
+<p>The manual lists possible pin modes, which we can understand now:</p>
+
+<ul>
+  <li>Input floating</li>
+  <li>Input pull-up</li>
+  <li>Input-pull-down</li>
+  <li>Analog</li>
+  <li>Output open-drain</li>
+  <li>Output push-pull</li>
+  <li>Alternate function push-pull</li>
+  <li>Alternate function open-drain</li>
+</ul>
+
+<p>We learn that there are some alternate configurations, which we probably won’t need.</p>
+
+<p>We find this sentence:</p>
+
+<pre><code class="language-plain">Each I/O port bit is freely programmable, 
+however the I/O port registers have 
+to be accessed as 32-bit words
+</code></pre>
+
+<p>We know that we have added <code class="language-plaintext highlighter-rouge">stm32f1</code> crate with an API to this device,
+and we hope we can avoid thinking of exact/relative address locations or how the 
+registers have to be accessed. This simplifies the situation a bit.</p>
+
+<pre><code class="language-plain">The purpose of the GPIOx_BSRR and GPIOx_BRR 
+registers is to allow atomic read/modify 
+accesses to any of the GPIO registers.
+</code></pre>
+
+<p>We learn that <code class="language-plaintext highlighter-rouge">GPIOx_BSRR</code> and <code class="language-plaintext highlighter-rouge">GPIOx_BRR</code> can be used for modifying
+pin values (looks relevant!) without data races (maybe Rust can help here?).</p>
+
+<p>Then we have bunch of diagrams in <code class="language-plaintext highlighter-rouge">Figure 11</code> and <code class="language-plaintext highlighter-rouge">Figure 12</code>, with electrical schema
+of a port bit. Good to know it exists.</p>
+
+<p><code class="language-plaintext highlighter-rouge">Table 16</code> - “Port configuration table” and <code class="language-plaintext highlighter-rouge">Table 17</code> - “Output MODE bits” looks
+like useful tables, but we don’t have enough information to make sense of them yet.</p>
+
+<h4 id="section-711-general-purpose-io-gpio">Section 7.1.1, General-purpose I/O (GPIO)</h4>
+
+<pre><code class="language-plain">During and just after reset, the alternate 
+functions are not active and the I/O ports are 
+configured in Input Floating mode 
+(CNFx[1:0]=01b, MODEx[1:0]=00b).
+</code></pre>
+
+<p>We learn that:</p>
+
+<ul>
+  <li>Ports are in input mode at start</li>
+  <li>The default mode configuration is <code class="language-plaintext highlighter-rouge">CNFx[1:0]=01b, MODEx[1:0]=00b</code>, and we are supposed
+to understand this. Hopefully we will, when we get to it.</li>
+</ul>
+
+<pre><code class="language-plain">The JTAG pins are in input PU/PD after reset: ...
+</code></pre>
+
+<p>We also learn that pins <code class="language-plaintext highlighter-rouge">PA15</code>, <code class="language-plaintext highlighter-rouge">PA14</code>, <code class="language-plaintext highlighter-rouge">PA13</code> and <code class="language-plaintext highlighter-rouge">PB4</code> are reserved for <code class="language-plaintext highlighter-rouge">JTAG</code>, and are 
+used for our debugging. Good to know.</p>
+
+<pre><code class="language-plain">When configured as output, the value written 
+to the Output Data register (GPIOx_ODR) is 
+output on the I/O pin.
+</code></pre>
+
+<p>Looks like <code class="language-plaintext highlighter-rouge">ODR</code> register is another way to output values. At this point it is unclear
+why we have 2 ways (another being <code class="language-plaintext highlighter-rouge">BSRR</code> and <code class="language-plaintext highlighter-rouge">BRR</code> we saw earlier).</p>
+
+<pre><code class="language-plain">The Input Data register (GPIOx_IDR) captures
+the data present on the I/O pin at every 
+APB2 clock cycle. 
+</code></pre>
+
+<p>In passing, we learn that there is <code class="language-plaintext highlighter-rouge">APB2</code> clock which is driving
+the data reads on I/O pins. It’s almost too easy to miss this…
+Because at start, this clock is off. We have to turn it on for each port
+we wish to use.</p>
+
+<h4 id="section-712-atomic-bit-set-or-reset">Section 7.1.2, Atomic bit set or reset</h4>
+
+<pre><code class="language-plain">There is no need for the software to disable 
+interrupts when programming the GPIOx_ODR 
+at bit level: it is possible to modify only 
+one or several bits in a single atomic APB2 
+write access.
+</code></pre>
+
+<p>Here we learn that <code class="language-plaintext highlighter-rouge">ODR</code> can be used to modify multiple bits, and
+can do that in atomic access.</p>
+
+<pre><code class="language-plain">This is achieved by programming to ‘1’ the 
+Bit Set/Reset Register (GPIOx_BSRR, or for 
+reset only GPIOx_BRR) to select the bits to 
+modify. 
+</code></pre>
+
+<p>It took me some time to figure it out, but this basically means that we
+write nothing <em>but</em> <code class="language-plaintext highlighter-rouge">1</code> to <code class="language-plaintext highlighter-rouge">GPIOx_BSRR</code> or <code class="language-plaintext highlighter-rouge">GPIOx_BRR</code>. Writing <code class="language-plaintext highlighter-rouge">1</code> to 
+“Set” register sets the value to <code class="language-plaintext highlighter-rouge">1</code>, writing <code class="language-plaintext highlighter-rouge">1</code> to “Reset” resets it to <code class="language-plaintext highlighter-rouge">0</code>,
+and writing <code class="language-plaintext highlighter-rouge">0</code> does nothing.</p>
+
+<p>Again, why so many ways to do that? <a href="https://electronics.stackexchange.com/questions/99095/stm32f0-gpiox-odr-vs-gpiox-bsrr">I refer you to an excellent answer here</a>,
+but long story short is that we should use <code class="language-plaintext highlighter-rouge">ODR</code> to change multiple values at once,
+and we should use <code class="language-plaintext highlighter-rouge">BSRR</code> or <code class="language-plaintext highlighter-rouge">BRR</code> to modify individual bits (without the need
+to read other bits!).</p>
+
+<h4 id="section-718-output-configuration">Section 7.1.8, Output configuration</h4>
+
+<p>We are interested in output, so we skip <code class="language-plaintext highlighter-rouge">7.1.3</code>, <code class="language-plaintext highlighter-rouge">7.1.4</code> “alternate functions”, 
+<code class="language-plaintext highlighter-rouge">7.1.5</code> “A/F remapping”, <code class="language-plaintext highlighter-rouge">7.1.6</code> “GPIO locking” (interesting, but not now), 
+<code class="language-plaintext highlighter-rouge">7.1.7</code> “input configuration”.</p>
+
+<p>There is important point in the list:</p>
+
+<pre><code class="language-plain">The data present on the I/O pin is sampled 
+into the Input Data Register every APB2 
+clock cycle
+</code></pre>
+
+<p>So, again, that clock has to be on.</p>
+
+<h4 id="section-72-gpio-registers">Section 7.2, GPIO registers</h4>
+
+<p>We skip <code class="language-plaintext highlighter-rouge">7.1.9</code> “alternate function configuration”, <code class="language-plaintext highlighter-rouge">7.1.10</code> “analog configuration”,
+<code class="language-plaintext highlighter-rouge">7.1.11</code> “GPIO configurations for device peripherals” (looks like this would
+be useful electrical info if we were using pins for standard communication protocols, such
+as SPI/I2C, etc).</p>
+
+<p>This section finally lists what exact values can be written or read from
+these GPIO registers.</p>
+
+<p>Sections <code class="language-plaintext highlighter-rouge">7.2.1</code> and <code class="language-plaintext highlighter-rouge">7.2.2</code> describe configuration registers <code class="language-plaintext highlighter-rouge">CRL</code> and <code class="language-plaintext highlighter-rouge">CRH</code>.</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">CRL</code> configures port pins from 0 to 7;</li>
+  <li><code class="language-plaintext highlighter-rouge">CRH</code> configures port pins from 8 to 15.</li>
+</ul>
+
+<p>Each configuration register has two bit sets:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">MODE</code>, which selects between Input/Output;</li>
+  <li><code class="language-plaintext highlighter-rouge">CNF</code>, which configures selected MODE further.</li>
+</ul>
+
+<p>Remember, previously in manual we saw that default pin mode is:
+<code class="language-plaintext highlighter-rouge">CNFx[1:0]=01b, MODEx[1:0]=00b</code>.</p>
+
+<p>We can now see that MODE <code class="language-plaintext highlighter-rouge">00</code> refers to “Input”, and CNF <code class="language-plaintext highlighter-rouge">01</code> selects
+“floating input”.</p>
+
+<p>So, if we wanted to change the pin to output, we would choose output MODE (<code class="language-plaintext highlighter-rouge">01</code> - <code class="language-plaintext highlighter-rouge">11</code>),
+and then output configuration CNF <code class="language-plaintext highlighter-rouge">00</code> (push-pull mode).</p>
+
+<p>Section <code class="language-plaintext highlighter-rouge">7.2.3</code> describes <code class="language-plaintext highlighter-rouge">IDR</code>, the Input Data Register. We won’t read anything for now,
+but this should be straightforward.</p>
+
+<p>Section <code class="language-plaintext highlighter-rouge">7.2.4</code>, <code class="language-plaintext highlighter-rouge">ODR</code>, is the Output Data Register, and we would use it to output
+multiple values at once. However, right now we just need to flip some bits,
+so we expect the <code class="language-plaintext highlighter-rouge">BSRR</code> bit flipper would suffice.</p>
+
+<p>Section <code class="language-plaintext highlighter-rouge">7.2.5</code>, <code class="language-plaintext highlighter-rouge">BSRR</code>, is our bit flipper.</p>
+
+<p>It has two bit sets:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">BR</code>, which resets <code class="language-plaintext highlighter-rouge">ODR</code> bit to <code class="language-plaintext highlighter-rouge">0</code> when we write <code class="language-plaintext highlighter-rouge">1</code> to it.</li>
+  <li><code class="language-plaintext highlighter-rouge">BS</code>, which sets <code class="language-plaintext highlighter-rouge">ODR</code> bit to <code class="language-plaintext highlighter-rouge">1</code> when we write <code class="language-plaintext highlighter-rouge">1</code> to it.</li>
+</ul>
+
+<p>Section <code class="language-plaintext highlighter-rouge">7.2.5</code>, <code class="language-plaintext highlighter-rouge">BRR</code>, is very similar to <code class="language-plaintext highlighter-rouge">BSRR</code>, but can only reset.</p>
+
+<p>Looks like we have enough information to start writing some bits!</p>
+
+<h3 id="apb2-clock">APB2 clock</h3>
+
+<p>We saw few references throughout the GPIO documentation to this APB2 clock,
+which has to be enabled for I/O port to work at all.</p>
+
+<p>If we do a quick search in the PDF, we locate the information about it in
+<code class="language-plaintext highlighter-rouge">6.3.7</code> section titled “APB2 peripheral clock enable register”, under the “Reset and 
+Clock Control” (abbreviated RCC).</p>
+
+<p>We find there that there should be a configuration bit named <code class="language-plaintext highlighter-rouge">IOPCEN</code> (IO - Port - C - Enable)
+which enables port C clock.</p>
+
+<h3 id="the-leds">The LEDs</h3>
+
+<p>The LEDs are physically connected to <code class="language-plaintext highlighter-rouge">PC8</code> and <code class="language-plaintext highlighter-rouge">PC9</code> ports over some resistors.
+If there is a high I/O voltage on these pins, the corresponding LEDs should light up.</p>
+
+<h2 id="flipping-bits-with-rust-to-light-up-the-leds">Flipping bits with Rust to light up the LEDs</h2>
+
+<p>We learned a few things:</p>
+
+<ul>
+  <li>The <code class="language-plaintext highlighter-rouge">APB2</code> clock for port C needs to be enabled to do anything with port C;</li>
+  <li>The port C has to be configured as Output;</li>
+  <li>We can then flip some bits to send port C pins <code class="language-plaintext highlighter-rouge">8</code> and <code class="language-plaintext highlighter-rouge">9</code> high, lighting up the 
+LEDs connected to pins <code class="language-plaintext highlighter-rouge">PC8</code> and <code class="language-plaintext highlighter-rouge">PC9</code>.</li>
+</ul>
+
+<h3 id="stm32f1-crate-documentation"><code class="language-plaintext highlighter-rouge">stm32f1</code> crate documentation</h3>
+
+<p>Let’s generate and open the docs for our device crate <code class="language-plaintext highlighter-rouge">stm32f1</code>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>cargo doc <span class="nt">-p</span> stm32f1 <span class="nt">--open</span>
+</code></pre></div></div>
+
+<p>Inside the documentation, we find <code class="language-plaintext highlighter-rouge">stm32f1::stm32f100</code> submodule:</p>
+
+<p><img src="/images/mcu-02/doc-stm32f100.png" alt="doc image stm32f100" /></p>
+
+<p>This API is generated with <code class="language-plaintext highlighter-rouge">svd2rust</code> tool, and 
+<a href="https://docs.rs/svd2rust/0.12.0/svd2rust/#peripheral-api">inside the svd2rust documentation</a>
+we can find hints of how to use this API.</p>
+
+<p>Everything starts by getting access to <code class="language-plaintext highlighter-rouge">Peripherals</code>:</p>
+
+<p>(main.rs, main function)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">peripherals</span> <span class="o">=</span> <span class="nn">stm32f1</span><span class="p">::</span><span class="nn">stm32f100</span><span class="p">::</span><span class="nn">Peripherals</span><span class="p">::</span><span class="nf">take</span><span class="p">()</span><span class="nf">.unwrap</span><span class="p">();</span>
+
+<span class="c">// continue here</span>
+</code></pre></div></div>
+
+<p>From the <code class="language-plaintext highlighter-rouge">Peripherals</code>, we will need <code class="language-plaintext highlighter-rouge">Reset and Clock Control</code>, or RCC:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">rcc</span> <span class="o">=</span> <span class="n">peripherals</span><span class="py">.RCC</span><span class="p">;</span>
+
+<span class="c">// continue here</span>
+</code></pre></div></div>
+
+<p>As well as GPIOC (GPIO C port):</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">port_c</span> <span class="o">=</span> <span class="n">peripherals</span><span class="py">.GPIOC</span><span class="p">;</span>
+
+<span class="c">// continue here</span>
+</code></pre></div></div>
+
+<p>When we browse the docs, we find that all peripheral types have a pointer
+to corresponding <code class="language-plaintext highlighter-rouge">RegisterBlock</code> type. It refers to a number of registers grouped together. 
+For example, the <code class="language-plaintext highlighter-rouge">stm32f1::stm32f100::RCC</code>
+type has a pointer to <code class="language-plaintext highlighter-rouge">rcc::RegisterBlock</code> (although the <code class="language-plaintext highlighter-rouge">rcc::</code> is not reflected in
+generated documentation):</p>
+
+<p><img src="/images/mcu-02/doc-rcc-register-block.png" alt="doc rcc register block" /></p>
+
+<p>So to find the methods on <code class="language-plaintext highlighter-rouge">RCC</code>, we can drill down to <code class="language-plaintext highlighter-rouge">rcc::RegisterBlock</code> type. It contains
+<code class="language-plaintext highlighter-rouge">apb2enr</code> individual register field that has the same name that was in the manual.</p>
+
+<p>All the registers are used to write, modify, read, or reset the bits in them.
+Inside the <code class="language-plaintext highlighter-rouge">rcc::APB2ENR</code> register type, we find methods to do just that:</p>
+
+<p><img src="/images/mcu-02/doc-apb2enr.png" alt="doc apb2enr" /></p>
+
+<p>So, we can call write on <code class="language-plaintext highlighter-rouge">rcc.apb2enr</code>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">rcc</span><span class="py">.apb2enr</span><span class="nf">.write</span><span class="p">(|</span><span class="n">w</span><span class="p">|</span> <span class="o">???</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>The <code class="language-plaintext highlighter-rouge">write</code> method expects a closure that does actual writing, and it gets this reference to
+<code class="language-plaintext highlighter-rouge">W</code> type. It looks like a generic type, but it is not - we can click on it:</p>
+
+<p><img src="/images/mcu-02/doc-write-type.png" alt="doc write type" /></p>
+
+<p>And inside a heap of methods, we find the method that gets us to the bit that
+can enable Port C clock:</p>
+
+<p><img src="/images/mcu-02/doc-port-c-clock-enable.png" alt="doc port c clock enable" /></p>
+
+<p>And there we can call the <code class="language-plaintext highlighter-rouge">bit(true)</code>/<code class="language-plaintext highlighter-rouge">set_bit()</code> or <code class="language-plaintext highlighter-rouge">bit(false)</code>/<code class="language-plaintext highlighter-rouge">clear_bit()</code> functions
+to set or unset the bit. Let’s do just that:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">rcc</span><span class="py">.apb2enr</span><span class="nf">.write</span><span class="p">(|</span><span class="n">w</span><span class="p">|</span> <span class="n">w</span><span class="nf">.iopcen</span><span class="p">()</span><span class="nf">.bit</span><span class="p">(</span><span class="k">true</span><span class="p">));</span>
+
+<span class="c">// continue here</span>
+</code></pre></div></div>
+
+<p>Similarly, we get to Port C CRH register, and configure pins <code class="language-plaintext highlighter-rouge">8</code> and <code class="language-plaintext highlighter-rouge">9</code> to be
+in MODE <code class="language-plaintext highlighter-rouge">01</code> (output) with CNF <code class="language-plaintext highlighter-rouge">00</code> (push-pull):</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">port_c</span><span class="py">.crh</span><span class="nf">.write</span><span class="p">(|</span><span class="n">w</span><span class="p">|</span> <span class="k">unsafe</span> <span class="p">{</span>
+    <span class="n">w</span>
+        <span class="nf">.mode8</span><span class="p">()</span><span class="nf">.bits</span><span class="p">(</span><span class="mi">0b01</span><span class="p">)</span>
+        <span class="nf">.cnf8</span><span class="p">()</span><span class="nf">.bits</span><span class="p">(</span><span class="mi">0b00</span><span class="p">)</span>
+        <span class="nf">.mode9</span><span class="p">()</span><span class="nf">.bits</span><span class="p">(</span><span class="mi">0b01</span><span class="p">)</span>
+        <span class="nf">.cnf9</span><span class="p">()</span><span class="nf">.bits</span><span class="p">(</span><span class="mi">0b00</span><span class="p">)</span>
+<span class="p">});</span>
+</code></pre></div></div>
+
+<p>There is a bit of unsafe code here, because the <code class="language-plaintext highlighter-rouge">bits</code> function can theoretically go out
+of bounds and flip some bits that it should not have access to.</p>
+
+<p>We can make previous code a bit nicer by introducing some constants:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">const</span> <span class="n">MODE_INPUT</span><span class="p">:</span> <span class="nb">u8</span> <span class="o">=</span> <span class="mi">0b00</span><span class="p">;</span>
+<span class="k">const</span> <span class="n">MODE_OUTPUT_10MHz</span><span class="p">:</span> <span class="nb">u8</span> <span class="o">=</span> <span class="mi">0b01</span><span class="p">;</span>
+<span class="k">const</span> <span class="n">MODE_OUTPUT_2MHz</span><span class="p">:</span> <span class="nb">u8</span> <span class="o">=</span> <span class="mi">0b10</span><span class="p">;</span>
+<span class="k">const</span> <span class="n">MODE_OUTPUT_50MHz</span><span class="p">:</span> <span class="nb">u8</span> <span class="o">=</span> <span class="mi">0b11</span><span class="p">;</span>
+
+<span class="k">const</span> <span class="n">CNF_OUTPUT_PUSHPULL</span><span class="p">:</span> <span class="nb">u8</span> <span class="o">=</span> <span class="mi">0b00</span><span class="p">;</span>
+<span class="k">const</span> <span class="n">CNF_INPUT_FLOATING</span><span class="p">:</span> <span class="nb">u8</span> <span class="o">=</span> <span class="mi">0b01</span><span class="p">;</span>
+
+<span class="n">port_c</span><span class="py">.crh</span><span class="nf">.write</span><span class="p">(|</span><span class="n">w</span><span class="p">|</span> <span class="k">unsafe</span> <span class="p">{</span>
+    <span class="n">w</span>
+        <span class="nf">.mode8</span><span class="p">()</span><span class="nf">.bits</span><span class="p">(</span><span class="n">MODE_OUTPUT_10MHz</span><span class="p">)</span>
+        <span class="nf">.cnf8</span><span class="p">()</span><span class="nf">.bits</span><span class="p">(</span><span class="n">CNF_OUTPUT_PUSHPULL</span><span class="p">)</span>
+        <span class="nf">.mode9</span><span class="p">()</span><span class="nf">.bits</span><span class="p">(</span><span class="n">MODE_OUTPUT_10MHz</span><span class="p">)</span>
+        <span class="nf">.cnf9</span><span class="p">()</span><span class="nf">.bits</span><span class="p">(</span><span class="n">CNF_OUTPUT_PUSHPULL</span><span class="p">)</span>
+<span class="p">});</span>
+
+<span class="c">// continue here</span>
+</code></pre></div></div>
+
+<p>Finally, we use Port’s BSRR “Bit Set” register to flip bits <code class="language-plaintext highlighter-rouge">8</code> and <code class="language-plaintext highlighter-rouge">9</code> high:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">port_c</span><span class="py">.bsrr</span><span class="nf">.write</span><span class="p">(|</span><span class="n">w</span><span class="p">|</span>
+    <span class="n">w</span>
+        <span class="nf">.bs8</span><span class="p">()</span><span class="nf">.set_bit</span><span class="p">()</span>
+        <span class="nf">.bs9</span><span class="p">()</span><span class="nf">.set_bit</span><span class="p">()</span>
+<span class="p">);</span>
+</code></pre></div></div>
+
+<h2 id="wait-for-it">Wait for it</h2>
+
+<pre><code class="language-gdb">(gdb) target remote :3333
+Remote debugging using :3333
+0x00000000 in ?? ()
+(gdb) load
+Loading section .vector_table, size 0x130 lma 0x8000000
+Loading section .text, size 0x214 lma 0x8000130
+Start address 0x8000130, load size 836
+Transfer rate: 5 KB/sec, 418 bytes/write.
+(gdb) continue
+Continuing.
+</code></pre>
+
+<p>Bam!</p>
+
+<p><img src="/images/mcu-02/leds-working.jpeg" alt="Image of PC8 and PC9 LEDs working" /></p>
+
+<h2 id="thoughts">Thoughts</h2>
+
+<p>It’s not hard to flip some bits once you know which ones. However, it is very
+easy to become overwhelmed by the number of things to keep in mind.
+Add to the mix that Rust is very new in embedded world, add to the mix that we may be new
+to this microcontroller, and the task becomes very daunting.</p>
+
+<p>However, if we persist, we get to the end :)</p>
+
+<h2 id="literature">Literature</h2>
+
+<ul>
+  <li><a href="/resources/mcu-02/cortex-m-basics">Cortex-M Basics</a></li>
+  <li><a href="http://www.st.com/content/ccc/resource/technical/document/reference_manual/a2/2d/02/4b/78/57/41/a3/CD00246267.pdf/files/CD00246267.pdf/jcr:content/translations/en.CD00246267.pdf">STM32f1 Reference manual</a></li>
+  <li><a href="https://docs.rs/cortex-m-rt/0.4.0/cortex_m_rt/">cortex-m-rt crate documentation</a></li>
+  <li><a href="https://docs.rs/svd2rust/0.12.0/svd2rust">svd2rust documentation</a></li>
+  <li><a href="https://japaric.github.io/vl/src/vl/led.rs.html#31-48">LED switching magic in japaric’s older project for VL DISCOVERY board</a></li>
+  <li><a href="https://rust-embedded.github.io/book/intro/install.html">The Embedded Rust Book (not this board, but very useful)</a></li>
+  <li><a href="http://www.st.com/resource/en/datasheet/stm32f100cb.pdf">stm32f100 datasheet</a></li>
+</ul>
+
+
+  </article>
+
+</div>
+
+      </div>
+    </div>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col  footer-col-1">
+        <ul class="contact-list">
+          <li>Nerijus Arlauskas</li>
+          <li><a href="mailto:nercury@gmail.com">nercury@gmail.com</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-2">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/Nercury">
+              <span class="icon  icon--github">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/>
+                </svg>
+              </span>
+
+              <span class="username">Nercury</span>
+            </a>
+          </li>
+          
+
+          
+          <li>
+            <a href="https://twitter.com/nercury">
+              <span class="icon  icon--twitter">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809
+                  c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/>
+                </svg>
+              </span>
+
+              <span class="username">nercury</span>
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-3">
+        <p class="text">Articles and tutorials about Rust, Embedded development and Computer Graphics.
+</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>

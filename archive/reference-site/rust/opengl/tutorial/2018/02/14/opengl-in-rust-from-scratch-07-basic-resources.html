@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <title>Rust and OpenGL from scratch - Basic Resources</title>
+    <meta name="description" content="Articles and tutorials about Rust, Embedded development and Computer Graphics.
+">
+
+    <link rel="shortcut icon" type="image/png" href="/favicon.ico"/>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/pygments/default.css">
+    <link rel="stylesheet" href="/css/font-awesome.css">
+    <link rel="canonical" href="http://nercury.github.io/rust/opengl/tutorial/2018/02/14/opengl-in-rust-from-scratch-07-basic-resources.html">
+    <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles/color-brewer.css">
+
+    <script src="/js/highlight.pack.js"></script>
+
+    <script src="/js/jquery.min.js"></script>
+    
+    <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+      ga('create', 'UA-56288576-1', 'auto');
+      ga('require', 'displayfeatures');
+      ga('send', 'pageview');
+    </script>
+    
+    <script>
+        $(function() {
+            hljs.initHighlightingOnLoad();
+            return $("h1, h2, h3, h4, h5, h6").each(function(i, el) {
+                console.log(el);
+                var $el, icon, id;
+                $el = $(el);
+                id = $el.attr('id');
+                icon = '<i class="fa fa-link"></i>';
+                if (id) {
+                  return $el.prepend($("<a />").addClass("header-link").attr("href", "#" + id).html(icon));
+                }
+            });
+        });
+    </script>
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Ironic Blog</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+        
+          
+          <a class="page-link" href="/about/">About Me</a>
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <div class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Rust and OpenGL from scratch - Basic Resources</h1>
+    <p class="post-meta">Feb 14, 2018</p>
+  </header>
+
+  <article class="post-content">
+    <p>Welcome back!</p>
+
+<p><a href="/rust/opengl/tutorial/2018/02/12/opengl-in-rust-from-scratch-06-gl-generator.html">Previously</a>, 
+we have created our own <code class="language-plaintext highlighter-rouge">gl</code> crate, that allows us to control OpenGL API coverage and extensions, as
+well as see OpenGL function invocations and errors in the debug mode.</p>
+
+<p>This time, we will load shaders from files at start-up. The way we’ve done it previously (embedding them
+in executable) may be fine for certain cases, but requires program recompilation
+every time the shader is modified, which slows down the experimentation.</p>
+
+<h2 id="resources">Resources</h2>
+
+<p>Shaders won’t be the only thing we will need to load. Things like images, fonts, models, audio, configuration
+will all need to be loaded. This time we will start working on basic <code class="language-plaintext highlighter-rouge">CString</code> loader, which can
+later be extended to load all kinds of things.</p>
+
+<p>The only need we have so far is to load our shader program from the <code class="language-plaintext highlighter-rouge">.vert</code> and <code class="language-plaintext highlighter-rouge">.frag</code> files.</p>
+
+<p>Let’s go ahead and create a new empty module file named <code class="language-plaintext highlighter-rouge">resources.rs</code> in <code class="language-plaintext highlighter-rouge">src</code> directory,
+and then define a reference to it inside of <code class="language-plaintext highlighter-rouge">main.rs</code>:</p>
+
+<p>(main.rs, at the top of the file)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">resources</span><span class="p">;</span>
+</code></pre></div></div>
+
+<h2 id="usage-in-main">Usage in main</h2>
+
+<p>Inside the <code class="language-plaintext highlighter-rouge">resources</code>, we will have <code class="language-plaintext highlighter-rouge">Resources</code> struct, which will be our resource loader.
+At the top of our <code class="language-plaintext highlighter-rouge">main.rs</code>, we will initialize it to point to the path of our executable:</p>
+
+<p>(main.rs)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">resources</span><span class="p">::</span><span class="n">Resources</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">path</span><span class="p">::</span><span class="n">Path</span><span class="p">;</span>
+
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">res</span> <span class="o">=</span> <span class="nn">Resources</span><span class="p">::</span><span class="nf">from_relative_exe_path</span><span class="p">(</span><span class="nn">Path</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"assets-07"</span><span class="p">))</span><span class="nf">.unwrap</span><span class="p">();</span>
+    
+    <span class="o">...</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>And we should be able to load our shader program from resources instead of source:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">shader_program</span> <span class="o">=</span> <span class="nn">render_gl</span><span class="p">::</span><span class="nn">Program</span><span class="p">::</span><span class="nf">from_res</span><span class="p">(</span>
+    <span class="o">&amp;</span><span class="n">gl</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">res</span><span class="p">,</span> <span class="s">"shaders/triangle"</span>
+<span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p>I am suffixing <code class="language-plaintext highlighter-rouge">assets</code> path with <code class="language-plaintext highlighter-rouge">-07</code>, because the code for different tutorial
+lessons lives in the same cargo workspace, and the similarly named resources for different
+lessons can end up in the same directory. So you can certainly skip the <code class="language-plaintext highlighter-rouge">-07</code> suffix in
+your own project.</p>
+
+<p>We will leave it for <code class="language-plaintext highlighter-rouge">Program</code> to take care and find the necessary <code class="language-plaintext highlighter-rouge">triangle.vert</code> and <code class="language-plaintext highlighter-rouge">triangle.frag</code>
+variants.</p>
+
+<p>We use <code class="language-plaintext highlighter-rouge">.unwrap()</code> liberally in main, because panicking there and terminating the program
+is reasonable way to handle errors. However, in the deeper module, we should always return
+<code class="language-plaintext highlighter-rouge">Result</code> and leave the decision of how to handle an error to the module user.</p>
+
+<h2 id="resources-1">Resources</h2>
+
+<p>Our <code class="language-plaintext highlighter-rouge">Resources</code> struct will have function to initialize resources, which might fail.
+In that case, it may return an error.</p>
+
+<p>Previously with SDL, we used <code class="language-plaintext highlighter-rouge">String</code> for error value everywhere. If the only error 
+we are interested in is SDL error, <code class="language-plaintext highlighter-rouge">String</code> is a sensible choice, because there is not much more
+SDL could return.</p>
+
+<p>Using <code class="language-plaintext highlighter-rouge">String</code> has few problems though:</p>
+
+<ul>
+  <li>If an error is expected to happen often and in hot path, <code class="language-plaintext highlighter-rouge">String</code> creation would
+slow the program down, because it requires allocation;</li>
+  <li>It is inconvenient to handle <code class="language-plaintext highlighter-rouge">String</code> error - if, say, we want to terminate the program
+on some errors but not the others, <code class="language-plaintext highlighter-rouge">String</code> is absolutely not ideal;</li>
+  <li>The program logic is cluttered with string formatting everywhere!</li>
+</ul>
+
+<p>For these reasons, it’s much better to create a module-local enum and list add possible error
+cases there as needed. Then, take care of nice error formatting in another place.</p>
+
+<h2 id="resources-error-enum">Resources Error enum</h2>
+
+<p>Inside <code class="language-plaintext highlighter-rouge">resources.rs</code>, besides <code class="language-plaintext highlighter-rouge">Resources</code>
+struct with <code class="language-plaintext highlighter-rouge">root_path</code>, let’s also add <code class="language-plaintext highlighter-rouge">Error</code> enum, which will contain any error this module 
+could return:</p>
+
+<p>(resources.rs, full file)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">path</span><span class="p">::{</span><span class="n">Path</span><span class="p">,</span> <span class="n">PathBuf</span><span class="p">};</span>
+
+<span class="nd">#[derive(Debug)]</span>
+<span class="k">pub</span> <span class="k">enum</span> <span class="n">Error</span> <span class="p">{</span>
+    <span class="n">FailedToGetExePath</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">pub</span> <span class="k">struct</span> <span class="n">Resources</span> <span class="p">{</span>
+    <span class="n">root_path</span><span class="p">:</span> <span class="n">PathBuf</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span> <span class="n">Resources</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">from_relative_exe_path</span><span class="p">(</span><span class="n">rel_path</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Path</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="n">Resources</span><span class="p">,</span> <span class="n">Error</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="c">// continue here</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Adding the <code class="language-plaintext highlighter-rouge">#[derive(Debug)]</code> attribute auto-implements the <code class="language-plaintext highlighter-rouge">Debug</code> trait for <code class="language-plaintext highlighter-rouge">Error</code>, for it
+to be printed with <code class="language-plaintext highlighter-rouge">{:?}</code> formatter.
+When we call <code class="language-plaintext highlighter-rouge">.unwrap()</code> and the program panics on such an error, <code class="language-plaintext highlighter-rouge">Debug</code> implementation is
+used to print it to
+the output.</p>
+
+<p>Then, when we use a function like <code class="language-plaintext highlighter-rouge">std::env::current_exe</code> that returns <code class="language-plaintext highlighter-rouge">Result</code>, we can
+change the error returned from there to our <code class="language-plaintext highlighter-rouge">Error::FailedToGetExePath</code> with <a href="https://doc.rust-lang.org/beta/std/result/enum.Result.html#method.map_err"><code class="language-plaintext highlighter-rouge">map_err</code> function
+defined on all <code class="language-plaintext highlighter-rouge">Result</code> types</a>:</p>
+
+<p>(resources.rs, continued)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Resources</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">from_relative_exe_path</span><span class="p">(</span><span class="n">rel_path</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Path</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="n">Resources</span><span class="p">,</span> <span class="n">Error</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="n">exe_file_name</span> <span class="o">=</span> <span class="p">::</span><span class="nn">std</span><span class="p">::</span><span class="nn">env</span><span class="p">::</span><span class="nf">current_exe</span><span class="p">()</span>
+            <span class="nf">.map_err</span><span class="p">(|</span><span class="mi">_</span><span class="p">|</span> <span class="nn">Error</span><span class="p">::</span><span class="n">FailedToGetExePath</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+            
+        <span class="c">// continue here</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The <code class="language-plaintext highlighter-rouge">?</code> at the end unwraps the <code class="language-plaintext highlighter-rouge">Ok</code> result (so that <code class="language-plaintext highlighter-rouge">exe_file_name</code> contains <code class="language-plaintext highlighter-rouge">PathBuf</code>), or exits
+from function with <code class="language-plaintext highlighter-rouge">Err(Error::FailedToGetExePath)</code>. Note that <code class="language-plaintext highlighter-rouge">?</code> can exit from 
+function only if the error types match!</p>
+
+<p>We got executable file name in <code class="language-plaintext highlighter-rouge">exe_file_name</code> - but we need a path to that.
+<a href="https://doc.rust-lang.org/beta/std/path/struct.Path.html#method.parent">We can use <code class="language-plaintext highlighter-rouge">.parent()</code> function on <code class="language-plaintext highlighter-rouge">Path</code></a> (<code class="language-plaintext highlighter-rouge">PathBuf</code> implements all <code class="language-plaintext highlighter-rouge">Path</code> functions):</p>
+
+<p>(resources.rs, continued)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">exe_path</span> <span class="o">=</span> <span class="n">exe_file_name</span><span class="nf">.parent</span><span class="p">()</span>
+    <span class="nf">.ok_or</span><span class="p">(</span><span class="nn">Error</span><span class="p">::</span><span class="n">FailedToGetExePath</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+    
+<span class="c">// continue here</span>
+</code></pre></div></div>
+
+<p>However, it is possible (though highly unlikely) that <code class="language-plaintext highlighter-rouge">exe_file_name</code> has no parent, in that case
+<code class="language-plaintext highlighter-rouge">.parent</code> may return <code class="language-plaintext highlighter-rouge">Option</code>, and we need to handle that too. We can change <code class="language-plaintext highlighter-rouge">Option</code> to <code class="language-plaintext highlighter-rouge">Result</code> with
+<a href="https://doc.rust-lang.org/beta/std/option/enum.Option.html">handy <code class="language-plaintext highlighter-rouge">ok_or</code> function</a>. In case ok <code class="language-plaintext highlighter-rouge">Some(T)</code> value, it will return <code class="language-plaintext highlighter-rouge">Ok(T)</code>, and we provide 
+<code class="language-plaintext highlighter-rouge">Error::FailedToGetExePath</code> to be used if the result was <code class="language-plaintext highlighter-rouge">None</code>.</p>
+
+<p>The value returned from <code class="language-plaintext highlighter-rouge">ok_or</code> is now changed to <code class="language-plaintext highlighter-rouge">Result</code>, and we can again use <code class="language-plaintext highlighter-rouge">?</code> to unwrap the <code class="language-plaintext highlighter-rouge">Ok</code>
+value, or return from the function with the error.</p>
+
+<p>If everything went well up to this point, we can join <code class="language-plaintext highlighter-rouge">exe_path</code> with <code class="language-plaintext highlighter-rouge">rel_path</code> and
+return the <code class="language-plaintext highlighter-rouge">Resources</code> struct:</p>
+
+<p>(resources.rs, continued)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nf">Ok</span><span class="p">(</span><span class="n">Resources</span> <span class="p">{</span>
+    <span class="n">root_path</span><span class="p">:</span> <span class="n">exe_path</span><span class="nf">.join</span><span class="p">(</span><span class="n">rel_path</span><span class="p">)</span>
+<span class="p">})</span>
+</code></pre></div></div>
+
+<h2 id="loading-cstring-from-file">Loading CString from file</h2>
+
+<p>First, let’s add few more <code class="language-plaintext highlighter-rouge">use</code> statements:</p>
+
+<p>(resources.rs)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">fs</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">io</span><span class="p">::{</span><span class="k">self</span><span class="p">,</span> <span class="n">Read</span><span class="p">};</span>
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">ffi</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>The <code class="language-plaintext highlighter-rouge">use io::{self, Read}</code> is a comonly used shorthand for <code class="language-plaintext highlighter-rouge">use io</code> and <code class="language-plaintext highlighter-rouge">use io::Read</code>, same as:</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">io</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">io</span><span class="p">::</span><span class="n">Read</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>Then, we will have few more kinds of errors! I know this, because I’ve already written the code.
+Usually though, we add new error types as they are needed:</p>
+
+<p>(resources.rs, modified)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Debug)]</span>
+<span class="k">pub</span> <span class="k">enum</span> <span class="n">Error</span> <span class="p">{</span>
+    <span class="nf">Io</span><span class="p">(</span><span class="nn">io</span><span class="p">::</span><span class="n">Error</span><span class="p">),</span>
+    <span class="n">FileContainsNil</span><span class="p">,</span>
+    <span class="n">FailedToGetExePath</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The <code class="language-plaintext highlighter-rouge">Error</code> enum <code class="language-plaintext highlighter-rouge">Io</code> variant can contain an inner <code class="language-plaintext highlighter-rouge">io::Error</code>. File and networking
+functions usually return <code class="language-plaintext highlighter-rouge">io::Result</code>, which has <code class="language-plaintext highlighter-rouge">io::Error</code> for error type.</p>
+
+<p>To easily convert from <code class="language-plaintext highlighter-rouge">io::Error</code> to our <code class="language-plaintext highlighter-rouge">Error</code>, we can implement <code class="language-plaintext highlighter-rouge">From</code> trait we were talking
+about earlier:</p>
+
+<p>(resources.rs, bellow enum Error)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">From</span><span class="o">&lt;</span><span class="nn">io</span><span class="p">::</span><span class="n">Error</span><span class="o">&gt;</span> <span class="k">for</span> <span class="n">Error</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">from</span><span class="p">(</span><span class="n">other</span><span class="p">:</span> <span class="nn">io</span><span class="p">::</span><span class="n">Error</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Self</span> <span class="p">{</span>
+        <span class="nn">Error</span><span class="p">::</span><span class="nf">Io</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Finally, we can add <code class="language-plaintext highlighter-rouge">load_cstring</code> function to <code class="language-plaintext highlighter-rouge">Resources</code> impl:</p>
+
+<p>(resources.rs, inside impl Resources)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Resources</span> <span class="p">{</span>
+    <span class="o">...</span>
+
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">load_cstring</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">resource_name</span><span class="p">:</span> <span class="o">&amp;</span><span class="nb">str</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="nn">ffi</span><span class="p">::</span><span class="n">CString</span><span class="p">,</span> <span class="n">Error</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="k">mut</span> <span class="n">file</span> <span class="o">=</span> <span class="nn">fs</span><span class="p">::</span><span class="nn">File</span><span class="p">::</span><span class="nf">open</span><span class="p">(</span>
+            <span class="k">self</span><span class="py">.root_path</span><span class="nf">.join</span><span class="p">(</span><span class="n">resource_name</span><span class="p">)</span>
+        <span class="p">)</span><span class="o">?</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The <code class="language-plaintext highlighter-rouge">self.root_path.join(resource_name)</code> extends the path with a file name.
+However, we will also need to use relative paths, in which we should probably hide
+platform differences: “shaders/traingle.vert” should work on both Windows and Unix.</p>
+
+<p>For that, we can write a helper function that transforms resource name to full path:</p>
+
+<p>(resources.rs, at the end)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">path</span><span class="p">::</span><span class="n">Path</span><span class="p">;</span>
+
+<span class="k">fn</span> <span class="nf">resource_name_to_path</span><span class="p">(</span><span class="n">root_dir</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Path</span><span class="p">,</span> <span class="n">location</span><span class="p">:</span> <span class="o">&amp;</span><span class="nb">str</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">PathBuf</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">path</span><span class="p">:</span> <span class="n">PathBuf</span> <span class="o">=</span> <span class="n">root_dir</span><span class="nf">.into</span><span class="p">();</span>
+
+    <span class="k">for</span> <span class="n">part</span> <span class="n">in</span> <span class="n">location</span><span class="nf">.split</span><span class="p">(</span><span class="s">"/"</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">path</span><span class="nf">.join</span><span class="p">(</span><span class="n">part</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="n">path</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Inside, we iterate over the chunks of resource name separated by “/”, and then add
+them to path, which will internally use platform-correct separator.</p>
+
+<p>However, here is an interesting function call: <code class="language-plaintext highlighter-rouge">root_dir.into()</code>. What does it do exactly?
+Turns out, that in the standard library there is an <code class="language-plaintext highlighter-rouge">Into</code> trait,
+which is implemented for <a href="https://doc.rust-lang.org/beta/std/convert/trait.Into.html">ANY type A that has <code class="language-plaintext highlighter-rouge">B::from(A)</code></a>.
+It means that, as long as
+the <code class="language-plaintext highlighter-rouge">from</code> conversion exists on a target, and the target type can be deduced 
+(it can be, because we explicitly specified the type of <code class="language-plaintext highlighter-rouge">path</code> to be <code class="language-plaintext highlighter-rouge">PathBuf</code>), 
+the <code class="language-plaintext highlighter-rouge">.into()</code> can be used to convert between the two (between <code class="language-plaintext highlighter-rouge">Path</code> and <code class="language-plaintext highlighter-rouge">PathBuf</code>).</p>
+
+<p>Let’s fix-up file-open statement to use this function:</p>
+
+<p>(resources.rs, inside impl Resources)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Resources</span> <span class="p">{</span>
+    <span class="o">...</span>
+
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">load_cstring</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">resource_name</span><span class="p">:</span> <span class="o">&amp;</span><span class="nb">str</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="nn">ffi</span><span class="p">::</span><span class="n">CString</span><span class="p">,</span> <span class="n">Error</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="k">mut</span> <span class="n">file</span> <span class="o">=</span> <span class="nn">fs</span><span class="p">::</span><span class="nn">File</span><span class="p">::</span><span class="nf">open</span><span class="p">(</span>
+            <span class="nf">resource_name_to_path</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="py">.root_path</span><span class="p">,</span><span class="n">resource_name</span><span class="p">)</span>
+        <span class="p">)</span><span class="o">?</span><span class="p">;</span>
+        
+        <span class="c">// continue here</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Rememeber how I’ve said that when using <code class="language-plaintext highlighter-rouge">?</code>, the error type in Result returned from function should match
+the the error we are handling with <code class="language-plaintext highlighter-rouge">?</code>. Turns out, the <code class="language-plaintext highlighter-rouge">?</code> calls <code class="language-plaintext highlighter-rouge">.into()</code> on the error behind the
+scenes, which uses our <code class="language-plaintext highlighter-rouge">From&lt;io::Error&gt;</code> implementation to convert <code class="language-plaintext highlighter-rouge">io::Error</code> to our error.</p>
+
+<p>Next up, we allocate <code class="language-plaintext highlighter-rouge">Vec</code> of bytes of the file size + 1 byte (for <code class="language-plaintext highlighter-rouge">0</code> byte at the end), 
+read file contents into it, check that file contents do not contain <code class="language-plaintext highlighter-rouge">0</code>, create <code class="language-plaintext highlighter-rouge">CString</code> from
+it and return it:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// allocate buffer of the same size as file</span>
+<span class="k">let</span> <span class="k">mut</span> <span class="n">buffer</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">u8</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nn">Vec</span><span class="p">::</span><span class="nf">with_capacity</span><span class="p">(</span>
+    <span class="n">file</span><span class="nf">.metadata</span><span class="p">()</span><span class="o">?</span><span class="nf">.len</span><span class="p">()</span> <span class="k">as</span> <span class="nb">usize</span> <span class="o">+</span> <span class="mi">1</span>
+<span class="p">);</span>
+<span class="n">file</span><span class="nf">.read_to_end</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="n">buffer</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+
+<span class="c">// check for nul byte</span>
+<span class="k">if</span> <span class="n">buffer</span><span class="nf">.iter</span><span class="p">()</span><span class="nf">.find</span><span class="p">(|</span><span class="n">i</span><span class="p">|</span> <span class="o">**</span><span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span><span class="nf">.is_some</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="nf">Err</span><span class="p">(</span><span class="nn">Error</span><span class="p">::</span><span class="n">FileContainsNil</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="nf">Ok</span><span class="p">(</span><span class="k">unsafe</span> <span class="p">{</span> <span class="nn">ffi</span><span class="p">::</span><span class="nn">CString</span><span class="p">::</span><span class="nf">from_vec_unchecked</span><span class="p">(</span><span class="n">buffer</span><span class="p">)</span> <span class="p">})</span>
+</code></pre></div></div>
+
+<p>We need to dereference <code class="language-plaintext highlighter-rouge">**i</code> two times in <code class="language-plaintext highlighter-rouge">find</code>, because the <code class="language-plaintext highlighter-rouge">i</code> there is double reference.
+How did we get the double reference there? Well, the <code class="language-plaintext highlighter-rouge">iter()</code> function returns iterator over the
+references, and the closure in <code class="language-plaintext highlighter-rouge">find</code> function receives a reference of whatever iterator iterates over.</p>
+
+<h2 id="using-our-load_cstring-function">Using our load_cstring function</h2>
+
+<p>Now we can use <code class="language-plaintext highlighter-rouge">load_cstring</code> function in our <code class="language-plaintext highlighter-rouge">Shader</code> to initialize it from file:</p>
+
+<p>(render_gl.rs, impl Shader)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">resources</span><span class="p">::</span><span class="n">Resources</span><span class="p">;</span>
+
+<span class="k">impl</span> <span class="n">Shader</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">from_res</span><span class="p">(</span><span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">,</span> <span class="n">res</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Resources</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="o">&amp;</span><span class="nb">str</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="n">Shader</span><span class="p">,</span> <span class="nb">String</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="k">const</span> <span class="n">POSSIBLE_EXT</span><span class="p">:</span> <span class="p">[(</span><span class="o">&amp;</span><span class="nb">str</span><span class="p">,</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLenum</span><span class="p">);</span> <span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">(</span><span class="s">".vert"</span><span class="p">,</span> <span class="nn">gl</span><span class="p">::</span><span class="n">VERTEX_SHADER</span><span class="p">),</span>
+            <span class="p">(</span><span class="s">".frag"</span><span class="p">,</span> <span class="nn">gl</span><span class="p">::</span><span class="n">FRAGMENT_SHADER</span><span class="p">),</span>
+        <span class="p">];</span>
+
+        <span class="k">let</span> <span class="n">shader_kind</span> <span class="o">=</span> <span class="n">POSSIBLE_EXT</span><span class="nf">.iter</span><span class="p">()</span>
+            <span class="nf">.find</span><span class="p">(|</span><span class="o">&amp;&amp;</span><span class="p">(</span><span class="n">file_extension</span><span class="p">,</span> <span class="mi">_</span><span class="p">)|</span> <span class="p">{</span>
+                <span class="n">name</span><span class="nf">.ends_with</span><span class="p">(</span><span class="n">file_extension</span><span class="p">)</span>
+            <span class="p">})</span>
+            <span class="nf">.map</span><span class="p">(|</span><span class="o">&amp;</span><span class="p">(</span><span class="mi">_</span><span class="p">,</span> <span class="n">kind</span><span class="p">)|</span> <span class="n">kind</span><span class="p">)</span>
+            <span class="nf">.ok_or_else</span><span class="p">(||</span> <span class="nd">format!</span><span class="p">(</span><span class="s">"Can not determine shader type for resource {}"</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span><span class="o">?</span><span class="p">;</span>
+
+        <span class="k">let</span> <span class="n">source</span> <span class="o">=</span> <span class="n">res</span><span class="nf">.load_cstring</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+            <span class="nf">.map_err</span><span class="p">(|</span><span class="n">e</span><span class="p">|</span> <span class="nd">format!</span><span class="p">(</span><span class="s">"Error loading resource {}: {:?}"</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span><span class="o">?</span><span class="p">;</span>
+
+        <span class="nn">Shader</span><span class="p">::</span><span class="nf">from_source</span><span class="p">(</span><span class="n">gl</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">source</span><span class="p">,</span> <span class="n">shader_kind</span><span class="p">)</span>
+    <span class="p">}</span>
+
+    <span class="o">...</span>
+
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Here we check file extension to determine the <code class="language-plaintext highlighter-rouge">shader_kind</code>.</p>
+
+<p>Similarly, we add <code class="language-plaintext highlighter-rouge">from_res</code> to shader <code class="language-plaintext highlighter-rouge">Program</code>:</p>
+
+<p>(render_gl.rs, impl Program)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Program</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">from_res</span><span class="p">(</span><span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">,</span> <span class="n">res</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Resources</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="o">&amp;</span><span class="nb">str</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="n">Program</span><span class="p">,</span> <span class="nb">String</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="k">const</span> <span class="n">POSSIBLE_EXT</span><span class="p">:</span> <span class="p">[</span><span class="o">&amp;</span><span class="nb">str</span><span class="p">;</span> <span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="s">".vert"</span><span class="p">,</span>
+            <span class="s">".frag"</span><span class="p">,</span>
+        <span class="p">];</span>
+
+        <span class="k">let</span> <span class="n">shaders</span> <span class="o">=</span> <span class="n">POSSIBLE_EXT</span><span class="nf">.iter</span><span class="p">()</span>
+            <span class="nf">.map</span><span class="p">(|</span><span class="n">file_extension</span><span class="p">|</span> <span class="p">{</span>
+                <span class="nn">Shader</span><span class="p">::</span><span class="nf">from_res</span><span class="p">(</span><span class="n">gl</span><span class="p">,</span> <span class="n">res</span><span class="p">,</span> <span class="o">&amp;</span><span class="nd">format!</span><span class="p">(</span><span class="s">"{}{}"</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">file_extension</span><span class="p">))</span>
+            <span class="p">})</span>
+            <span class="py">.collect</span><span class="p">::</span><span class="o">&lt;</span><span class="n">Result</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Shader</span><span class="o">&gt;</span><span class="p">,</span> <span class="nb">String</span><span class="o">&gt;&gt;</span><span class="p">()</span><span class="o">?</span><span class="p">;</span>
+
+        <span class="nn">Program</span><span class="p">::</span><span class="nf">from_shaders</span><span class="p">(</span><span class="n">gl</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">shaders</span><span class="p">[</span><span class="o">..</span><span class="p">])</span>
+    <span class="p">}</span>
+    
+    <span class="o">...</span>
+    
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Here, we require both <code class="language-plaintext highlighter-rouge">.vert</code> and <code class="language-plaintext highlighter-rouge">.frag</code> files to exist.
+One interesting note on the <code class="language-plaintext highlighter-rouge">collect</code> function: when we have a bunch of <code class="language-plaintext highlighter-rouge">Result&lt;T, E&gt;</code> items,
+such as returned from <code class="language-plaintext highlighter-rouge">Shader::from_res</code>, we can collect them into a <code class="language-plaintext highlighter-rouge">Result&lt;Vec&lt;T&gt;, E&gt;</code>,
+which will contain a first encountered error or a list of unwrapped values.</p>
+
+<p>With that done, we can modify our main function to use resource loader:</p>
+
+<p>(main.rs, modified)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// set up shader program</span>
+
+<span class="k">let</span> <span class="n">shader_program</span> <span class="o">=</span> <span class="nn">render_gl</span><span class="p">::</span><span class="nn">Program</span><span class="p">::</span><span class="nf">from_res</span><span class="p">(</span><span class="o">&amp;</span><span class="n">gl</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">res</span><span class="p">,</span> <span class="s">"shaders/triangle"</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p>If we run our program now, we get the error:</p>
+
+<pre><code class="language-txt">thread 'main' panicked at 'called `Result::unwrap()` on an `Err` value: 
+"Error loading resource \"shaders/triangle.vert\": 
+Io(Error { repr: Os { code: 3, message: \"The system cannot find the path specified.\" } })"'
+</code></pre>
+
+<p>Our executable is placed into <code class="language-plaintext highlighter-rouge">target/debug</code>, while our shader files are in <code class="language-plaintext highlighter-rouge">src</code>.</p>
+
+<h2 id="build-script">Build script</h2>
+
+<p>We will create a build script that copies our shaders from project asset directory to 
+the build directory.</p>
+
+<p>First, let’s move our shaders from <code class="language-plaintext highlighter-rouge">src</code> to <code class="language-plaintext highlighter-rouge">assets/shaders</code> - from now on, only the Rust code
+should be in <code class="language-plaintext highlighter-rouge">src</code>.</p>
+
+<p>Then, add a <code class="language-plaintext highlighter-rouge">build.rs</code> file with the following code:</p>
+
+<p>(build.rs, complete)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="n">crate</span> <span class="n">walkdir</span><span class="p">;</span>
+
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">env</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">fs</span><span class="p">::{</span><span class="k">self</span><span class="p">,</span> <span class="n">DirBuilder</span><span class="p">};</span>
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">path</span><span class="p">::{</span><span class="n">Path</span><span class="p">,</span> <span class="n">PathBuf</span><span class="p">};</span>
+<span class="k">use</span> <span class="nn">walkdir</span><span class="p">::</span><span class="n">WalkDir</span><span class="p">;</span>
+
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">out_dir</span> <span class="o">=</span> <span class="nn">PathBuf</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="nn">env</span><span class="p">::</span><span class="nf">var</span><span class="p">(</span><span class="s">"OUT_DIR"</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">());</span>
+    <span class="k">let</span> <span class="n">manifest_dir</span> <span class="o">=</span> <span class="nn">PathBuf</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="nn">env</span><span class="p">::</span><span class="nf">var</span><span class="p">(</span><span class="s">"CARGO_MANIFEST_DIR"</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">());</span>
+
+    <span class="c">// locate executable path even if the project is in workspace</span>
+
+    <span class="k">let</span> <span class="n">executable_path</span> <span class="o">=</span> <span class="nf">locate_target_dir_from_output_dir</span><span class="p">(</span><span class="o">&amp;</span><span class="n">out_dir</span><span class="p">)</span>
+        <span class="nf">.expect</span><span class="p">(</span><span class="s">"failed to find target dir"</span><span class="p">)</span>
+        <span class="nf">.join</span><span class="p">(</span><span class="nn">env</span><span class="p">::</span><span class="nf">var</span><span class="p">(</span><span class="s">"PROFILE"</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">());</span>
+
+    <span class="k">copy</span><span class="p">(</span>
+        <span class="o">&amp;</span><span class="n">manifest_dir</span><span class="nf">.join</span><span class="p">(</span><span class="s">"assets"</span><span class="p">),</span>
+        <span class="o">&amp;</span><span class="n">executable_path</span><span class="nf">.join</span><span class="p">(</span><span class="s">"assets-07"</span><span class="p">),</span>
+    <span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">fn</span> <span class="nf">locate_target_dir_from_output_dir</span><span class="p">(</span><span class="k">mut</span> <span class="n">target_dir_search</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Path</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Option</span><span class="o">&lt;&amp;</span><span class="n">Path</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">loop</span> <span class="p">{</span>
+        <span class="c">// if path ends with "target", we assume this is correct dir</span>
+        <span class="k">if</span> <span class="n">target_dir_search</span><span class="nf">.ends_with</span><span class="p">(</span><span class="s">"target"</span><span class="p">)</span> <span class="p">{</span>
+            <span class="k">return</span> <span class="nf">Some</span><span class="p">(</span><span class="n">target_dir_search</span><span class="p">);</span>
+        <span class="p">}</span>
+
+        <span class="c">// otherwise, keep going up in tree until we find "target" dir</span>
+        <span class="n">target_dir_search</span> <span class="o">=</span> <span class="k">match</span> <span class="n">target_dir_search</span><span class="nf">.parent</span><span class="p">()</span> <span class="p">{</span>
+            <span class="nf">Some</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="n">path</span><span class="p">,</span>
+            <span class="nb">None</span> <span class="k">=&gt;</span> <span class="k">break</span><span class="p">,</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="nb">None</span>
+<span class="p">}</span>
+
+<span class="k">fn</span> <span class="k">copy</span><span class="p">(</span><span class="n">from</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Path</span><span class="p">,</span> <span class="n">to</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Path</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">from_path</span><span class="p">:</span> <span class="n">PathBuf</span> <span class="o">=</span> <span class="n">from</span><span class="nf">.into</span><span class="p">();</span>
+    <span class="k">let</span> <span class="n">to_path</span><span class="p">:</span> <span class="n">PathBuf</span> <span class="o">=</span> <span class="n">to</span><span class="nf">.into</span><span class="p">();</span>
+    <span class="k">for</span> <span class="n">entry</span> <span class="n">in</span> <span class="nn">WalkDir</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">from_path</span><span class="nf">.clone</span><span class="p">())</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="n">entry</span> <span class="o">=</span> <span class="n">entry</span><span class="nf">.unwrap</span><span class="p">();</span>
+
+        <span class="k">if</span> <span class="k">let</span> <span class="nf">Ok</span><span class="p">(</span><span class="n">rel_path</span><span class="p">)</span> <span class="o">=</span> <span class="n">entry</span><span class="nf">.path</span><span class="p">()</span><span class="nf">.strip_prefix</span><span class="p">(</span><span class="o">&amp;</span><span class="n">from_path</span><span class="p">)</span> <span class="p">{</span>
+            <span class="k">let</span> <span class="n">target_path</span> <span class="o">=</span> <span class="n">to_path</span><span class="nf">.join</span><span class="p">(</span><span class="n">rel_path</span><span class="p">);</span>
+
+            <span class="k">if</span> <span class="n">entry</span><span class="nf">.file_type</span><span class="p">()</span><span class="nf">.is_dir</span><span class="p">()</span> <span class="p">{</span>
+                <span class="nn">DirBuilder</span><span class="p">::</span><span class="nf">new</span><span class="p">()</span>
+                    <span class="nf">.recursive</span><span class="p">(</span><span class="k">true</span><span class="p">)</span>
+                    <span class="nf">.create</span><span class="p">(</span><span class="n">target_path</span><span class="p">)</span><span class="nf">.expect</span><span class="p">(</span><span class="s">"failed to create target dir"</span><span class="p">);</span>
+            <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+                <span class="nn">fs</span><span class="p">::</span><span class="k">copy</span><span class="p">(</span><span class="n">entry</span><span class="nf">.path</span><span class="p">(),</span> <span class="o">&amp;</span><span class="n">target_path</span><span class="p">)</span><span class="nf">.expect</span><span class="p">(</span><span class="s">"failed to copy"</span><span class="p">);</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The important bit is <code class="language-plaintext highlighter-rouge">copy</code> function, that copies our shader assets:</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">copy</span><span class="p">(</span>
+    <span class="o">&amp;</span><span class="n">manifest_dir</span><span class="nf">.join</span><span class="p">(</span><span class="s">"assets"</span><span class="p">),</span>
+    <span class="o">&amp;</span><span class="n">executable_path</span><span class="nf">.join</span><span class="p">(</span><span class="s">"assets-07"</span><span class="p">),</span> <span class="c">// -07 avoiding conflicts between tutorial lessons</span>
+<span class="p">);</span>
+</code></pre></div></div>
+
+<p>Our <code class="language-plaintext highlighter-rouge">copy</code> function copies files recursively using <code class="language-plaintext highlighter-rouge">walkdir</code> crate, so let’s add
+<code class="language-plaintext highlighter-rouge">walkdir</code> to our crate dependencies:</p>
+
+<p>(Cargo.toml, incomplete)</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[build-dependencies]</span>
+<span class="py">walkdir</span> <span class="p">=</span> <span class="s">"2.1"</span>
+</code></pre></div></div>
+
+<p>This does the trick, and we see our triangle again!</p>
+
+<p>This, of course, still requires re-compilation for build script to copy files,
+but we can also run the program directly from <code class="language-plaintext highlighter-rouge">/target</code> directory and
+modify the shader files there.</p>
+
+<h2 id="shader-errors">Shader Errors</h2>
+
+<p>For initial simplicity, we have not created another <code class="language-plaintext highlighter-rouge">Error</code> type for shader, and used
+simple <code class="language-plaintext highlighter-rouge">String</code> instead. Let’s change <code class="language-plaintext highlighter-rouge">String</code> to module-local enum too, in the same
+way we’ve done this for <code class="language-plaintext highlighter-rouge">Resources</code>. Then we can change result returned from <code class="language-plaintext highlighter-rouge">from_res</code>
+functions to <code class="language-plaintext highlighter-rouge">Result&lt;Program, Error&gt;</code>.</p>
+
+<p>Before copy-pasting the final source, see if you can do
+it yourself.</p>
+
+<p>In my case, final <code class="language-plaintext highlighter-rouge">Error</code> structure ended up looking like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Debug)]</span>
+<span class="k">pub</span> <span class="k">enum</span> <span class="n">Error</span> <span class="p">{</span>
+    <span class="n">ResourceLoad</span> <span class="p">{</span> <span class="n">name</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span> <span class="n">inner</span><span class="p">:</span> <span class="nn">resources</span><span class="p">::</span><span class="n">Error</span> <span class="p">},</span>
+    <span class="n">CanNotDetermineShaderTypeForResource</span> <span class="p">{</span> <span class="n">name</span><span class="p">:</span> <span class="nb">String</span> <span class="p">},</span>
+    <span class="n">CompileError</span> <span class="p">{</span> <span class="n">name</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">String</span> <span class="p">},</span>
+    <span class="n">LinkError</span> <span class="p">{</span> <span class="n">name</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">String</span> <span class="p">},</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>I decided to include additional <code class="language-plaintext highlighter-rouge">name</code> information in the <code class="language-plaintext highlighter-rouge">ResourceLoad</code> error, therefore
+I have’t used the automatic error conversion with <code class="language-plaintext highlighter-rouge">From&lt;resource::Error&gt;</code> here.</p>
+
+<p><a href="https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-07">The full code is available on github</a>.</p>
+
+<p><a href="/rust/opengl/tutorial/2018/02/15/opengl-in-rust-from-scratch-08-failure.html">Next time, we will make our error output look much nicer</a>.</p>
+
+  </article>
+
+</div>
+
+      </div>
+    </div>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col  footer-col-1">
+        <ul class="contact-list">
+          <li>Nerijus Arlauskas</li>
+          <li><a href="mailto:nercury@gmail.com">nercury@gmail.com</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-2">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/Nercury">
+              <span class="icon  icon--github">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/>
+                </svg>
+              </span>
+
+              <span class="username">Nercury</span>
+            </a>
+          </li>
+          
+
+          
+          <li>
+            <a href="https://twitter.com/nercury">
+              <span class="icon  icon--twitter">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809
+                  c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/>
+                </svg>
+              </span>
+
+              <span class="username">nercury</span>
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-3">
+        <p class="text">Articles and tutorials about Rust, Embedded development and Computer Graphics.
+</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>

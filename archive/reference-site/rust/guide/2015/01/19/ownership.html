@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <title>Explore the ownership system in Rust</title>
+    <meta name="description" content="Articles and tutorials about Rust, Embedded development and Computer Graphics.
+">
+
+    <link rel="shortcut icon" type="image/png" href="/favicon.ico"/>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/pygments/default.css">
+    <link rel="stylesheet" href="/css/font-awesome.css">
+    <link rel="canonical" href="http://nercury.github.io/rust/guide/2015/01/19/ownership.html">
+    <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles/color-brewer.css">
+
+    <script src="/js/highlight.pack.js"></script>
+
+    <script src="/js/jquery.min.js"></script>
+    
+    <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+      ga('create', 'UA-56288576-1', 'auto');
+      ga('require', 'displayfeatures');
+      ga('send', 'pageview');
+    </script>
+    
+    <script>
+        $(function() {
+            hljs.initHighlightingOnLoad();
+            return $("h1, h2, h3, h4, h5, h6").each(function(i, el) {
+                console.log(el);
+                var $el, icon, id;
+                $el = $(el);
+                id = $el.attr('id');
+                icon = '<i class="fa fa-link"></i>';
+                if (id) {
+                  return $el.prepend($("<a />").addClass("header-link").attr("href", "#" + id).html(icon));
+                }
+            });
+        });
+    </script>
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Ironic Blog</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+        
+          
+          <a class="page-link" href="/about/">About Me</a>
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <div class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Explore the ownership system in Rust</h1>
+    <p class="post-meta">Jan 19, 2015</p>
+  </header>
+
+  <article class="post-content">
+    <blockquote>
+  <p>Updated for Rust 1.0.</p>
+</blockquote>
+
+<p>This guide is for a reader who knows basic syntax and
+building blocks of <strong>Rust</strong> but does not quite grasp how the
+<strong>ownership</strong> works.</p>
+
+<p>We will start <em>very</em> simple, and then will gradually increase
+complexity at a slow pace, exploring and discussing every new bit
+of detail. This guide will assume a <em>very</em>
+basic familiarity with <code class="language-plaintext highlighter-rouge">let</code>, <code class="language-plaintext highlighter-rouge">fn</code>, <code class="language-plaintext highlighter-rouge">struct</code>, <code class="language-plaintext highlighter-rouge">trait</code> and
+<code class="language-plaintext highlighter-rouge">impl</code> constructs.</p>
+
+<p>Our goal is to learn how to write a new Rust program
+and not hit any walls related to ownership.</p>
+
+<ul>
+  <li>After short <a href="#prerequisites---what-you-already-know">Introduction</a></li>
+  <li>we will learn about the <a href="#copy-trait">Copy Traits</a>, and then</li>
+  <li>about the <a href="#ownership">Immutable</a></li>
+  <li>and <a href="#mutable-ownership">Mutable</a> ownership rules.</li>
+  <li>Then we will look at the <a href="#the-power-of-ownership-system">Power of Ownership system</a></li>
+  <li>in <a href="#memory-allocation">Memory management</a>,</li>
+  <li><a href="#reference-counting">Reference counting</a></li>
+  <li>and <a href="#concurrency">Concurrency</a>.</li>
+</ul>
+
+<h3 id="prerequisites---what-you-already-know">Prerequisites - What you already know</h3>
+
+<p>Scope/stack based memory management is quite intuitive, because we are very
+familiar with it.</p>
+
+<p>What happens to <code class="language-plaintext highlighter-rouge">i</code> at the end of the <code class="language-plaintext highlighter-rouge">main</code> function?</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">5</span><span class="p">;</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>It goes out of scope and dies, right?</p>
+
+<p>If we pass this <code class="language-plaintext highlighter-rouge">i</code> to another function <code class="language-plaintext highlighter-rouge">foo</code>, how
+many times will it “die”?</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">5</span><span class="p">;</span>
+    <span class="nf">foo</span><span class="p">(</span><span class="n">i</span><span class="p">);</span> <span class="c">// call function foo</span>
+<span class="p">}</span>
+
+<span class="k">fn</span> <span class="nf">foo</span><span class="p">(</span><span class="n">i</span><span class="p">:</span> <span class="nb">i64</span><span class="p">)</span> <span class="p">{</span> <span class="c">// another function foo</span>
+    <span class="c">// something</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>Well, it will “die” twice. First, at the end of <code class="language-plaintext highlighter-rouge">foo</code>,
+and then at the end of <code class="language-plaintext highlighter-rouge">main</code>. If you modify it in <code class="language-plaintext highlighter-rouge">foo</code>,
+<strong>it will not affect</strong> the value in <code class="language-plaintext highlighter-rouge">main</code>.</p>
+
+<p>The value <strong>gets copied</strong> at the call of <code class="language-plaintext highlighter-rouge">foo(i)</code>.</p>
+
+<p>In Rust, like in C++ (and some other languages), it is possible to use
+your own type instead of integer. The value will be allocated on current stack
+and it will be destroyed (the destructor will be called) when it goes
+out of scope.</p>
+
+<p>However, the Rust compiler follows different <em>ownership</em> rules, unless
+type implements a <code class="language-plaintext highlighter-rouge">Copy</code> trait. Therefore we need to talk about the <code class="language-plaintext highlighter-rouge">Copy</code>
+trait first, and get it out of the way.</p>
+
+<h2 id="copy-trait">Copy Trait</h2>
+
+<p>The <a href="http://doc.rust-lang.org/std/marker/trait.Copy.html"><code class="language-plaintext highlighter-rouge">Copy</code> trait</a> makes your type to behave in a very familiar way:
+the bits will be copied to another location when assigned, or when
+used as a function argument. Exactly like a built-in integer.</p>
+
+<p>For example, this simple struct will be copy-able by default:</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="nd">#[derive(Copy,</span> <span class="nd">Clone)]</span>
+<span class="k">struct</span> <span class="n">Info</span> <span class="p">{</span>
+    <span class="n">value</span><span class="p">:</span> <span class="nb">i64</span><span class="p">,</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>Note that we had to <em>tell</em> the compiler that it is <code class="language-plaintext highlighter-rouge">Copy</code> - otherwise
+it would <strong>always be moved</strong> to another
+location and would follow the <em>ownership</em> rules.</p>
+
+<p>But we are actually interested in ownership, so from now on we will
+concentrate on non-<code class="language-plaintext highlighter-rouge">Copy</code> types!</p>
+
+<h2 id="ownership">Ownership</h2>
+
+<p>Ownership rules ensure, that at any point, for a single non-copyable
+value, there is only one owner that can <strong>change</strong> it.</p>
+
+<p>Therefore, if a function is responsible for deleting this value,
+it can be sure that there are no other users that will try to
+access, change or delete it in future.</p>
+
+<p>Let’s see some examples!</p>
+
+<h3 id="say-hello-to-bob-our-brave-new-dummy-structure">Say hello to Bob, our brave new dummy structure</h3>
+
+<p>To demonstrate how the data is moving around, we will create
+a new struct and call it <code class="language-plaintext highlighter-rouge">Bob</code>.</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="k">struct</span> <span class="n">Bob</span> <span class="p">{</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>In Bob constructor <code class="language-plaintext highlighter-rouge">new</code>, we will announce that it was created:</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="k">impl</span> <span class="n">Bob</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="o">&amp;</span><span class="nb">str</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Bob</span> <span class="p">{</span>
+        <span class="nd">println!</span><span class="p">(</span><span class="s">"new bob {:?}"</span><span class="p">,</span> <span class="n">name</span><span class="p">);</span> <span class="c">// announce</span>
+        <span class="n">Bob</span> <span class="p">{</span> <span class="n">name</span><span class="p">:</span> <span class="n">name</span><span class="nf">.to_string</span><span class="p">()</span> <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>When Bob gets destroyed (sorry, Bob!), we will print its name
+by implementing built-in <code class="language-plaintext highlighter-rouge">Drop::drop</code> trait method:</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="k">impl</span> <span class="n">Drop</span> <span class="k">for</span> <span class="n">Bob</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="k">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nd">println!</span><span class="p">(</span><span class="s">"del bob {:?}"</span><span class="p">,</span> <span class="k">self</span><span class="py">.name</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>And to make bob value format-able when outputing to console,
+we will implement the built-in <code class="language-plaintext highlighter-rouge">Debug::fmt</code> trait method:</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">fmt</span><span class="p">;</span>
+
+<span class="k">impl</span> <span class="nn">fmt</span><span class="p">::</span><span class="n">Debug</span> <span class="k">for</span> <span class="n">Bob</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">fmt</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">f</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="nn">fmt</span><span class="p">::</span><span class="n">Formatter</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">fmt</span><span class="p">::</span><span class="n">Result</span> <span class="p">{</span>
+        <span class="nd">write!</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="s">"bob {:?}"</span><span class="p">,</span> <span class="k">self</span><span class="py">.name</span><span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">}</span></code></pre></figure>
+
+<h3 id="lets-put-it-to-the-test">Let’s put it to the Test!</h3>
+
+<p>When we create Bob in the <code class="language-plaintext highlighter-rouge">main</code> function, we get a predictable
+result:</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nn">Bob</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"A"</span><span class="p">);</span>
+<span class="p">}</span></code></pre></figure>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>new bob "A"
+del bob "A"
+</code></pre></div></div>
+
+<p>OK, it got deleted somehow - but when exactly?</p>
+
+<p>Let’s insert a “print” statement at the end of function:</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nn">Bob</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"A"</span><span class="p">);</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"end is near"</span><span class="p">);</span>
+<span class="p">}</span></code></pre></figure>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>new bob "A"
+del bob "A"
+end is near
+</code></pre></div></div>
+
+<p>It was deleted <strong>before</strong> the end of function. The return
+value was not assigned to anything, so the compiler called our
+<code class="language-plaintext highlighter-rouge">drop</code> and destroyed the value right there.</p>
+
+<p>What if we <em>bind</em> the returned value to a <em>variable</em>?</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">bob</span> <span class="o">=</span> <span class="nn">Bob</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"A"</span><span class="p">);</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"end is near"</span><span class="p">);</span>
+<span class="p">}</span></code></pre></figure>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>new bob "A"
+end is near
+del bob "A"
+</code></pre></div></div>
+
+<p>With <code class="language-plaintext highlighter-rouge">let</code>, it was deleted <strong>at the end</strong> of function - at the
+end of variable scope. So the compiler simply <strong>destroys
+bound values at the end of their scope</strong>.</p>
+
+<h3 id="destroyed-unless-moved">Destroyed Unless Moved</h3>
+
+<p>There is a catch though - the values can be <strong>moved</strong>
+somewhere else - and if they get moved, they won’t get destroyed!</p>
+
+<p>How to move them? Well, simply pass them <strong>as values</strong> to
+another function.</p>
+
+<p>Let’s pass our bob value to a function named <code class="language-plaintext highlighter-rouge">black_hole</code>:</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="k">fn</span> <span class="nf">black_hole</span><span class="p">(</span><span class="n">bob</span><span class="p">:</span> <span class="n">Bob</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"imminent shrinkage {:?}"</span><span class="p">,</span> <span class="n">bob</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">bob</span> <span class="o">=</span> <span class="nn">Bob</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"A"</span><span class="p">);</span>
+    <span class="nf">black_hole</span><span class="p">(</span><span class="n">bob</span><span class="p">);</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"end is near"</span><span class="p">);</span>
+<span class="p">}</span></code></pre></figure>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>new bob "A"
+imminent shrinkage bob "A"
+del bob "A"
+end is near
+</code></pre></div></div>
+
+<p><a href="http://is.gd/fQ1Bzy">Try it yourself!</a></p>
+
+<p>It got destroyed in the black hole, and not at the end of <code class="language-plaintext highlighter-rouge">main</code>!</p>
+
+<p>But wait… What happens if we try to send <code class="language-plaintext highlighter-rouge">Bob</code> to the black hole
+twice?</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">bob</span> <span class="o">=</span> <span class="nn">Bob</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"A"</span><span class="p">);</span>
+    <span class="nf">black_hole</span><span class="p">(</span><span class="n">bob</span><span class="p">);</span>
+    <span class="nf">black_hole</span><span class="p">(</span><span class="n">bob</span><span class="p">);</span>
+<span class="p">}</span></code></pre></figure>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;anon&gt;:33:16: 33:19 error: use of moved value: <span class="sb">`</span>bob<span class="sb">`</span>
+&lt;anon&gt;:33     black_hole<span class="o">(</span>bob<span class="o">)</span><span class="p">;</span>
+                         ^~~
+&lt;anon&gt;:32:16: 32:19 note: <span class="sb">`</span>bob<span class="sb">`</span> moved here because it has <span class="nb">type</span> <span class="sb">`</span>Bob<span class="sb">`</span>, which is non-copyable
+&lt;anon&gt;:32     black_hole<span class="o">(</span>bob<span class="o">)</span><span class="p">;</span>
+                         ^~~
+</code></pre></div></div>
+
+<p>Simple! Compiler makes sure that we can not use moved values,
+and explains nicely what happened.</p>
+
+<h3 id="there-is-no-magic---just-some-rules">There is no Magic - just some rules</h3>
+
+<p>To implement “memory safety without garbage collection”, compiler
+does not need to go chasing your values around the code. It can
+decide what is destroyed in a function simply by <em>looking</em>
+at the function body.</p>
+
+<p>You can easily do that too, if you know the rules. So far, we saw
+a <strong>few</strong> of them:</p>
+
+<ul>
+  <li><strong>Unused return values are destroyed</strong>.</li>
+  <li><strong>All values bound with <code class="language-plaintext highlighter-rouge">let</code> are destroyed at the end of the
+scope, unless they are moved</strong>.</li>
+</ul>
+
+<p>Here you go, memory safety based on the fact that there can only be
+a single owner of a value.</p>
+
+<p>However, so far we talked only about <strong>immutable</strong> <code class="language-plaintext highlighter-rouge">let</code> binding -
+the rules get slightly more complicated when the value
+can be <em>changed</em>.</p>
+
+<h2 id="mutable-ownership">Mutable Ownership</h2>
+
+<p>All the owned values can be mutated: we just need to put them to
+<strong>mut</strong> slot with <strong>let</strong>. For example, we can mutate some
+part of bob, like a <code class="language-plaintext highlighter-rouge">name</code>:</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">bob</span> <span class="o">=</span> <span class="nn">Bob</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"A"</span><span class="p">);</span>
+    <span class="n">bob</span><span class="py">.name</span> <span class="o">=</span> <span class="s">"mutant"</span><span class="nf">.to_string</span><span class="p">();</span>
+<span class="p">}</span></code></pre></figure>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>new bob "A"
+del bob "mutant"
+</code></pre></div></div>
+
+<p>We created it with name “A”, but deleted a “mutant”.</p>
+
+<p>If we give this value to another function <code class="language-plaintext highlighter-rouge">mutate</code>, we can also
+assign it to <code class="language-plaintext highlighter-rouge">mut</code> slot there:</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="k">fn</span> <span class="nf">mutate</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">Bob</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">bob</span> <span class="o">=</span> <span class="n">value</span><span class="p">;</span>
+    <span class="n">bob</span><span class="py">.name</span> <span class="o">=</span> <span class="s">"mutant"</span><span class="nf">.to_string</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nf">mutate</span><span class="p">(</span><span class="nn">Bob</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"A"</span><span class="p">));</span>
+<span class="p">}</span></code></pre></figure>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>new bob "A"
+del bob "mutant"
+</code></pre></div></div>
+
+<p>So, it is possible to make an owned value mutable at any time.</p>
+
+<p>Useful to know: the function arguments can also be upgraded to <em>mutable</em>,
+because they are also bindable slots that work the same way as a <code class="language-plaintext highlighter-rouge">let</code> slot.
+So function from previous example can be shortened:</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="k">fn</span> <span class="nf">mutate</span><span class="p">(</span><span class="k">mut</span> <span class="n">value</span><span class="p">:</span> <span class="n">Bob</span><span class="p">)</span> <span class="p">{</span> <span class="c">// use mut directly before the arg name</span>
+    <span class="n">value</span><span class="py">.name</span> <span class="o">=</span> <span class="s">"mutant"</span><span class="nf">.to_string</span><span class="p">();</span>
+<span class="p">}</span></code></pre></figure>
+
+<h3 id="replacing-a-value-in-mutable-slot">Replacing a value in mutable slot</h3>
+
+<p>What happens if we try to overwrite a value in some <code class="language-plaintext highlighter-rouge">mut</code> slot? Let’s see:</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">bob</span> <span class="o">=</span> <span class="nn">Bob</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"A"</span><span class="p">);</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">""</span><span class="p">);</span> <span class="c">// skip line to make output nicer</span>
+
+    <span class="c">// First overwrite using name "B", and then "C"</span>
+    <span class="k">for</span> <span class="o">&amp;</span><span class="n">name</span> <span class="n">in</span> <span class="o">&amp;</span><span class="p">[</span><span class="s">"B"</span><span class="p">,</span> <span class="s">"C"</span><span class="p">]</span> <span class="p">{</span>
+        <span class="nd">println!</span><span class="p">(</span><span class="s">"before overwrite"</span><span class="p">);</span>
+        <span class="n">bob</span> <span class="o">=</span> <span class="nn">Bob</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">name</span><span class="p">);</span>
+        <span class="nd">println!</span><span class="p">(</span><span class="s">"after overwrite"</span><span class="p">);</span>
+        <span class="nd">println!</span><span class="p">(</span><span class="s">""</span><span class="p">);</span> <span class="c">// skip line</span>
+    <span class="p">}</span>
+<span class="p">}</span></code></pre></figure>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>new bob "A"
+
+before overwrite
+new bob "B"
+del bob "A"
+after overwrite
+
+before overwrite
+new bob "C"
+del bob "B"
+after overwrite
+
+del bob "C"
+</code></pre></div></div>
+
+<p>The old value gets deleted. The newly assigned value will be deleted
+at the end of scope - unless it is moved or overwritten again.</p>
+
+<h3 id="mutable-ownership-rules">Mutable Ownership rules</h3>
+
+<p>So, there is one additional rule, for the mutable slots:</p>
+
+<ul>
+  <li>Unused return values are destroyed.</li>
+  <li>All values bound with <code class="language-plaintext highlighter-rouge">let</code> are destroyed at the end of the
+scope, unless they are moved.</li>
+  <li><strong>Replaced values are destroyed</strong>.</li>
+</ul>
+
+<p>Kind of obvious. The point is, in Rust, we are <strong>sure</strong>
+nothing else owns or references them - so it is possible to
+do that.</p>
+
+<h2 id="the-power-of-ownership-system">The power of Ownership system</h2>
+
+<p>These ownership rules might seem a tad limiting at first, but
+only because we are used to a different set of rules. They
+do not limit what is actually possible, they simply give us a
+different foundation for building higher-level constructions.</p>
+
+<p>Some of these constructions are way harder to make safe in other
+languages. Even if they are made safe, they do not necessarily
+provide compile-time safety guarantees.</p>
+
+<p>We will now overview some of them, available in the standard library.</p>
+
+<h3 id="memory-allocation">Memory Allocation</h3>
+
+<p>So far we talked about integer-like values, that live on a <strong>stack</strong>.
+Our test dummy <code class="language-plaintext highlighter-rouge">Bob</code> was such a value. While some popular languages can <em>also</em>
+keep values only on a stack (<code class="language-plaintext highlighter-rouge">struct</code> in C#, or
+value instantiation without <code class="language-plaintext highlighter-rouge">new</code> in C++), many do not.</p>
+
+<p>Instead, a newly constructed object instance (in many languages - with a <code class="language-plaintext highlighter-rouge">new</code>
+operator) is created in what is called the <strong>heap</strong> memory.</p>
+
+<p>The heap memory has some advantages. First, it is not limited by a stack size.
+Placing a huge structure on the a stack might simply overflow it.
+Second, its memory location does not change, unlike the location of a stack
+value. Every time a stack-allocated value is moved or copied, the actual
+bits need to be copied from one place of the stack to another.
+While it is very efficient for a small structure
+(the values are always “nearby”), it can become slower if the structure
+grows bigger.</p>
+
+<p><strong>Box</strong> solves this by moving our created value to the <strong>heap</strong>, while
+wrapping a small pointer to the heap location on the <strong>stack</strong>.</p>
+
+<p>For example, we can create our <code class="language-plaintext highlighter-rouge">Bob</code> in the heap memory like this:</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">bob</span> <span class="o">=</span> <span class="nn">Box</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Bob</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"A"</span><span class="p">));</span>
+<span class="p">}</span></code></pre></figure>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>new bob "A"
+del bob "A"
+</code></pre></div></div>
+
+<p>The type of value <code class="language-plaintext highlighter-rouge">bob</code> returned from Box::new is <code class="language-plaintext highlighter-rouge">Box&lt;Bob&gt;</code>.
+This <em>generic</em> type makes the <code class="language-plaintext highlighter-rouge">Bob</code> lifecycle managed by this <code class="language-plaintext highlighter-rouge">Box&lt;Bob&gt;</code>
+wrapper and deleted when the <code class="language-plaintext highlighter-rouge">Box</code> is deleted.</p>
+
+<p><code class="language-plaintext highlighter-rouge">Box</code> is not copyable, and follows the same ownership rules discussed
+previously. When it reached the end of life on the stack, its destructor <code class="language-plaintext highlighter-rouge">drop</code>
+was called, which subsequently called the <code class="language-plaintext highlighter-rouge">drop</code> on the <code class="language-plaintext highlighter-rouge">Bob</code>, as well
+as cleaned up the memory on the heap.</p>
+
+<p>The triviality of this implementation is a big deal. If we compare this
+to the solutions in other languages, they mostly do one of the two things.
+They either leave it up to you to clean up the memory (with some horrible
+<code class="language-plaintext highlighter-rouge">delete</code> statement someone will forget or call twice), or rely on
+garbage collection to track memory pointers and
+clean up memory when those pointers are no longer referenced.</p>
+
+<p>In Rust, ownership tracking has no runtime penalty and is ensured to be
+correct at compile-time. This simple memory deallocation over <code class="language-plaintext highlighter-rouge">Box</code>
+builds directly on ownership tracking, is small, safe and quite often
+sufficient.</p>
+
+<p>When it is not sufficient, there are other tools that can help with that.</p>
+
+<h3 id="reference-counting">Reference Counting</h3>
+
+<p>Rust has enough low-level tools for reference counting to be implemented as
+a library. It can be used in rare cases when the value has several owners,
+therefore its end of life can not be determined statically at compile-time.</p>
+
+<p>Rust has a better name for it: <em>shared ownership</em>.
+The <code class="language-plaintext highlighter-rouge">std::rc</code> library provides a way to <strong>share</strong> ownership of the
+same value between different <code class="language-plaintext highlighter-rouge">Rc</code> <em>handles</em>. The value remains alive
+as long as there is least one handle for it.</p>
+
+<p>For example, we can make a bob instance managed by <code class="language-plaintext highlighter-rouge">Rc</code> handle this way:</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">rc</span><span class="p">::</span><span class="nb">Rc</span><span class="p">;</span>
+
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">bob</span> <span class="o">=</span> <span class="nn">Rc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Bob</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"A"</span><span class="p">));</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">bob</span><span class="p">);</span>
+<span class="p">}</span></code></pre></figure>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>new bob A
+Rc(bob A)
+del bob A
+</code></pre></div></div>
+
+<p><a href="http://is.gd/5PGJCq">Try it here!</a></p>
+
+<p>We can change our <code class="language-plaintext highlighter-rouge">black_hole</code> function to accept <code class="language-plaintext highlighter-rouge">Rc&lt;Bob&gt;</code> and check if it is
+destroyed by it. But instead it would be more convenient to make it
+accept <strong>any</strong> type <code class="language-plaintext highlighter-rouge">T</code> that implements <code class="language-plaintext highlighter-rouge">Debug</code> trait (so we can print it).
+We are going to make it <em>generic</em>:</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="k">fn</span> <span class="n">black_hole</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">T</span><span class="p">)</span> <span class="k">where</span> <span class="n">T</span><span class="p">:</span> <span class="nn">fmt</span><span class="p">::</span><span class="n">Debug</span> <span class="p">{</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"imminent shrinkage {:?}"</span><span class="p">,</span> <span class="n">value</span><span class="p">);</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>Works the same, and we will not need to change it for every new type change.</p>
+
+<p>Now, back to sending <code class="language-plaintext highlighter-rouge">Rc&lt;Bob&gt;</code> to the black hole!</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">bob</span> <span class="o">=</span> <span class="nn">Rc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Bob</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"A"</span><span class="p">));</span>
+    <span class="nf">black_hole</span><span class="p">(</span><span class="n">bob</span><span class="nf">.clone</span><span class="p">());</span> <span class="c">// clone call</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">bob</span><span class="p">);</span>
+<span class="p">}</span></code></pre></figure>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>new bob "A"
+imminent shrinkage bob "A"
+bob "A"
+del bob "A"
+</code></pre></div></div>
+
+<p><a href="http://is.gd/swTG3e">Try it here!</a></p>
+
+<p>Plot twist: happy ending! Bob survives the black hole!</p>
+
+<p>Great! How does this work?</p>
+
+<p>Once wrapped by <code class="language-plaintext highlighter-rouge">Rc</code> handle, bob will live as long as there is a live <code class="language-plaintext highlighter-rouge">Rc</code> <strong>clone</strong>
+somewhere. <code class="language-plaintext highlighter-rouge">Rc</code> handle internally uses <code class="language-plaintext highlighter-rouge">Box</code> to place new value in heap memory,
+together with reference count (RC).</p>
+
+<p>Every time a new handle clone is created (by calling <code class="language-plaintext highlighter-rouge">clone</code> on <code class="language-plaintext highlighter-rouge">Rc</code>), the RC
+is increased, and when it reaches end of life, decreased. When
+RC reaches zero, the object itself is dropped and memory is deallocated.</p>
+
+<p>Note, that <code class="language-plaintext highlighter-rouge">Rc</code> above is not mutable. If the contents of <code class="language-plaintext highlighter-rouge">Bob</code> need to be mutated,
+it can be additionally wrapped in the <code class="language-plaintext highlighter-rouge">RefCell</code> type which allows a mutable
+borrow of a reference to our single bob instance. In the following example
+it will be mutated it in the <code class="language-plaintext highlighter-rouge">mutate</code> function.</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="k">fn</span> <span class="nf">mutate</span><span class="p">(</span><span class="n">bob</span><span class="p">:</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="n">RefCell</span><span class="o">&lt;</span><span class="n">Bob</span><span class="o">&gt;&gt;</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">bob</span><span class="nf">.borrow_mut</span><span class="p">()</span><span class="py">.name</span> <span class="o">=</span> <span class="s">"mutant"</span><span class="nf">.to_string</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">bob</span> <span class="o">=</span> <span class="nn">Rc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">RefCell</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Bob</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"A"</span><span class="p">)));</span>
+    <span class="nf">mutate</span><span class="p">(</span><span class="n">bob</span><span class="nf">.clone</span><span class="p">());</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">bob</span><span class="p">);</span>
+<span class="p">}</span></code></pre></figure>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>new bob "A"
+RefCell { value: bob "mutant" }
+del bob "mutant"
+</code></pre></div></div>
+
+<p><a href="http://is.gd/OBurg1">Try it here!</a></p>
+
+<p>The <code class="language-plaintext highlighter-rouge">RefCell</code> is used to provide what is called the <em>interior mutability</em>.
+It is just one of the tools in Rust toolbox to solve a specific problem.</p>
+
+<p>So, the point is: different low-level utilities in Rust can be combined
+to achieve <em>precisely</em> what is needed with minimal overhead.</p>
+
+<p>For example, <code class="language-plaintext highlighter-rouge">Rc</code> can only be used in the same thread. But there is a
+<code class="language-plaintext highlighter-rouge">Arc</code> type for <em>atomic</em> RC usable between threads. A
+mutable <code class="language-plaintext highlighter-rouge">Rc</code> might create cycles when multiple objects reference each other.
+However, <code class="language-plaintext highlighter-rouge">Rc</code> can be cloned into a <code class="language-plaintext highlighter-rouge">Weak</code> reference which does not participate
+in reference-counting. More information can be found in the
+<a href="http://doc.rust-lang.org/std/rc/">official documentation</a>.</p>
+
+<p>Most importantly, more advanced memory management mechanisms can (and will)
+be implemented later, and they can be done as libraries.</p>
+
+<h3 id="concurrency">Concurrency</h3>
+
+<p>It is interesting to see how Rust changes the way we work with threads.
+The default mode here is no data races. It is not because there are some
+special safety walls around threads, no. With Rust you can build
+your own threading library with similar safety properties, simply
+because the ownership model is in itself thread-safe.</p>
+
+<p>Consider what happens when we send two values into a new Rust thread, a
+<code class="language-plaintext highlighter-rouge">Bob</code> (movable) and an integer (copyable):</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">thread</span><span class="p">;</span>
+
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">bob</span> <span class="o">=</span> <span class="nn">Bob</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"A"</span><span class="p">);</span>
+    <span class="k">let</span> <span class="n">i</span> <span class="p">:</span> <span class="nb">i64</span> <span class="o">=</span> <span class="mi">12</span><span class="p">;</span>
+
+    <span class="k">let</span> <span class="n">child</span> <span class="o">=</span> <span class="nn">thread</span><span class="p">::</span><span class="nf">spawn</span><span class="p">(</span><span class="k">move</span> <span class="p">||</span> <span class="p">{</span>
+        <span class="nd">println!</span><span class="p">(</span><span class="s">"From thread, {:?} and {:?}!"</span><span class="p">,</span> <span class="n">bob</span><span class="p">,</span> <span class="n">i</span><span class="p">);</span>
+    <span class="p">});</span>
+
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"waiting for thread to end"</span><span class="p">);</span>
+    <span class="n">child</span><span class="nf">.join</span><span class="p">();</span>
+<span class="p">}</span></code></pre></figure>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>new bob "A"
+waiting for thread to end
+From thread, bob "A" and 12!
+del bob "A"
+</code></pre></div></div>
+
+<p><a href="http://is.gd/gOba5R">Try it here!</a></p>
+
+<p>What is happening there? First, we create two values:
+<code class="language-plaintext highlighter-rouge">bob</code> and <code class="language-plaintext highlighter-rouge">i</code>. Then we create a new thread with <code class="language-plaintext highlighter-rouge">thread::spawn</code>
+and pass a <em>closure</em> for it to execute. This closure is going to
+<em>capture</em> our variables <code class="language-plaintext highlighter-rouge">bob</code> as <code class="language-plaintext highlighter-rouge">i</code>.</p>
+
+<p>Capturing means different things for <code class="language-plaintext highlighter-rouge">Bob</code> and <code class="language-plaintext highlighter-rouge">i</code>. Because the <code class="language-plaintext highlighter-rouge">Bob</code> is
+non-<code class="language-plaintext highlighter-rouge">Copy</code>, it will be <em>moved</em> to the new thread. The <code class="language-plaintext highlighter-rouge">i</code> will be <em>copied</em>
+there. When the theead is running, we can modify original copy of <code class="language-plaintext highlighter-rouge">i</code>
+(if needed). It does not influence the copy that was passed to the thread.</p>
+
+<p><code class="language-plaintext highlighter-rouge">Bob</code>, however, is now owned by this new thread, and can not be modified unless
+the thread returns it back somehow. If we wanted, we could
+return it to the main thread over <code class="language-plaintext highlighter-rouge">child.join()</code> (the <code class="language-plaintext highlighter-rouge">join</code> waits for
+the thread to finish).</p>
+
+<figure class="highlight"><pre><code class="language-rust" data-lang="rust"><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">bob</span> <span class="o">=</span> <span class="nn">Bob</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="s">"A"</span><span class="p">);</span>
+
+    <span class="k">let</span> <span class="n">child</span> <span class="o">=</span> <span class="nn">thread</span><span class="p">::</span><span class="nf">spawn</span><span class="p">(</span><span class="k">move</span> <span class="p">||</span> <span class="p">{</span>
+        <span class="nf">mutate</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="n">bob</span><span class="p">);</span>
+        <span class="n">bob</span>
+    <span class="p">});</span>
+
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"waiting for thread to end"</span><span class="p">);</span>
+
+    <span class="k">if</span> <span class="k">let</span> <span class="nf">Ok</span><span class="p">(</span><span class="n">bob</span><span class="p">)</span> <span class="o">=</span> <span class="n">child</span><span class="nf">.join</span><span class="p">()</span> <span class="p">{</span>
+        <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">bob</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">fn</span> <span class="nf">mutate</span><span class="p">(</span><span class="n">bob</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">Bob</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">bob</span><span class="py">.name</span> <span class="o">=</span> <span class="s">"mutant"</span><span class="nf">.to_string</span><span class="p">();</span>
+<span class="p">}</span></code></pre></figure>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>new bob "A"
+waiting for thread to end
+bob "mutant"
+del bob "mutant"
+</code></pre></div></div>
+
+<p><a href="http://is.gd/6EG4JL">Experiment more here!</a></p>
+
+<p>One could say that this does not change much the way we used to work
+with threads - we know not to share same memory location
+between threads without some kind of synchronisation. The difference
+here is that Rust can enforce these rules at compile-time.</p>
+
+<p>Of course, more things are possible in Rust, for example,
+the <code class="language-plaintext highlighter-rouge">channels</code> can be used for sending and receiving data
+between threads in more efficient ways. More is available in
+<a href="http://doc.rust-lang.org/std/thread/">official threading documentation</a>,
+<a href="http://doc.rust-lang.org/std/sync/mpsc/">channel documentation</a>, and
+<a href="http://doc.rust-lang.org/1.0.0-beta.5/book/concurrency.html">the book</a>.</p>
+
+<h3 id="what-else">What Else?</h3>
+
+<p>We got familiar with ownership system in Rust to the point where
+we almost seem comfortable to jump in, browse the docs, and create
+great and safe programs with it.</p>
+
+<p>But the other side was glossed over completely: the <em>borrowing system</em>.</p>
+
+<p>Initially, I was planning to write a two-parter, with second part about
+the borrowing. But honestly, there are already many resources about it
+so I no longer feel like continuing. Sorry!</p>
+
+  </article>
+
+</div>
+
+      </div>
+    </div>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col  footer-col-1">
+        <ul class="contact-list">
+          <li>Nerijus Arlauskas</li>
+          <li><a href="mailto:nercury@gmail.com">nercury@gmail.com</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-2">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/Nercury">
+              <span class="icon  icon--github">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/>
+                </svg>
+              </span>
+
+              <span class="username">Nercury</span>
+            </a>
+          </li>
+          
+
+          
+          <li>
+            <a href="https://twitter.com/nercury">
+              <span class="icon  icon--twitter">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809
+                  c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/>
+                </svg>
+              </span>
+
+              <span class="username">nercury</span>
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-3">
+        <p class="text">Articles and tutorials about Rust, Embedded development and Computer Graphics.
+</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>

@@ -1,0 +1,3 @@
+archive/reference-site/** -text
+archive/reference-site.manifest -text
+*.sh text eol=lf

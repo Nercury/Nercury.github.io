@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <title>Rust and OpenGL from scratch - Vertex Attribute Format</title>
+    <meta name="description" content="Articles and tutorials about Rust, Embedded development and Computer Graphics.
+">
+
+    <link rel="shortcut icon" type="image/png" href="/favicon.ico"/>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/pygments/default.css">
+    <link rel="stylesheet" href="/css/font-awesome.css">
+    <link rel="canonical" href="http://nercury.github.io/rust/opengl/tutorial/2018/06/27/opengl-in-rust-from-scratch-09-vertex-attribute-format.html">
+    <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles/color-brewer.css">
+
+    <script src="/js/highlight.pack.js"></script>
+
+    <script src="/js/jquery.min.js"></script>
+    
+    <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+      ga('create', 'UA-56288576-1', 'auto');
+      ga('require', 'displayfeatures');
+      ga('send', 'pageview');
+    </script>
+    
+    <script>
+        $(function() {
+            hljs.initHighlightingOnLoad();
+            return $("h1, h2, h3, h4, h5, h6").each(function(i, el) {
+                console.log(el);
+                var $el, icon, id;
+                $el = $(el);
+                id = $el.attr('id');
+                icon = '<i class="fa fa-link"></i>';
+                if (id) {
+                  return $el.prepend($("<a />").addClass("header-link").attr("href", "#" + id).html(icon));
+                }
+            });
+        });
+    </script>
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Ironic Blog</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+        
+          
+          <a class="page-link" href="/about/">About Me</a>
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <div class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Rust and OpenGL from scratch - Vertex Attribute Format</h1>
+    <p class="post-meta">Jun 27, 2018</p>
+  </header>
+
+  <article class="post-content">
+    <p>Welcome back!</p>
+
+<p>Previously, 
+we have spent a few lessons <a href="/rust/opengl/tutorial/2018/02/12/opengl-in-rust-from-scratch-06-gl-generator.html">taking control of our gl bindings</a>, <a href="/rust/opengl/tutorial/2018/02/14/opengl-in-rust-from-scratch-07-basic-resources.html">setting up simple
+resource loader from files</a> and <a href="/rust/opengl/tutorial/2018/02/15/opengl-in-rust-from-scratch-08-failure.html">tidying up the error handling with the <code class="language-plaintext highlighter-rouge">failure</code> crate</a>.</p>
+
+<p>It’s time we start tackling the most error-prone part of our sample code, the one that configures 
+vertex array object attributes.</p>
+
+<p>If you were not following the series <a href="/rust/opengl/tutorial/2018/02/08/opengl-in-rust-from-scratch-00-setup.html">from the beginning</a>, you can jump-in by <a href="https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-08">loading the
+code from the previous lesson</a>, and
+I will try my best to give enough context to follow from there.</p>
+
+<h2 id="current-state">Current state</h2>
+
+<p>Currently, we set up Vertex Array Object (VAO) once:</p>
+
+<p>(example, main.rs, run() function)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">vao</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLuint</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+<span class="k">unsafe</span> <span class="p">{</span>
+    <span class="n">gl</span><span class="nf">.GenVertexArrays</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">vao</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c">// continued from here</span>
+</code></pre></div></div>
+
+<p>Then, inside the unsafe block (because all the functions are unsafe, we just wrap them all inside a single
+unsafe block), we bind array and buffer (so that they are linked):</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">unsafe</span> <span class="p">{</span>
+    <span class="n">gl</span><span class="nf">.BindVertexArray</span><span class="p">(</span><span class="n">vao</span><span class="p">);</span>
+    <span class="n">gl</span><span class="nf">.BindBuffer</span><span class="p">(</span><span class="nn">gl</span><span class="p">::</span><span class="n">ARRAY_BUFFER</span><span class="p">,</span> <span class="n">vbo</span><span class="p">);</span>
+    
+    <span class="c">// continued from here</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Say that we are setting up <code class="language-plaintext highlighter-rouge">0</code>-th attribute of VAO:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="n">gl</span><span class="nf">.EnableVertexAttribArray</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span> <span class="c">// this is "layout (location = 0)" in vertex shader</span>
+    
+    <span class="c">// continued from here</span>
+</code></pre></div></div>
+
+<p>And and finally set up the format of this attribute. In our case, it is used to pass position to shader:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="n">gl</span><span class="nf">.VertexAttribPointer</span><span class="p">(</span>
+        <span class="mi">0</span><span class="p">,</span> <span class="c">// index of the generic vertex attribute ("layout (location = 0)")</span>
+        <span class="mi">3</span><span class="p">,</span> <span class="c">// the number of components per generic vertex attribute</span>
+        <span class="nn">gl</span><span class="p">::</span><span class="n">FLOAT</span><span class="p">,</span> <span class="c">// data type</span>
+        <span class="nn">gl</span><span class="p">::</span><span class="n">FALSE</span><span class="p">,</span> <span class="c">// normalized (int-to-float conversion)</span>
+        <span class="p">(</span><span class="mi">6</span> <span class="o">*</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="nb">f32</span><span class="o">&gt;</span><span class="p">())</span> <span class="k">as</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLint</span><span class="p">,</span> <span class="c">// stride (byte offset between consecutive attributes)</span>
+        <span class="nn">std</span><span class="p">::</span><span class="nn">ptr</span><span class="p">::</span><span class="nf">null</span><span class="p">()</span> <span class="c">// offset of the first component</span>
+    <span class="p">);</span>
+    
+    <span class="c">// continued from here</span>
+</code></pre></div></div>
+
+<p>Then, we do the same for the color attribute:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="n">gl</span><span class="nf">.EnableVertexAttribArray</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="c">// this is "layout (location = 0)" in vertex shader</span>
+    <span class="n">gl</span><span class="nf">.VertexAttribPointer</span><span class="p">(</span>
+        <span class="mi">1</span><span class="p">,</span> <span class="c">// index of the generic vertex attribute ("layout (location = 0)")</span>
+        <span class="mi">3</span><span class="p">,</span> <span class="c">// the number of components per generic vertex attribute</span>
+        <span class="nn">gl</span><span class="p">::</span><span class="n">FLOAT</span><span class="p">,</span> <span class="c">// data type</span>
+        <span class="nn">gl</span><span class="p">::</span><span class="n">FALSE</span><span class="p">,</span> <span class="c">// normalized (int-to-float conversion)</span>
+        <span class="p">(</span><span class="mi">6</span> <span class="o">*</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="nb">f32</span><span class="o">&gt;</span><span class="p">())</span> <span class="k">as</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLint</span><span class="p">,</span> <span class="c">// stride (byte offset between consecutive attributes)</span>
+        <span class="p">(</span><span class="mi">3</span> <span class="o">*</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="nb">f32</span><span class="o">&gt;</span><span class="p">())</span> <span class="k">as</span> <span class="o">*</span><span class="k">const</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLvoid</span> <span class="c">// offset of the first component</span>
+    <span class="p">);</span>
+</code></pre></div></div>
+
+<p>Note how easy it is to make a mistake here. And this is only an example of a simple triangle!</p>
+
+<p>In this lesson, we will focus on a zero-cost abstraction
+that will help us reduce the possibility of mistakes while setting up VAOs.</p>
+
+<h2 id="what-we-are-dealing-with">What we are dealing with</h2>
+
+<p><code class="language-plaintext highlighter-rouge">VertexAttribPointer</code> call definition looks like this:</p>
+
+<pre><code class="language-C">void glVertexAttribPointer(
+    GLuint index, /* index of the generic vertex attribute */
+    GLint size, /* the number of components per generic vertex attribute: 1, 2, 3, 4 */
+    GLenum type, /* data type of each component, like GL_FLOAT */
+    GLboolean normalized, /* fixed-point data values converted to floats */
+    GLsizei stride, /* byte offset between consecutive generic vertex attributes */
+    const GLvoid * pointer /* offset of the first component of the first generic vertex attribute */
+);
+</code></pre>
+
+<p><a href="http://docs.gl/gl4/glVertexAttribPointer">VertexAttribPointer</a> is a complex API call, that can configure at least 
+66 different attribute formats.
+It has 3 function variants (<code class="language-plaintext highlighter-rouge">glVertexAttribPointer</code>, <code class="language-plaintext highlighter-rouge">glVertexAttribIPointer</code>, <code class="language-plaintext highlighter-rouge">glVertexAttribLPointer</code>),
+varying <code class="language-plaintext highlighter-rouge">type</code> parameters per function (<code class="language-plaintext highlighter-rouge">GL_BYTE</code>, <code class="language-plaintext highlighter-rouge">GL_FLOAT</code>, etc.), int-to-float conversions 
+(so-called “normalized” values),
+half-float formats or formats where 4 floating point values are packed into 4 bytes, paddings between
+values configured with “stride”, various dependencies between these parameters, 
+different capabilities in different OpenGL versions, and driver bugs.</p>
+
+<p>In fact, the last “driver bugs” point makes it abundantly clear that we won’t create a perfect
+abstraction here. For the awesome attempt to do that, you should check out the <a href="https://github.com/glium/glium">glium</a>
+library, as well as post by its original author on <a href="https://users.rust-lang.org/t/glium-post-mortem/7063">why he is leaving glium</a>.</p>
+
+<p>Instead, we will focus on building VAOs in a way that gradually improves maintainability of our code
+while leaving the design as simple as possible.</p>
+
+<h2 id="prerequisites">Prerequisites</h2>
+
+<p>We are going to expand <code class="language-plaintext highlighter-rouge">render_gl</code> submodule. We are not using 
+<a href="https://rust-lang-nursery.github.io/edition-guide/2018/index.html">Rust 2018</a> syntax yet,
+so we need to:</p>
+
+<ul>
+  <li>create directory <code class="language-plaintext highlighter-rouge">render_gl</code></li>
+  <li>move <code class="language-plaintext highlighter-rouge">render_gl.rs</code> to <code class="language-plaintext highlighter-rouge">render_gl/mod.rs</code></li>
+</ul>
+
+<p>This should compile.</p>
+
+<p>With this done, we can move all the code into even deeper <code class="language-plaintext highlighter-rouge">shader</code> submodule, leaving <code class="language-plaintext highlighter-rouge">render_gl</code>
+free to define more submodules at the top.</p>
+
+<p>First, create <code class="language-plaintext highlighter-rouge">render_gl/shader.rs</code>, and move everything that was inside <code class="language-plaintext highlighter-rouge">render_gl/mod.rs</code> there.</p>
+
+<p>Then, inside the <code class="language-plaintext highlighter-rouge">render_gl/mod.rs</code> we can keep the <code class="language-plaintext highlighter-rouge">shader</code> submodule private (use <code class="language-plaintext highlighter-rouge">mod shader</code>
+instead of <code class="language-plaintext highlighter-rouge">pub mod shader</code>), and re-export types from <code class="language-plaintext highlighter-rouge">render_gl::shader</code> as members of <code class="language-plaintext highlighter-rouge">render_gl</code>:</p>
+
+<p>(render_gl/mod.rs, full file)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">shader</span><span class="p">;</span>
+
+<span class="k">pub</span> <span class="k">use</span> <span class="k">self</span><span class="p">::</span><span class="nn">shader</span><span class="p">::{</span><span class="n">Shader</span><span class="p">,</span> <span class="n">Program</span><span class="p">,</span> <span class="n">Error</span><span class="p">};</span>
+</code></pre></div></div>
+
+<p>This should continue compiling. If it was a bit confusing, you may always check out the final
+code (link should be at the end of this post).</p>
+
+<h2 id="a-new-type-for-a-vertex-attribute">A new type for a Vertex Attribute</h2>
+
+<p>Currently, our vertex data is in a continuous <code class="language-plaintext highlighter-rouge">f32</code> array:</p>
+
+<p>(existing code, main.rs)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// set up vertex buffer object</span>
+
+<span class="k">let</span> <span class="n">vertices</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">f32</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nd">vec!</span><span class="p">[</span>
+    <span class="c">// positions      // colors</span>
+    <span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span>   <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span>   <span class="c">// bottom right</span>
+    <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span>  <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span>   <span class="c">// bottom left</span>
+    <span class="mf">0.0</span><span class="p">,</span>  <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span>   <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span>    <span class="c">// top</span>
+<span class="p">];</span>
+</code></pre></div></div>
+
+<p>This is suboptimal: rememeber, every line here contains the data that is received by
+the vertex shader. The data should not be limited to floats.</p>
+
+<p>Instead, we can create a new type for each possible vertex attribute.
+Here, we have two attributes per vertex: position and color, both are using <code class="language-plaintext highlighter-rouge">vec3</code> floating
+point vector. We will start by creating a type for this vector in the <code class="language-plaintext highlighter-rouge">render_gl</code> module:</p>
+
+<p>(render_gl/mod.rs, new line at the top)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">mod</span> <span class="n">data</span><span class="p">;</span>
+
+<span class="c">// the rest of the exsiting file</span>
+</code></pre></div></div>
+
+<p>(render_gl/data.rs, new file)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[allow(non_camel_case_types)]</span>
+<span class="nd">#[derive(Copy,</span> <span class="nd">Clone,</span> <span class="nd">Debug)]</span>
+<span class="nd">#[repr(C,</span> <span class="nd">packed)]</span>
+<span class="k">pub</span> <span class="k">struct</span> <span class="n">f32_f32_f32</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="n">d0</span><span class="p">:</span> <span class="nb">f32</span><span class="p">,</span>
+    <span class="k">pub</span> <span class="n">d1</span><span class="p">:</span> <span class="nb">f32</span><span class="p">,</span>
+    <span class="k">pub</span> <span class="n">d2</span><span class="p">:</span> <span class="nb">f32</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="c">// continue here</span>
+</code></pre></div></div>
+
+<p>We allow <code class="language-plaintext highlighter-rouge">non_camel_case_types</code>, because this name does not follow Rust conventions. Of course,
+you may pick another name, but I like the readability of this one.</p>
+
+<p>Deriving <code class="language-plaintext highlighter-rouge">Copy, Clone</code>, allows this type to be trivially copied like a primitive
+int or float. The <code class="language-plaintext highlighter-rouge">Debug</code> allows to print value in <code class="language-plaintext highlighter-rouge">println</code> or <code class="language-plaintext highlighter-rouge">format</code> call.</p>
+
+<p>The <code class="language-plaintext highlighter-rouge">repr(C, packed)</code> makes rust use <code class="language-plaintext highlighter-rouge">C</code>-like layout, and <code class="language-plaintext highlighter-rouge">packed</code> makes sure <code class="language-plaintext highlighter-rouge">f32</code> components
+do not contain gaps between. Otherwise Rust might align fields to 4 bytes, which is no-issue with
+4-byte wide <code class="language-plaintext highlighter-rouge">f32</code>, but might be an issue for other data types we are going to create in later
+lessons, like <code class="language-plaintext highlighter-rouge">i16_i16</code>; 
+therefore we will use <code class="language-plaintext highlighter-rouge">repr(C, packed)</code> for everything, just to make this explicit.</p>
+
+<p>There is a caveat for non-aligned value usage: modifying it through a pointer
+<a href="https://github.com/rust-lang/rust/issues/27060">is undefined behavior</a>. However, 
+we can rememeber to  <em>not</em> to do that, and Rust will at least issue a warning if we try.</p>
+
+<p>This is another reason why we create a new type specifically for storing a vertex value - 
+we should not work directly with the packed value, instead, this value should simply store
+the end result of some computation.</p>
+
+<p>It is also a reason for not re-using <code class="language-plaintext highlighter-rouge">Vec3</code> type from
+some existing math library. We need full control of the layout that must be in agreement 
+with OpenGL spec. This also means that this struct is specific to OpenGL renderer; if we were
+to write, say, <code class="language-plaintext highlighter-rouge">Vulkan</code> renderer, we would take care of the structs specific to it in a
+context of <code class="language-plaintext highlighter-rouge">Vulkan</code>.</p>
+
+<p>Let’s create a convenience constructor:</p>
+
+<p>(render_gl/data.rs, continued)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">f32_f32_f32</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">d0</span><span class="p">:</span> <span class="nb">f32</span><span class="p">,</span> <span class="n">d1</span><span class="p">:</span> <span class="nb">f32</span><span class="p">,</span> <span class="n">d2</span><span class="p">:</span> <span class="nb">f32</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">f32_f32_f32</span> <span class="p">{</span>
+        <span class="n">f32_f32_f32</span> <span class="p">{</span>
+            <span class="n">d0</span><span class="p">,</span> <span class="n">d1</span><span class="p">,</span> <span class="n">d2</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c">// continue here</span>
+</code></pre></div></div>
+
+<p>This allows us to initialize the data this way:</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">f32_f32_f32</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>We can shrink the code a bit more if we implement conversion from tuple:</p>
+
+<p>(render_gl/data.rs, continued)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">From</span><span class="o">&lt;</span><span class="p">(</span><span class="nb">f32</span><span class="p">,</span> <span class="nb">f32</span><span class="p">,</span> <span class="nb">f32</span><span class="p">)</span><span class="o">&gt;</span> <span class="k">for</span> <span class="n">f32_f32_f32</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">from</span><span class="p">(</span><span class="n">other</span><span class="p">:</span> <span class="p">(</span><span class="nb">f32</span><span class="p">,</span> <span class="nb">f32</span><span class="p">,</span> <span class="nb">f32</span><span class="p">))</span> <span class="k">-&gt;</span> <span class="n">Self</span> <span class="p">{</span>
+        <span class="nn">f32_f32_f32</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">other</span><span class="err">.</span><span class="mi">0</span><span class="p">,</span> <span class="n">other</span><span class="err">.</span><span class="mi">1</span><span class="p">,</span> <span class="n">other</span><span class="err">.</span><span class="mi">2</span><span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>This allows us to write more brief initialization from tuple:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">result</span><span class="p">:</span> <span class="n">f32_f32_f32</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span><span class="nf">.into</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p>This magic may require some explanation: the <code class="language-plaintext highlighter-rouge">into</code> method is implemented for any type
+that has <code class="language-plaintext highlighter-rouge">From</code> implementation for the returned value type. Implementation of <code class="language-plaintext highlighter-rouge">Into</code> is
+in the Rust standard library:</p>
+
+<p>(rust standard library)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">U</span><span class="o">&gt;</span> <span class="n">Into</span><span class="o">&lt;</span><span class="n">U</span><span class="o">&gt;</span> <span class="k">for</span> <span class="n">T</span> <span class="k">where</span> <span class="n">U</span><span class="p">:</span> <span class="n">From</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span>
+<span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">into</span><span class="p">(</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">U</span> <span class="p">{</span>
+        <span class="nn">U</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="k">self</span><span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>It is very useful for implementing something akin to explicit casts between types.</p>
+
+<p>With that done, we can include our <code class="language-plaintext highlighter-rouge">render_gl::data</code> types in <code class="language-plaintext highlighter-rouge">main.rs</code>:</p>
+
+<p>(main.rs, another <code class="language-plaintext highlighter-rouge">use</code> statement)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">render_gl</span><span class="p">::</span><span class="n">data</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>And then we can replace our <code class="language-plaintext highlighter-rouge">vertices</code> initialization with our new type:</p>
+
+<p>(main.rs, replace existing code)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// set up vertex buffer object</span>
+
+<span class="k">let</span> <span class="n">vertices</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nd">vec!</span><span class="p">[</span>
+    <span class="c">// positions      // colors</span>
+    <span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span><span class="nf">.into</span><span class="p">(),</span>   <span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span><span class="nf">.into</span><span class="p">(),</span>   <span class="c">// bottom right</span>
+    <span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span><span class="nf">.into</span><span class="p">(),</span>  <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span><span class="nf">.into</span><span class="p">(),</span>   <span class="c">// bottom left</span>
+    <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span>  <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span><span class="nf">.into</span><span class="p">(),</span>   <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span><span class="nf">.into</span><span class="p">()</span>    <span class="c">// top</span>
+<span class="p">];</span>
+</code></pre></div></div>
+
+<p>If we run it now, we would see something undefined (or nothing) on screen.
+It’s because <code class="language-plaintext highlighter-rouge">gl.BufferData</code> length in bytes was defined as this:</p>
+
+<p>(existing code)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">vertices</span><span class="nf">.len</span><span class="p">()</span> <span class="o">*</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="nb">f32</span><span class="o">&gt;</span><span class="p">()</span>
+</code></pre></div></div>
+
+<p>Out element in the vector is not longer a <code class="language-plaintext highlighter-rouge">f32</code>, it’s <code class="language-plaintext highlighter-rouge">data::f32_f32_f32</code>.
+We need to change the code to match it:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">vertices</span><span class="nf">.len</span><span class="p">()</span> <span class="o">*</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="o">&gt;</span><span class="p">()</span>
+</code></pre></div></div>
+
+<p>Let’s modify <code class="language-plaintext highlighter-rouge">gl.BufferData</code> call:</p>
+
+<p>(main.rs, replace <code class="language-plaintext highlighter-rouge">gl.BufferData</code> call)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">gl</span><span class="nf">.BufferData</span><span class="p">(</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="n">ARRAY_BUFFER</span><span class="p">,</span> <span class="c">// target</span>
+    <span class="p">(</span><span class="n">vertices</span><span class="nf">.len</span><span class="p">()</span> <span class="o">*</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="o">&gt;</span><span class="p">())</span> <span class="k">as</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLsizeiptr</span><span class="p">,</span> <span class="c">// size of data in bytes</span>
+    <span class="n">vertices</span><span class="nf">.as_ptr</span><span class="p">()</span> <span class="k">as</span> <span class="o">*</span><span class="k">const</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLvoid</span><span class="p">,</span> <span class="c">// pointer to data</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="n">STATIC_DRAW</span><span class="p">,</span> <span class="c">// usage</span>
+<span class="p">);</span>
+</code></pre></div></div>
+
+<p>Let’s run it, the triangle should be back on screen!</p>
+
+<h2 id="a-new-type-for-a-vertex">A new type for a Vertex</h2>
+
+<p>To move further, we will create a new vertex type for our vertex data, which
+will group color and position into a single struct:</p>
+
+<p>(main.rs, above <code class="language-plaintext highlighter-rouge">fn main()</code>)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Copy,</span> <span class="nd">Clone,</span> <span class="nd">Debug)]</span>
+<span class="nd">#[repr(C,</span> <span class="nd">packed)]</span>
+<span class="k">struct</span> <span class="n">Vertex</span> <span class="p">{</span>
+    <span class="n">pos</span><span class="p">:</span> <span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="p">,</span>
+    <span class="n">clr</span><span class="p">:</span> <span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>We define this vertex inside main, because we will customize it later for whatever
+shader we will be writing. Right now we named struct <code class="language-plaintext highlighter-rouge">Vertex</code>, because there are no other types
+of vertices, but we can imagine types like <code class="language-plaintext highlighter-rouge">MetalShaderVertex</code> or <code class="language-plaintext highlighter-rouge">ParticleSystemVertex</code>.</p>
+
+<p>And finally, let’s modify <code class="language-plaintext highlighter-rouge">vertices</code> initialization:</p>
+
+<p>(main.rs, replace code)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// set up vertex buffer object</span>
+
+<span class="k">let</span> <span class="n">vertices</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Vertex</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nd">vec!</span><span class="p">[</span>
+    <span class="n">Vertex</span> <span class="p">{</span> <span class="n">pos</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span><span class="nf">.into</span><span class="p">(),</span>  <span class="n">clr</span><span class="p">:</span> <span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span><span class="nf">.into</span><span class="p">()</span> <span class="p">},</span> <span class="c">// bottom right</span>
+    <span class="n">Vertex</span> <span class="p">{</span> <span class="n">pos</span><span class="p">:</span> <span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span><span class="nf">.into</span><span class="p">(),</span> <span class="n">clr</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span><span class="nf">.into</span><span class="p">()</span> <span class="p">},</span> <span class="c">// bottom left</span>
+    <span class="n">Vertex</span> <span class="p">{</span> <span class="n">pos</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span>  <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span><span class="nf">.into</span><span class="p">(),</span>  <span class="n">clr</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span><span class="nf">.into</span><span class="p">()</span> <span class="p">}</span>  <span class="c">// top</span>
+<span class="p">];</span>
+</code></pre></div></div>
+
+<p>Some verbosity here is not an issue. In a real application, we would rarely load this data by hand:
+usually we would import it from a mesh file (exported from some 3D modeling program) or auto-generate
+it procedurally.</p>
+
+<p>Let’s not forget to fix <code class="language-plaintext highlighter-rouge">gl.BufferData</code> call (use <code class="language-plaintext highlighter-rouge">size_of::&lt;Vertex&gt;</code>):</p>
+
+<p>(main.rs, replace code)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">gl</span><span class="nf">.BufferData</span><span class="p">(</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="n">ARRAY_BUFFER</span><span class="p">,</span> <span class="c">// target</span>
+    <span class="p">(</span><span class="n">vertices</span><span class="nf">.len</span><span class="p">()</span> <span class="o">*</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="n">Vertex</span><span class="o">&gt;</span><span class="p">())</span> <span class="k">as</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLsizeiptr</span><span class="p">,</span> <span class="c">// size of data in bytes</span>
+    <span class="n">vertices</span><span class="nf">.as_ptr</span><span class="p">()</span> <span class="k">as</span> <span class="o">*</span><span class="k">const</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLvoid</span><span class="p">,</span> <span class="c">// pointer to data</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="n">STATIC_DRAW</span><span class="p">,</span> <span class="c">// usage</span>
+<span class="p">);</span>
+</code></pre></div></div>
+
+<p>The code should compile and we should be again greeted by our humble triangle.</p>
+
+<h2 id="nicer-vertex-attribute-pointers-setup">Nicer vertex attribute pointers Setup</h2>
+
+<p>Currently, the code that sets up vertex attribute pointer with <code class="language-plaintext highlighter-rouge">gl.EnableVertexAttribArray</code>
+and <code class="language-plaintext highlighter-rouge">gl.VertexAttribPointer</code> would be very error-prone to maintain. Using our new
+<code class="language-plaintext highlighter-rouge">Vertex</code> as a starting point, we are going to gradually refactor this set up code…</p>
+
+<p>(main.rs, snippet)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// replace this code</span>
+
+<span class="n">gl</span><span class="nf">.EnableVertexAttribArray</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span> <span class="c">// this is "layout (location = 0)" in vertex shader</span>
+<span class="n">gl</span><span class="nf">.VertexAttribPointer</span><span class="p">(</span>
+    <span class="mi">0</span><span class="p">,</span> <span class="c">// index of the generic vertex attribute ("layout (location = 0)")</span>
+    <span class="mi">3</span><span class="p">,</span> <span class="c">// the number of components per generic vertex attribute</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="n">FLOAT</span><span class="p">,</span> <span class="c">// data type</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="n">FALSE</span><span class="p">,</span> <span class="c">// normalized (int-to-float conversion)</span>
+    <span class="p">(</span><span class="mi">6</span> <span class="o">*</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="nb">f32</span><span class="o">&gt;</span><span class="p">())</span> <span class="k">as</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLint</span><span class="p">,</span> <span class="c">// stride (byte offset between consecutive attributes)</span>
+    <span class="nn">std</span><span class="p">::</span><span class="nn">ptr</span><span class="p">::</span><span class="nf">null</span><span class="p">()</span> <span class="c">// offset of the first component</span>
+<span class="p">);</span>
+<span class="n">gl</span><span class="nf">.EnableVertexAttribArray</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="c">// this is "layout (location = 0)" in vertex shader</span>
+<span class="n">gl</span><span class="nf">.VertexAttribPointer</span><span class="p">(</span>
+    <span class="mi">1</span><span class="p">,</span> <span class="c">// index of the generic vertex attribute ("layout (location = 0)")</span>
+    <span class="mi">3</span><span class="p">,</span> <span class="c">// the number of components per generic vertex attribute</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="n">FLOAT</span><span class="p">,</span> <span class="c">// data type</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="n">FALSE</span><span class="p">,</span> <span class="c">// normalized (int-to-float conversion)</span>
+    <span class="p">(</span><span class="mi">6</span> <span class="o">*</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="nb">f32</span><span class="o">&gt;</span><span class="p">())</span> <span class="k">as</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLint</span><span class="p">,</span> <span class="c">// stride (byte offset between consecutive attributes)</span>
+    <span class="p">(</span><span class="mi">3</span> <span class="o">*</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="nb">f32</span><span class="o">&gt;</span><span class="p">())</span> <span class="k">as</span> <span class="o">*</span><span class="k">const</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLvoid</span> <span class="c">// offset of the first component</span>
+<span class="p">);</span>
+</code></pre></div></div>
+
+<p>…into a call on the <code class="language-plaintext highlighter-rouge">Vertex</code>:</p>
+
+<p>(main.rs, replace previous snippet)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// replace previous code with this</span>
+
+<span class="nn">Vertex</span><span class="p">::</span><span class="nf">vertex_attrib_pointers</span><span class="p">(</span><span class="o">&amp;</span><span class="n">gl</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>Let’s create this function on <code class="language-plaintext highlighter-rouge">Vertex</code> type (this function does not have <code class="language-plaintext highlighter-rouge">self</code> parameter, 
+so it is similar to a static method in other languages):</p>
+
+<p>(main.rs, bellow <code class="language-plaintext highlighter-rouge">struct Vertex { ... }</code>)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Vertex</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">vertex_attrib_pointers</span><span class="p">(</span><span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">unsafe</span> <span class="p">{</span>
+            <span class="n">gl</span><span class="nf">.EnableVertexAttribArray</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span> <span class="c">// this is "layout (location = 0)" in vertex shader</span>
+            <span class="n">gl</span><span class="nf">.VertexAttribPointer</span><span class="p">(</span>
+                <span class="mi">0</span><span class="p">,</span> <span class="c">// index of the generic vertex attribute ("layout (location = 0)")</span>
+                <span class="mi">3</span><span class="p">,</span> <span class="c">// the number of components per generic vertex attribute</span>
+                <span class="nn">gl</span><span class="p">::</span><span class="n">FLOAT</span><span class="p">,</span> <span class="c">// data type</span>
+                <span class="nn">gl</span><span class="p">::</span><span class="n">FALSE</span><span class="p">,</span> <span class="c">// normalized (int-to-float conversion)</span>
+                <span class="p">(</span><span class="mi">6</span> <span class="o">*</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="nb">f32</span><span class="o">&gt;</span><span class="p">())</span> <span class="k">as</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLint</span><span class="p">,</span> <span class="c">// stride (byte offset between consecutive attributes)</span>
+                <span class="nn">std</span><span class="p">::</span><span class="nn">ptr</span><span class="p">::</span><span class="nf">null</span><span class="p">()</span> <span class="c">// offset of the first component</span>
+            <span class="p">);</span>
+            <span class="n">gl</span><span class="nf">.EnableVertexAttribArray</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="c">// this is "layout (location = 0)" in vertex shader</span>
+            <span class="n">gl</span><span class="nf">.VertexAttribPointer</span><span class="p">(</span>
+                <span class="mi">1</span><span class="p">,</span> <span class="c">// index of the generic vertex attribute ("layout (location = 0)")</span>
+                <span class="mi">3</span><span class="p">,</span> <span class="c">// the number of components per generic vertex attribute</span>
+                <span class="nn">gl</span><span class="p">::</span><span class="n">FLOAT</span><span class="p">,</span> <span class="c">// data type</span>
+                <span class="nn">gl</span><span class="p">::</span><span class="n">FALSE</span><span class="p">,</span> <span class="c">// normalized (int-to-float conversion)</span>
+                <span class="p">(</span><span class="mi">6</span> <span class="o">*</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="nb">f32</span><span class="o">&gt;</span><span class="p">())</span> <span class="k">as</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLint</span><span class="p">,</span> <span class="c">// stride (byte offset between consecutive attributes)</span>
+                <span class="p">(</span><span class="mi">3</span> <span class="o">*</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="nb">f32</span><span class="o">&gt;</span><span class="p">())</span> <span class="k">as</span> <span class="o">*</span><span class="k">const</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLvoid</span> <span class="c">// offset of the first component</span>
+            <span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>(The above should compile)</p>
+
+<p>Here, we will continue to move two very similar parts into an implementation
+on <code class="language-plaintext highlighter-rouge">data::f32_f32_f32</code> type. But first, let’s refactor <code class="language-plaintext highlighter-rouge">vertex_attrib_pointers</code> code a bit
+so that it would be easy to see the duplicate code:</p>
+
+<p>(main.rs, rewritten <code class="language-plaintext highlighter-rouge">Vertex::vertex_attrib_pointers</code> implementation)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Vertex</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">vertex_attrib_pointers</span><span class="p">(</span><span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="n">stride</span> <span class="o">=</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="n">Self</span><span class="o">&gt;</span><span class="p">();</span> <span class="c">// byte offset between consecutive attributes</span>
+
+        <span class="k">let</span> <span class="n">location</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="c">// layout (location = 0)</span>
+        <span class="k">let</span> <span class="n">offset</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="c">// offset of the first component</span>
+
+        <span class="k">unsafe</span> <span class="p">{</span>
+            <span class="n">gl</span><span class="nf">.EnableVertexAttribArray</span><span class="p">(</span><span class="n">location</span><span class="p">);</span>
+            <span class="n">gl</span><span class="nf">.VertexAttribPointer</span><span class="p">(</span>
+                <span class="n">location</span><span class="p">,</span>
+                <span class="mi">3</span><span class="p">,</span> <span class="c">// the number of components per generic vertex attribute</span>
+                <span class="nn">gl</span><span class="p">::</span><span class="n">FLOAT</span><span class="p">,</span> <span class="c">// data type</span>
+                <span class="nn">gl</span><span class="p">::</span><span class="n">FALSE</span><span class="p">,</span> <span class="c">// normalized (int-to-float conversion)</span>
+                <span class="n">stride</span> <span class="k">as</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLint</span><span class="p">,</span>
+                <span class="n">offset</span> <span class="k">as</span> <span class="o">*</span><span class="k">const</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLvoid</span>
+            <span class="p">);</span>
+        <span class="p">}</span>
+
+        <span class="k">let</span> <span class="n">location</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="c">// layout (location = 1)</span>
+        <span class="k">let</span> <span class="n">offset</span> <span class="o">=</span> <span class="n">offset</span> <span class="o">+</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="o">&gt;</span><span class="p">();</span> <span class="c">// offset of the first component</span>
+
+        <span class="k">unsafe</span> <span class="p">{</span>
+            <span class="n">gl</span><span class="nf">.EnableVertexAttribArray</span><span class="p">(</span><span class="n">location</span><span class="p">);</span>
+            <span class="n">gl</span><span class="nf">.VertexAttribPointer</span><span class="p">(</span>
+                <span class="n">location</span><span class="p">,</span>
+                <span class="mi">3</span><span class="p">,</span> <span class="c">// the number of components per generic vertex attribute</span>
+                <span class="nn">gl</span><span class="p">::</span><span class="n">FLOAT</span><span class="p">,</span> <span class="c">// data type</span>
+                <span class="nn">gl</span><span class="p">::</span><span class="n">FALSE</span><span class="p">,</span> <span class="c">// normalized (int-to-float conversion)</span>
+                <span class="n">stride</span> <span class="k">as</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLint</span><span class="p">,</span>
+                <span class="n">offset</span> <span class="k">as</span> <span class="o">*</span><span class="k">const</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLvoid</span>
+            <span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>(The above should compile)</p>
+
+<p>The magic numbers got replaced by the actual sizes of <code class="language-plaintext highlighter-rouge">Vertex</code> and its components:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">6 * std::mem::size_of::&lt;f32&gt;()</code> got replaced by <code class="language-plaintext highlighter-rouge">std::mem::size_of::&lt;Self&gt;()</code> (where <code class="language-plaintext highlighter-rouge">Self</code> refers to “this” <code class="language-plaintext highlighter-rouge">Vertex</code> type);</li>
+  <li><code class="language-plaintext highlighter-rouge">3 * std::mem::size_of::&lt;f32&gt;()</code> got replaced by <code class="language-plaintext highlighter-rouge">std::mem::size_of::&lt;data::f32_f32_f32&gt;()</code>.</li>
+</ul>
+
+<p>Most importantly, the code in <code class="language-plaintext highlighter-rouge">unsafe</code> blocks is exactly the same, and can be now
+moved to a function on <code class="language-plaintext highlighter-rouge">data::f32_f32_f32</code> type:</p>
+
+<p>(render_gl/data.rs, inside <code class="language-plaintext highlighter-rouge">impl f32_f32_f32</code> block)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">unsafe</span> <span class="k">fn</span> <span class="nf">vertex_attrib_pointer</span><span class="p">(</span><span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">,</span> <span class="n">stride</span><span class="p">:</span> <span class="nb">usize</span><span class="p">,</span> <span class="n">location</span><span class="p">:</span> <span class="nb">usize</span><span class="p">,</span> <span class="n">offset</span><span class="p">:</span> <span class="nb">usize</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">gl</span><span class="nf">.EnableVertexAttribArray</span><span class="p">(</span><span class="n">location</span> <span class="k">as</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLuint</span><span class="p">);</span>
+    <span class="n">gl</span><span class="nf">.VertexAttribPointer</span><span class="p">(</span>
+        <span class="n">location</span> <span class="k">as</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLuint</span><span class="p">,</span>
+        <span class="mi">3</span><span class="p">,</span> <span class="c">// the number of components per generic vertex attribute</span>
+        <span class="nn">gl</span><span class="p">::</span><span class="n">FLOAT</span><span class="p">,</span> <span class="c">// data type</span>
+        <span class="nn">gl</span><span class="p">::</span><span class="n">FALSE</span><span class="p">,</span> <span class="c">// normalized (int-to-float conversion)</span>
+        <span class="n">stride</span> <span class="k">as</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLint</span><span class="p">,</span>
+        <span class="n">offset</span> <span class="k">as</span> <span class="o">*</span><span class="k">const</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLvoid</span>
+    <span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>(don’t forget small <code class="language-plaintext highlighter-rouge">use gl;</code> at the top of <code class="language-plaintext highlighter-rouge">render_gl/data.rs</code>)</p>
+
+<p>And the <code class="language-plaintext highlighter-rouge">Vertex::vertex_attrib_pointers</code> can be futher simplified to:</p>
+
+<p>(main.rs, replaced <code class="language-plaintext highlighter-rouge">vertex_attrib_pointer</code> code)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Vertex</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">vertex_attrib_pointers</span><span class="p">(</span><span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="n">stride</span> <span class="o">=</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="n">Self</span><span class="o">&gt;</span><span class="p">();</span> <span class="c">// byte offset between consecutive attributes</span>
+
+        <span class="k">let</span> <span class="n">location</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="c">// layout (location = 0)</span>
+        <span class="k">let</span> <span class="n">offset</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="c">// offset of the first component</span>
+
+        <span class="k">unsafe</span> <span class="p">{</span>
+            <span class="nn">data</span><span class="p">::</span><span class="nn">f32_f32_f32</span><span class="p">::</span><span class="nf">vertex_attrib_pointer</span><span class="p">(</span><span class="n">gl</span><span class="p">,</span> <span class="n">stride</span><span class="p">,</span> <span class="n">location</span><span class="p">,</span> <span class="n">offset</span><span class="p">);</span>
+        <span class="p">}</span>
+
+        <span class="k">let</span> <span class="n">location</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="c">// layout (location = 1)</span>
+        <span class="k">let</span> <span class="n">offset</span> <span class="o">=</span> <span class="n">offset</span> <span class="o">+</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="o">&gt;</span><span class="p">();</span> <span class="c">// offset of the first component</span>
+
+        <span class="k">unsafe</span> <span class="p">{</span>
+            <span class="nn">data</span><span class="p">::</span><span class="nn">f32_f32_f32</span><span class="p">::</span><span class="nf">vertex_attrib_pointer</span><span class="p">(</span><span class="n">gl</span><span class="p">,</span> <span class="n">stride</span><span class="p">,</span> <span class="n">location</span><span class="p">,</span> <span class="n">offset</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>(The above should compile)</p>
+
+<p>I’ve chosen to make <code class="language-plaintext highlighter-rouge">f32_f32_f32::vertex_attrib_pointer</code> function unsafe while
+leaving parent <code class="language-plaintext highlighter-rouge">Vertex::vertex_attrib_pointers</code> “safe”. My reasoning is twofold. First,
+it may be easier to screw something up while using <code class="language-plaintext highlighter-rouge">f32_f32_f32::vertex_attrib_pointer</code> directly
+(say, argument order) than <code class="language-plaintext highlighter-rouge">Vertex::vertex_attrib_pointers</code>. Second, <code class="language-plaintext highlighter-rouge">data::f32_f32_f32</code>
+is a reusable type inside a lower level library, where we want to warn “future us” about
+the dangers of it, while <code class="language-plaintext highlighter-rouge">Vertex</code> is a type that is specific to whatever experimental
+shader we are building, and we may favor more convenience while experimenting. We may get back to this
+topic in future if it starts causing issues.</p>
+
+<p>This was a small change, but it added a lot of convenience. If you squint a little,
+you may even start to wonder if this <code class="language-plaintext highlighter-rouge">impl Vertex</code> could be auto-generated.</p>
+
+<p><a href="/rust/opengl/tutorial/2018/07/11/opengl-in-rust-from-scratch-10-procedural-macros.html">Next time</a>, 
+we will learn about procedural macros, create our own <code class="language-plaintext highlighter-rouge">#[derive(VertexAttributePointers)]</code>
+macro, and auto-generate <code class="language-plaintext highlighter-rouge">vertex_attrib_pointers</code> code.</p>
+
+<p><a href="https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-09">Full source code is available on github</a>.</p>
+
+  </article>
+
+</div>
+
+      </div>
+    </div>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col  footer-col-1">
+        <ul class="contact-list">
+          <li>Nerijus Arlauskas</li>
+          <li><a href="mailto:nercury@gmail.com">nercury@gmail.com</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-2">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/Nercury">
+              <span class="icon  icon--github">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/>
+                </svg>
+              </span>
+
+              <span class="username">Nercury</span>
+            </a>
+          </li>
+          
+
+          
+          <li>
+            <a href="https://twitter.com/nercury">
+              <span class="icon  icon--twitter">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809
+                  c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/>
+                </svg>
+              </span>
+
+              <span class="username">nercury</span>
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-3">
+        <p class="text">Articles and tutorials about Rust, Embedded development and Computer Graphics.
+</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>

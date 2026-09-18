@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <title>Rust and OpenGL from scratch - OpenGL Context</title>
+    <meta name="description" content="Articles and tutorials about Rust, Embedded development and Computer Graphics.
+">
+
+    <link rel="shortcut icon" type="image/png" href="/favicon.ico"/>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/pygments/default.css">
+    <link rel="stylesheet" href="/css/font-awesome.css">
+    <link rel="canonical" href="http://nercury.github.io/rust/opengl/tutorial/2018/02/09/opengl-in-rust-from-scratch-02-opengl-context.html">
+    <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles/color-brewer.css">
+
+    <script src="/js/highlight.pack.js"></script>
+
+    <script src="/js/jquery.min.js"></script>
+    
+    <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+      ga('create', 'UA-56288576-1', 'auto');
+      ga('require', 'displayfeatures');
+      ga('send', 'pageview');
+    </script>
+    
+    <script>
+        $(function() {
+            hljs.initHighlightingOnLoad();
+            return $("h1, h2, h3, h4, h5, h6").each(function(i, el) {
+                console.log(el);
+                var $el, icon, id;
+                $el = $(el);
+                id = $el.attr('id');
+                icon = '<i class="fa fa-link"></i>';
+                if (id) {
+                  return $el.prepend($("<a />").addClass("header-link").attr("href", "#" + id).html(icon));
+                }
+            });
+        });
+    </script>
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Ironic Blog</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+        
+          
+          <a class="page-link" href="/about/">About Me</a>
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <div class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Rust and OpenGL from scratch - OpenGL Context</h1>
+    <p class="post-meta">Feb 9, 2018</p>
+  </header>
+
+  <article class="post-content">
+    <p>Welcome back!</p>
+
+<p><a href="/rust/opengl/tutorial/2018/02/08/opengl-in-rust-from-scratch-01-window.html">Previously</a>, 
+we have created a window using SDL and started accepting window events in a loop.</p>
+
+<p>In this lesson, we will load up OpenGL context and color the window blue.</p>
+
+<h2 id="opengl">OpenGL</h2>
+
+<p>If you <a href="https://crates.io/search?q=opengl">search for OpenGL in crates.io</a>, you may find
+multiple choices of safe OpenGL wrappers, such as <code class="language-plaintext highlighter-rouge">glium</code>, <code class="language-plaintext highlighter-rouge">glitter</code> and maybe others.</p>
+
+<p>The purpose of this series, however, is to learn about the lower level details. That does
+not mean that we are going to do all the work ourselves!</p>
+
+<h2 id="gl-and-gl_generator">gl and gl_generator</h2>
+
+<p>The cornerstone of many higher level OpenGL projects is <a href="https://github.com/brendanzab/gl-rs/">gl-rs project</a>,
+which contains three crates:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">khronos_api</code> - this crate contains XML files for various Khronos APIs, such as EGL,
+WGL, GLX, GL, and others.</li>
+  <li><code class="language-plaintext highlighter-rouge">gl_generator</code> - is a tool to generate Rust code bindings from <code class="language-plaintext highlighter-rouge">khronos_api</code> XML files.
+Think of it as your own customizable generator for OpenGL loader (something like <a href="http://glew.sourceforge.net/">GLEW</a>).</li>
+  <li><code class="language-plaintext highlighter-rouge">gl</code> - is a OpenGL API already generated using <code class="language-plaintext highlighter-rouge">gl_generator</code>. That was almost correct.
+In fact, <code class="language-plaintext highlighter-rouge">gl</code> rust code is generated every time <code class="language-plaintext highlighter-rouge">gl</code> is recompiled. More on that in later lesson.</li>
+</ul>
+
+<h2 id="gl">GL</h2>
+
+<p>For now, we will use <code class="language-plaintext highlighter-rouge">gl</code> crate.</p>
+
+<p><a href="https://crates.io/crates/gl">The gl crate page on crates.io contains information how to set it up</a>. We will
+follow that.</p>
+
+<p>Add <code class="language-plaintext highlighter-rouge">gl</code> dependency to your <code class="language-plaintext highlighter-rouge">Cargo.toml</code>:</p>
+
+<p>(Cargo.toml, incomplete)</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[dependencies]</span>
+<span class="py">gl</span> <span class="p">=</span> <span class="s">"0.10.0"</span>
+</code></pre></div></div>
+
+<p>Add reference to gl crate to your project by referencing <code class="language-plaintext highlighter-rouge">gl</code> crate at the top of your
+<code class="language-plaintext highlighter-rouge">main.rs</code> file:</p>
+
+<p>(main.rs, incomplete)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="n">crate</span> <span class="n">gl</span><span class="p">;</span>
+</code></pre></div></div>
+
+<h2 id="browsing-documentation-of-a-dependency-locally">Browsing documentation of a dependency locally</h2>
+
+<p>We can ask cargo to generate and open documentation on any crate our project depends on:</p>
+
+<pre><code class="language-txt">cargo doc -p gl --no-deps --open
+</code></pre>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">-p gl</code> is a short for <code class="language-plaintext highlighter-rouge">--package gl</code>, specifies that we want documentation for it</li>
+  <li><code class="language-plaintext highlighter-rouge">--no-deps</code> disables recursive documentation for all dependencies of <code class="language-plaintext highlighter-rouge">gl</code>. We want to disable that
+on windows, because <code class="language-plaintext highlighter-rouge">gl</code> transitively depends on <code class="language-plaintext highlighter-rouge">winapi</code>, which is extremely large, and generating 
+docs for <code class="language-plaintext highlighter-rouge">winapi</code> would take too much time.</li>
+  <li><code class="language-plaintext highlighter-rouge">--open</code> opens generated documentation in a browser window.</li>
+</ul>
+
+<h2 id="opengl-context">OpenGL context</h2>
+
+<p>We can tell SDL to create OpenGL context. We will use <a href="https://rust-sdl2.github.io/rust-sdl2/sdl2/video/struct.Window.html#method.gl_create_context">gl_create_context method on sdl2::video::Window
+struct</a>.</p>
+
+<p>However, only windows created with <code class="language-plaintext highlighter-rouge">opengl</code> flag can have OpenGL context.</p>
+
+<p>Modify the window creation code to have <code class="language-plaintext highlighter-rouge">opengl</code> flag:</p>
+
+<p>(main.rs, fn main, incomplete)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">let</span> <span class="n">window</span> <span class="o">=</span> <span class="n">video_subsystem</span>
+        <span class="nf">.window</span><span class="p">(</span><span class="s">"Game"</span><span class="p">,</span> <span class="mi">900</span><span class="p">,</span> <span class="mi">700</span><span class="p">)</span>
+        <span class="nf">.opengl</span><span class="p">()</span> <span class="c">// add opengl flag</span>
+        <span class="nf">.resizable</span><span class="p">()</span>
+        <span class="nf">.build</span><span class="p">()</span>
+        <span class="nf">.unwrap</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p>And then create the <code class="language-plaintext highlighter-rouge">gl_context</code>:</p>
+
+<p>(main.rs, fn main, incomplete)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">gl_context</span> <span class="o">=</span> <span class="n">window</span><span class="nf">.gl_create_context</span><span class="p">()</span><span class="nf">.unwrap</span><span class="p">();</span>
+</code></pre></div></div>
+
+<h2 id="more-sdl-documentation">More SDL documentation</h2>
+
+<p>It is useful to rememeber that Rust’s SDL is a very thin wrapper over C SDL library.
+Therefore, online documentation for original SDL maps directly to rust SDL crate.</p>
+
+<p><a href="https://wiki.libsdl.org/SDL_GL_CreateContext">Let’s open libsdl documentation for SDL_GL_CreateContext</a>.</p>
+
+<p>It has this example code to create a window:</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Window mode MUST include SDL_WINDOW_OPENGL for use with OpenGL.</span>
+<span class="n">SDL_Window</span> <span class="o">*</span><span class="n">window</span> <span class="o">=</span> <span class="n">SDL_CreateWindow</span><span class="p">(</span>
+    <span class="s">"SDL2/OpenGL Demo"</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">640</span><span class="p">,</span> <span class="mi">480</span><span class="p">,</span> 
+    <span class="n">SDL_WINDOW_OPENGL</span><span class="o">|</span><span class="n">SDL_WINDOW_RESIZABLE</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>For <code class="language-plaintext highlighter-rouge">SDL_CreateWindow</code> call to work at all, <code class="language-plaintext highlighter-rouge">SDL</code>’s <code class="language-plaintext highlighter-rouge">video</code> subsystem must be initialized.
+Rust <code class="language-plaintext highlighter-rouge">sdl2</code> crate ensures that it is so by making window creation require <code class="language-plaintext highlighter-rouge">video_subsystem</code>:
+<code class="language-plaintext highlighter-rouge">video_subsystem.window(...)</code>.</p>
+
+<p>Instead of flags, on the Rust side we have <code class="language-plaintext highlighter-rouge">WindowBuilder</code>, which is used to build up the flags
+and other parameters for <code class="language-plaintext highlighter-rouge">SDL_CreateWindow</code> call.</p>
+
+<p>Our calls to make window <code class="language-plaintext highlighter-rouge">.opengl().resizable()</code> will have the same result as
+<code class="language-plaintext highlighter-rouge">SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE</code> on the C side.</p>
+
+<p>One thing many C examples are usually missing, is error handling. If <code class="language-plaintext highlighter-rouge">SDL_CreateWindow</code> returns
+null, the program exits with segmentation fault and no useful error message. The call
+to <code class="language-plaintext highlighter-rouge">.unwrap()</code> is way better, because it panics with an error message retrieved from <code class="language-plaintext highlighter-rouge">SDL_GetError()</code>
+call. You can try that it is so by omitting <code class="language-plaintext highlighter-rouge">.opengl()</code> flag in our Rust code; <code class="language-plaintext highlighter-rouge">window.gl_create_context()</code>
+returns error that is sent to the output when <code class="language-plaintext highlighter-rouge">unwrap</code> panics:</p>
+
+<pre><code class="language-txt">thread 'main' panicked at 'called `Result::unwrap()` on an `Err` value: 
+    "The specified window isn\'t an OpenGL window"', src\libcore\result.rs:906:4
+</code></pre>
+
+<p>The <code class="language-plaintext highlighter-rouge">SDL_GL_CreateContext</code> function requires a window:</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Create an OpenGL context associated with the window.</span>
+<span class="n">SDL_GLContext</span> <span class="n">glcontext</span> <span class="o">=</span> <span class="n">SDL_GL_CreateContext</span><span class="p">(</span><span class="n">window</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>In Rust, it becomes a method on the <code class="language-plaintext highlighter-rouge">Window</code> struct:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">gl_context</span> <span class="o">=</span> <span class="n">window</span><span class="nf">.gl_create_context</span><span class="p">()</span><span class="nf">.unwrap</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p>In conclusion, original SDL tutorials, online resources, and stack overflow answers
+remain useful in Rust.</p>
+
+<h2 id="loading-function-pointers">Loading function pointers</h2>
+
+<p>What does <code class="language-plaintext highlighter-rouge">gl</code> crate actually do? It forwards OpenGL function calls to 
+the driver.</p>
+
+<p>Gl crate itself does not know how to do that, but SDL does.</p>
+
+<p>When we initialize gl, we provide a function to load function pointer by string:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">gl</span> <span class="o">=</span> <span class="nn">gl</span><span class="p">::</span><span class="nf">load_with</span><span class="p">(|</span><span class="n">s</span><span class="p">|</span> <span class="n">video_subsystem</span><span class="nf">.gl_get_proc_address</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">as</span> <span class="o">*</span><span class="k">const</span> <span class="nn">std</span><span class="p">::</span><span class="nn">os</span><span class="p">::</span><span class="nn">raw</span><span class="p">::</span><span class="nb">c_void</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>The <code class="language-plaintext highlighter-rouge">|s| video_subsystem.gl_get_proc_address(s)</code> is a closure with a single <code class="language-plaintext highlighter-rouge">s</code> parameter
+that is inferred to be a string slice. The return type of <code class="language-plaintext highlighter-rouge">gl_get_proc_address</code>, however, does
+not match <code class="language-plaintext highlighter-rouge">*const std::os::raw::c_void</code> pointer expected by <code class="language-plaintext highlighter-rouge">gl</code>, but we can cast it with 
+<code class="language-plaintext highlighter-rouge">as</code> operator.</p>
+
+<ul>
+  <li><a href="https://doc.rust-lang.org/book/second-edition/ch08-02-strings.html">Read more about Rust Strings</a></li>
+  <li><a href="https://doc.rust-lang.org/book/second-edition/ch04-03-slices.html">String slices</a></li>
+  <li><a href="https://doc.rust-lang.org/book/second-edition/ch13-01-closures.html">Rust closures</a></li>
+</ul>
+
+<h2 id="clear-color">Clear color</h2>
+
+<p>We can now use gl functions!</p>
+
+<p>Before the <code class="language-plaintext highlighter-rouge">'main: loop {</code>, we can set gl “clear” color to blue:</p>
+
+<p>(main.rs, incomplete)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">unsafe</span> <span class="p">{</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="nf">ClearColor</span><span class="p">(</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>And replace <code class="language-plaintext highlighter-rouge">// render window contents here</code> with actual call to clear color, as well call
+to SDL2 to swap the window pixels with what we have just rendered:</p>
+
+<p>(main.rs, incomplete)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">'main</span><span class="p">:</span> <span class="k">loop</span> <span class="p">{</span>
+    <span class="c">// .. event handling here</span>
+    
+    <span class="k">unsafe</span> <span class="p">{</span>
+        <span class="nn">gl</span><span class="p">::</span><span class="nf">Clear</span><span class="p">(</span><span class="nn">gl</span><span class="p">::</span><span class="n">COLOR_BUFFER_BIT</span><span class="p">);</span>
+    <span class="p">}</span>
+    
+    <span class="n">window</span><span class="nf">.gl_swap_window</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p><a href="https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-02">Full code can be found here</a>.</p>
+
+<p>Next up, 
+<a href="/rust/opengl/tutorial/2018/02/10/opengl-in-rust-from-scratch-03-compiling-shaders.html">a long and “modern” road to output a triangle to to the screen</a>.</p>
+
+  </article>
+
+</div>
+
+      </div>
+    </div>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col  footer-col-1">
+        <ul class="contact-list">
+          <li>Nerijus Arlauskas</li>
+          <li><a href="mailto:nercury@gmail.com">nercury@gmail.com</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-2">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/Nercury">
+              <span class="icon  icon--github">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/>
+                </svg>
+              </span>
+
+              <span class="username">Nercury</span>
+            </a>
+          </li>
+          
+
+          
+          <li>
+            <a href="https://twitter.com/nercury">
+              <span class="icon  icon--twitter">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809
+                  c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/>
+                </svg>
+              </span>
+
+              <span class="username">nercury</span>
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-3">
+        <p class="text">Articles and tutorials about Rust, Embedded development and Computer Graphics.
+</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>

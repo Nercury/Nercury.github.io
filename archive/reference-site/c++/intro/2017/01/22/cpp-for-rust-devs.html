@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <title>Short intro to C++ for Rust developers: Ownership and Borrowing</title>
+    <meta name="description" content="Articles and tutorials about Rust, Embedded development and Computer Graphics.
+">
+
+    <link rel="shortcut icon" type="image/png" href="/favicon.ico"/>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/pygments/default.css">
+    <link rel="stylesheet" href="/css/font-awesome.css">
+    <link rel="canonical" href="http://nercury.github.io/c++/intro/2017/01/22/cpp-for-rust-devs.html">
+    <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles/color-brewer.css">
+
+    <script src="/js/highlight.pack.js"></script>
+
+    <script src="/js/jquery.min.js"></script>
+    
+    <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+      ga('create', 'UA-56288576-1', 'auto');
+      ga('require', 'displayfeatures');
+      ga('send', 'pageview');
+    </script>
+    
+    <script>
+        $(function() {
+            hljs.initHighlightingOnLoad();
+            return $("h1, h2, h3, h4, h5, h6").each(function(i, el) {
+                console.log(el);
+                var $el, icon, id;
+                $el = $(el);
+                id = $el.attr('id');
+                icon = '<i class="fa fa-link"></i>';
+                if (id) {
+                  return $el.prepend($("<a />").addClass("header-link").attr("href", "#" + id).html(icon));
+                }
+            });
+        });
+    </script>
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Ironic Blog</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+        
+          
+          <a class="page-link" href="/about/">About Me</a>
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <div class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Short intro to C++ for Rust developers: Ownership and Borrowing</h1>
+    <p class="post-meta">Jan 22, 2017</p>
+  </header>
+
+  <article class="post-content">
+    <p>Today, there was a reddit post that asked what one needs to know when
+<a href="https://www.reddit.com/r/rust/comments/5pfytf/going_after_c_with_rust_basics/">Going after C++ with Rust basics</a>. I thought this was an
+interesting question to answer in a blog post and revive my blog.</p>
+
+<p>Since I got C++ job after learning Rust, I thought it would be interesting
+to write a summary how one would adapt to C++ with some prior Rust experience.</p>
+
+<p>I would assume the reader already knows C++ syntax and features, and
+would be interested in how one would fit concepts to C++ from Rust world.</p>
+
+<p>In this post, however, I could not fit everything I wanted to write, so
+I will focus on Ownership, Borrowing and Lifetimes.</p>
+
+<h2 id="ownership-and-moves">Ownership and Moves</h2>
+
+<p>The big feature in Rust is Ownership, which means that non-primitive values are
+moved by default instead of being copied.</p>
+
+<p>As an example, if we create a <code class="language-plaintext highlighter-rouge">String</code> in Rust and pass it to another function,
+it will be moved into that function and destroyed there.</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">foo</span><span class="p">(</span><span class="n">val</span><span class="p">:</span> <span class="nb">String</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c">// val destroyed here</span>
+<span class="p">}</span>
+
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">val</span> <span class="o">=</span> <span class="nn">String</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="s">"Hello"</span><span class="p">);</span>
+    <span class="nf">foo</span><span class="p">(</span><span class="n">val</span><span class="p">);</span>
+    <span class="c">// accessing val here is compile-time error</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Let’s look at the same code in C++:</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include &lt;string&gt;
+</span>
+<span class="k">using</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">;</span>
+
+<span class="kt">void</span> <span class="nf">foo</span><span class="p">(</span><span class="n">string</span> <span class="n">val</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// val is destroyed here</span>
+<span class="p">}</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="n">string</span> <span class="n">val</span><span class="p">(</span><span class="s">"Hello"</span><span class="p">);</span>
+    <span class="n">foo</span><span class="p">(</span><span class="n">val</span><span class="p">);</span>
+    <span class="c1">// accessing val here is fine, because we passed a copy to function</span>
+    <span class="c1">// original val is destroyed here</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>You may be tempted to reduce copying in C++ too.</p>
+
+<p>The C++ has this notion of <code class="language-plaintext highlighter-rouge">lvalues</code> versus <code class="language-plaintext highlighter-rouge">rvalues</code>.</p>
+
+<p>In C++, <code class="language-plaintext highlighter-rouge">lvalues</code> are copied, while <code class="language-plaintext highlighter-rouge">rvalues</code> can be moved, if the type
+actually implements move operations (and I am glossing over a lot of details
+here).</p>
+
+<p>There is a function in C++ <code class="language-plaintext highlighter-rouge">std</code> library that allows us to transform any
+<code class="language-plaintext highlighter-rouge">lvalue</code> to <code class="language-plaintext highlighter-rouge">rvalue</code>, called <code class="language-plaintext highlighter-rouge">std::move</code>.</p>
+
+<p>So, we can modify our previous C++ program to behave similarly to Rust program
+and avoid unnecessary copy by wrapping <code class="language-plaintext highlighter-rouge">val</code> with <code class="language-plaintext highlighter-rouge">std::move</code>:</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include &lt;string&gt;
+</span>
+<span class="k">using</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">;</span>
+
+<span class="kt">void</span> <span class="nf">foo</span><span class="p">(</span><span class="n">string</span> <span class="n">val</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// val is destroyed here</span>
+<span class="p">}</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="n">string</span> <span class="n">val</span><span class="p">(</span><span class="s">"Hello"</span><span class="p">);</span>
+    <span class="n">foo</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">val</span><span class="p">));</span>
+    <span class="c1">// warning: accessing val here is NOT fine!</span>
+    <span class="c1">// original val is also destroyed here, but contains no value so it's fine</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Note that <code class="language-plaintext highlighter-rouge">std::move</code> does not actually move anything, it just changes how
+the compiler treats the value at this particular place. In this case, move works
+because <code class="language-plaintext highlighter-rouge">std::string</code> implements move operations.</p>
+
+<p>In C++, it is possible to accidentally <em>use</em> moved value. Therefore, the move
+operations usually set the original container size to zero.</p>
+
+<p>Therefore, a good practice in C++ is to <strong>avoid</strong> using move in the case like
+this, even if this means unnecessary deep copy of the value, to avoid the
+accidental usage of the moved value.</p>
+
+<p>If the copy of value is actually costly and should not be copied, it is worth
+wrapping it into <code class="language-plaintext highlighter-rouge">unique_ptr</code> (like <code class="language-plaintext highlighter-rouge">Box</code>) or <code class="language-plaintext highlighter-rouge">shared_ptr</code> (like <code class="language-plaintext highlighter-rouge">Arc</code>),
+which will keep a single instance of the value on the heap. Relying on <code class="language-plaintext highlighter-rouge">move</code>
+in such case is very fragile and incurs a maintenance cost to keep the program
+correct.</p>
+
+<h2 id="functions-and-methods">Functions and Methods</h2>
+
+<h3 id="const-references">Const references</h3>
+
+<p>In Rust, you can create a function that immutably borrows a value:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">foo</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="o">&amp;</span><span class="nb">String</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"value: {}"</span><span class="p">,</span> <span class="n">value</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The Rust compiler will not allow calling methods or operations on String that
+modify contents of that String. In Rust-talk it would not allow to call methods
+that mutably borrow a string or need to take ownership of a string.</p>
+
+<p>In C++, you can do the same:</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include &lt;string&gt;
+#include &lt;iostream&gt;
+</span>
+<span class="k">using</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">;</span>
+<span class="k">using</span> <span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="p">;</span>
+<span class="k">using</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+
+<span class="kt">void</span> <span class="nf">foo</span><span class="p">(</span><span class="k">const</span> <span class="n">string</span><span class="o">&amp;</span> <span class="n">value</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"value: "</span> <span class="o">&lt;&lt;</span> <span class="n">value</span> <span class="o">&lt;&lt;</span> <span class="n">endl</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The <code class="language-plaintext highlighter-rouge">const T&amp;</code> idiom is similar to <code class="language-plaintext highlighter-rouge">&amp;T</code> in Rust. C++ compiler will
+not allow modifying the contents of <code class="language-plaintext highlighter-rouge">const T&amp;</code> object. In C++-talk, the C++
+would not allow to call methods on the string that are non-const.</p>
+
+<h3 id="const-methods">Const methods</h3>
+
+<p>Let’s say we have structure <code class="language-plaintext highlighter-rouge">Person</code> in Rust, and use it as parameter for function
+<code class="language-plaintext highlighter-rouge">print_full_name</code>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Person</span> <span class="p">{</span>
+    <span class="n">first_name</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
+    <span class="n">last_name</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">fn</span> <span class="nf">print_full_name</span><span class="p">(</span><span class="n">person</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Person</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"{} {}"</span><span class="p">,</span> <span class="n">person</span><span class="py">.first_name</span><span class="p">,</span> <span class="n">person</span><span class="py">.last_name</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>This function could be made into a method on Person:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Person</span> <span class="p">{</span>
+    <span class="n">first_name</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
+    <span class="n">last_name</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span> <span class="n">Person</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">print_full_name</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nd">println!</span><span class="p">(</span><span class="s">"{} {}"</span><span class="p">,</span> <span class="k">self</span><span class="py">.first_name</span><span class="p">,</span> <span class="k">self</span><span class="py">.last_name</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Note that <code class="language-plaintext highlighter-rouge">print_full_name</code> can only access <code class="language-plaintext highlighter-rouge">&amp;self</code> reference immutably.
+In C++, this is achieved with <code class="language-plaintext highlighter-rouge">const</code> modifier on the method:</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include &lt;string&gt;
+#include &lt;iostream&gt;
+</span>
+<span class="k">class</span> <span class="nc">Person</span> <span class="p">{</span>
+<span class="nl">private:</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">first_name</span><span class="p">;</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">last_name</span><span class="p">;</span>
+<span class="nl">public:</span>
+    <span class="kt">void</span> <span class="n">print_full_name</span><span class="p">()</span> <span class="k">const</span> <span class="p">{</span>
+        <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="n">first_name</span> <span class="o">&lt;&lt;</span> <span class="s">" "</span> <span class="o">&lt;&lt;</span> <span class="n">last_name</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<p>In Rust, we would be able to use <code class="language-plaintext highlighter-rouge">print_full_name</code> method in places where
+<code class="language-plaintext highlighter-rouge">Person</code> can be borrowed immutably.</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">foo</span><span class="p">(</span><span class="n">person</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Person</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">person</span><span class="nf">.print_full_name</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>In C++, we will be able to use <code class="language-plaintext highlighter-rouge">print_full_name</code> in places where <code class="language-plaintext highlighter-rouge">Person</code>
+can be <code class="language-plaintext highlighter-rouge">const</code>.</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">void</span> <span class="nf">foo</span><span class="p">(</span><span class="k">const</span> <span class="n">Person</span><span class="o">&amp;</span> <span class="n">person</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">person</span><span class="p">.</span><span class="n">print_full_name</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h2 id="methods-that-mutably-borrow-in-c">Methods that Mutably Borrow in C++</h2>
+
+<p>In Rust, methods that modify the reference must use <code class="language-plaintext highlighter-rouge">&amp;mut</code> reference. For
+example, a method implemented on <code class="language-plaintext highlighter-rouge">Person</code>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Person</span> <span class="p">{</span>
+    <span class="n">first_name</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
+    <span class="n">last_name</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span> <span class="n">Person</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">clear_name</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">self</span><span class="py">.first_name</span><span class="nf">.clear</span><span class="p">();</span>
+        <span class="k">self</span><span class="py">.last_name</span><span class="nf">.clear</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Or a standalone method:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">foo</span><span class="p">(</span><span class="n">person</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">Person</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">person</span><span class="nf">.clear_name</span><span class="p">();</span> <span class="c">// "clear_name" mutably re-borrows Person</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>In C++, this is simply any method without <code class="language-plaintext highlighter-rouge">const</code> qualifier:</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include &lt;string&gt;
+</span>
+<span class="k">class</span> <span class="nc">Person</span> <span class="p">{</span>
+<span class="nl">private:</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">first_name</span><span class="p">;</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">last_name</span><span class="p">;</span>
+<span class="nl">public:</span>
+    <span class="kt">void</span> <span class="n">clear_name</span><span class="p">()</span> <span class="p">{</span>
+        <span class="n">first_name</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span>
+        <span class="n">last_name</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<p>And any method that takes non-const reference:</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">void</span> <span class="nf">foo</span><span class="p">(</span><span class="n">Person</span><span class="o">&amp;</span> <span class="n">person</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">person</span><span class="p">.</span><span class="n">clear_name</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h2 id="methods-that-take-ownership-in-c">Methods that Take Ownership in C++</h2>
+
+<p>As discussed previously, it is possible in C++, but is considered a bad
+practice, and you should leave moves up to the compiler.</p>
+
+<p>However, there is a few cases where manual <code class="language-plaintext highlighter-rouge">std::move</code> might be ok. One of them
+is a setter function.</p>
+
+<p>Consider a Rust method that changes the name:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Person</span> <span class="p">{</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span> <span class="n">Person</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">set_name</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">String</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">self</span><span class="py">.name</span> <span class="o">=</span> <span class="n">name</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>We can call it in some function <code class="language-plaintext highlighter-rouge">foo</code> that had the ownership of the name:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">foo</span><span class="p">(</span><span class="n">person</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">Person</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">String</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">person</span><span class="nf">.set_name</span><span class="p">(</span><span class="n">name</span><span class="p">);</span> <span class="c">// requires explicit clone</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>In Rust, the <code class="language-plaintext highlighter-rouge">set_name</code> will take the ownership of name be default. However,
+C++ it would copy by default.</p>
+
+<p>Same method in C++:</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include &lt;string&gt;
+</span>
+<span class="k">class</span> <span class="nc">Person</span> <span class="p">{</span>
+<span class="nl">private:</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">name</span><span class="p">;</span>
+<span class="nl">public:</span>
+    <span class="kt">void</span> <span class="n">set_name</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">name</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">this</span><span class="o">-&gt;</span><span class="n">name</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">name</span><span class="p">);</span> <span class="c1">// we can safely move</span>
+    <span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<p>We can safely move inside the setter, because we have a parameter that is
+already a copy. However, we did not avoid the copying at the call site:</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">void</span> <span class="nf">foo</span><span class="p">(</span><span class="n">Person</span><span class="o">&amp;</span> <span class="n">person</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">name</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">person</span><span class="p">.</span><span class="n">set_name</span><span class="p">(</span><span class="n">name</span><span class="p">);</span> <span class="c1">// copy</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>We can use <code class="language-plaintext highlighter-rouge">std::move</code> here:</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">void</span> <span class="nf">foo</span><span class="p">(</span><span class="n">Person</span><span class="o">&amp;</span> <span class="n">person</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">name</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">person</span><span class="p">.</span><span class="n">set_name</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">name</span><span class="p">));</span> <span class="c1">// move</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>However, the caller of foo must do the same to ensure the move, and this cycle
+continues.</p>
+
+<p>One thing to look for when using <code class="language-plaintext highlighter-rouge">std::move</code> is mutable
+references! Let’s say we had a mutable reference in function <code class="language-plaintext highlighter-rouge">foo</code>, and moved
+the value:</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">void</span> <span class="nf">foo</span><span class="p">(</span><span class="n">Person</span><span class="o">&amp;</span> <span class="n">person</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span> <span class="n">name</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">person</span><span class="p">.</span><span class="n">set_name</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">name</span><span class="p">));</span> <span class="c1">// move clears the original name</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Now the caller of foo will suddenly find the name gone.</p>
+
+<p>In this particular case, the better practice is to use <code class="language-plaintext highlighter-rouge">const T&amp;</code> reference
+all the way down to the setter. This will create a copy of name inside
+the setter, with a minimal overhead.</p>
+
+<p>However, if the <code class="language-plaintext highlighter-rouge">name</code> was a very big string, i.e. something like file contents,
+and it would be necessary to ensure no copies for performance reasons, the
+<code class="language-plaintext highlighter-rouge">unique_ptr</code> or <code class="language-plaintext highlighter-rouge">shared_ptr</code> would come to the rescue:</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include &lt;string&gt;
+#include &lt;memory&gt;
+</span>
+<span class="k">class</span> <span class="nc">Person</span> <span class="p">{</span>
+<span class="nl">private:</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span> <span class="n">personal_page</span><span class="p">;</span>
+<span class="nl">public:</span>
+    <span class="kt">void</span> <span class="n">set_personal_page</span><span class="p">(</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;&amp;</span> <span class="n">personal_page</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">this</span><span class="o">-&gt;</span><span class="n">personal_page</span> <span class="o">=</span> <span class="n">personal_page</span><span class="p">;</span> <span class="c1">// note that we copy here</span>
+    <span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<p>Note that we leave the copy in, but what we copy now is only a <code class="language-plaintext highlighter-rouge">Arc</code> pointer
+that points to the same memory contents.</p>
+
+<h2 id="lifetimes">Lifetimes</h2>
+
+<p>One idiomatic thing in Rust is exposing value’s contents for external mutation.
+All iterators in Rust are built on this concept, as well as many standard
+library functions.</p>
+
+<p>For example, we may add a method for <code class="language-plaintext highlighter-rouge">Person</code> that allows someone else to change
+the first and the last names:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Debug)]</span>
+<span class="k">struct</span> <span class="n">Person</span> <span class="p">{</span>
+    <span class="n">first_name</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
+    <span class="n">last_name</span><span class="p">:</span> <span class="nb">String</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span> <span class="n">Person</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">get_first_name_mut</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="nb">String</span> <span class="p">{</span>
+        <span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="py">.first_name</span>
+    <span class="p">}</span>
+
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">get_last_name_mut</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="nb">String</span> <span class="p">{</span>
+        <span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="py">.last_name</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Then we can have a function that appends “foo” to a string reference:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">append_foo</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="nb">String</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">value</span><span class="nf">.push_str</span><span class="p">(</span><span class="s">" foo"</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Then we can write some code that allows some external function to modify
+contents of a <code class="language-plaintext highlighter-rouge">String</code> inside the <code class="language-plaintext highlighter-rouge">Person</code>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Person</span> <span class="p">{</span>
+        <span class="n">first_name</span><span class="p">:</span> <span class="nn">String</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="s">"John"</span><span class="p">),</span>
+        <span class="n">last_name</span><span class="p">:</span> <span class="nn">String</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="s">"Smith"</span><span class="p">),</span>
+    <span class="p">};</span>
+
+    <span class="nf">append_foo</span><span class="p">(</span><span class="n">p</span><span class="nf">.get_first_name_mut</span><span class="p">());</span>
+    <span class="nf">append_foo</span><span class="p">(</span><span class="n">p</span><span class="nf">.get_last_name_mut</span><span class="p">());</span>
+
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">p</span><span class="p">);</span>
+
+    <span class="c">// output:</span>
+    <span class="c">// Person { first_name: "John foo", last_name: "Smith foo" }</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>As you may know, the Rust compiler understands lifetime elision. That means you
+usually do not need to annotate any references with lifetimes, but they are still there.</p>
+
+<p>For example, <code class="language-plaintext highlighter-rouge">impl</code> of <code class="language-plaintext highlighter-rouge">Person</code> has these lifetime annotations:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Person</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">get_first_name_mut</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'a</span> <span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="k">mut</span> <span class="nb">String</span> <span class="p">{</span>
+        <span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="py">.first_name</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>References are basically pointers. The lifetime syntax <code class="language-plaintext highlighter-rouge">&amp;'a mut</code> communicates to the
+compiler that the returned value must point to the same or narrower memory location <code class="language-plaintext highlighter-rouge">'a</code> as the function
+argument.</p>
+
+<p>If we tried to return a reference to the value which is outside of <code class="language-plaintext highlighter-rouge">'a</code>, the compiler would complain:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Person</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">get_first_name_mut</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'a</span> <span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="k">mut</span> <span class="nb">String</span> <span class="p">{</span>
+        <span class="o">&amp;</span><span class="k">mut</span> <span class="nn">String</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="s">"Other"</span><span class="p">)</span> <span class="c">// error: borrowed value does not live long enough</span>
+        <span class="c">//   ^^^^^^^^^^^^^^^^^^^^^ temporary value created here</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Therefore, at the call site, the compiler knows that the <code class="language-plaintext highlighter-rouge">Person</code> is borrowed
+for every call to <code class="language-plaintext highlighter-rouge">append_foo</code> and would not allow us to do anything funky:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Person</span> <span class="p">{</span>
+        <span class="n">first_name</span><span class="p">:</span> <span class="nn">String</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="s">"John"</span><span class="p">),</span>
+        <span class="n">last_name</span><span class="p">:</span> <span class="nn">String</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="s">"Smith"</span><span class="p">),</span>
+    <span class="p">};</span>
+
+    <span class="p">{</span>
+        <span class="k">let</span> <span class="n">name</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="nb">String</span> <span class="o">=</span> <span class="n">p</span><span class="nf">.get_first_name_mut</span><span class="p">();</span>
+        <span class="n">p</span><span class="py">.first_name</span> <span class="o">=</span> <span class="nn">String</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="s">"Crash"</span><span class="p">);</span>
+        <span class="c">// error: cannot assign to `p.first_name` because it is borrowed</span>
+        <span class="nf">append_foo</span><span class="p">(</span><span class="n">name</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The C++, however, has no machinery to understand where the pointers or references
+point to, and does not help. However, we can still implement the same in C++.</p>
+
+<p>First, the <code class="language-plaintext highlighter-rouge">Person</code>:</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">Person</span> <span class="p">{</span>
+<span class="nl">public:</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">first_name</span><span class="p">;</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">last_name</span><span class="p">;</span>
+
+    <span class="n">Person</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">first_name</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">last_name</span><span class="p">)</span>
+    <span class="o">:</span> <span class="n">first_name</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">first_name</span><span class="p">))</span>
+    <span class="p">,</span> <span class="n">last_name</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">last_name</span><span class="p">))</span>
+    <span class="p">{}</span>
+
+    <span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span> <span class="n">get_first_name_mut</span><span class="p">()</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">first_name</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span> <span class="n">get_last_name_mut</span><span class="p">()</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="k">this</span><span class="o">-&gt;</span><span class="n">last_name</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<p>Similar to setters, we used <code class="language-plaintext highlighter-rouge">std::move</code> trick in constructor to avoid copies.
+This is a usual practice in C++.</p>
+
+<p>Then we create <code class="language-plaintext highlighter-rouge">append_foo</code>, which is nothing surprising:</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">void</span> <span class="nf">append_foo</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span> <span class="n">value</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">value</span> <span class="o">+=</span> <span class="s">" foo"</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>And finally, the main function:</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="n">Person</span> <span class="n">p</span><span class="p">(</span><span class="s">"John"</span><span class="p">,</span> <span class="s">"Smith"</span><span class="p">);</span>
+
+    <span class="n">append_foo</span><span class="p">(</span><span class="n">p</span><span class="p">.</span><span class="n">get_first_name_mut</span><span class="p">());</span>
+    <span class="n">append_foo</span><span class="p">(</span><span class="n">p</span><span class="p">.</span><span class="n">get_last_name_mut</span><span class="p">());</span>
+
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"first name: "</span> <span class="o">&lt;&lt;</span> <span class="n">p</span><span class="p">.</span><span class="n">first_name</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"last name: "</span> <span class="o">&lt;&lt;</span> <span class="n">p</span><span class="p">.</span><span class="n">last_name</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+
+    <span class="c1">// output:</span>
+    <span class="c1">// first name: John foo</span>
+    <span class="c1">// last name: Smith foo</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>However, the C++ compiler is not able to track lifetimes and ensure memory
+safety.</p>
+
+<p>This is a problem when you get used to these things being verified by the compiler.
+The objects we have just written might become more complex, and it would
+become much harder to track runaway modifications
+to <code class="language-plaintext highlighter-rouge">Person</code>:</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="n">Person</span> <span class="n">p</span><span class="p">(</span><span class="s">"John"</span><span class="p">,</span> <span class="s">"Smith"</span><span class="p">);</span>
+
+    <span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span> <span class="n">name</span> <span class="o">=</span> <span class="n">p</span><span class="p">.</span><span class="n">get_first_name_mut</span><span class="p">();</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">Person</span><span class="p">(</span><span class="s">"Crash"</span><span class="p">,</span> <span class="s">"Bob"</span><span class="p">);</span>
+    <span class="n">append_foo</span><span class="p">(</span><span class="n">name</span><span class="p">);</span>
+
+    <span class="c1">// Output:</span>
+    <span class="c1">// first name: Crash foo</span>
+    <span class="c1">// last name: Bob</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>It worked, even when we have overwritten the memory location of
+<code class="language-plaintext highlighter-rouge">Person</code>. This actually may continue working. Or it may fail in release build.
+Or it may fail when other developer wraps <code class="language-plaintext highlighter-rouge">Person</code> in shared_ptr:</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">auto</span> <span class="n">p</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">Person</span><span class="o">&gt;</span><span class="p">(</span><span class="s">"John"</span><span class="p">,</span> <span class="s">"Smith"</span><span class="p">);</span>
+
+    <span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span> <span class="n">name</span> <span class="o">=</span> <span class="n">p</span><span class="o">-&gt;</span><span class="n">get_first_name_mut</span><span class="p">();</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">Person</span><span class="o">&gt;</span><span class="p">(</span><span class="s">"Crash"</span><span class="p">,</span> <span class="s">"Bob"</span><span class="p">);</span>
+    <span class="n">append_foo</span><span class="p">(</span><span class="n">name</span><span class="p">);</span>
+
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"first name: "</span> <span class="o">&lt;&lt;</span> <span class="n">p</span><span class="o">-&gt;</span><span class="n">first_name</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"last name: "</span> <span class="o">&lt;&lt;</span> <span class="n">p</span><span class="o">-&gt;</span><span class="n">last_name</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+
+    <span class="c1">// Output:</span>
+    <span class="c1">// first name: Crash</span>
+    <span class="c1">// last name: Bob</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Now, we modified freed memory, which worked, but may not work
+if something else was written in that previous memory location.</p>
+
+<p>The better practice in C++ is to avoid methods that return mutable references.
+Instead, we could access the fields directly (but trade away privacy):</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">Person</span> <span class="n">p</span><span class="p">(</span><span class="s">"John"</span><span class="p">,</span> <span class="s">"Smith"</span><span class="p">);</span>
+
+  <span class="n">append_foo</span><span class="p">(</span><span class="n">p</span><span class="p">.</span><span class="n">first_name</span><span class="p">);</span>
+  <span class="n">append_foo</span><span class="p">(</span><span class="n">p</span><span class="p">.</span><span class="n">last_name</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Or create the additional copy, which is not really a big deal:</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="nf">append_foo</span><span class="p">(</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span> <span class="n">value</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// set capacity and avoid multiple allocations</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">ret</span><span class="p">;</span>
+    <span class="n">ret</span><span class="p">.</span><span class="n">reserve</span><span class="p">(</span><span class="n">value</span><span class="p">.</span><span class="n">size</span><span class="p">()</span> <span class="o">+</span> <span class="mi">4</span><span class="p">);</span>
+    <span class="n">ret</span> <span class="o">+=</span> <span class="n">value</span><span class="p">;</span>
+    <span class="n">ret</span> <span class="o">+=</span> <span class="s">" foo"</span><span class="p">;</span>
+    <span class="k">return</span> <span class="n">ret</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="n">Person</span> <span class="n">p</span><span class="p">(</span><span class="s">"John"</span><span class="p">,</span> <span class="s">"Smith"</span><span class="p">);</span>
+
+    <span class="n">p</span><span class="p">.</span><span class="n">first_name</span> <span class="o">=</span> <span class="n">append_foo</span><span class="p">(</span><span class="n">p</span><span class="p">.</span><span class="n">first_name</span><span class="p">);</span>
+    <span class="n">p</span><span class="p">.</span><span class="n">last_name</span> <span class="o">=</span> <span class="n">append_foo</span><span class="p">(</span><span class="n">p</span><span class="p">.</span><span class="n">last_name</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>The big hurdle when moving back to C++ from Rust was the missing move-by-default
+feature. This required learning other idiomatic patterns in C++ land, and in some
+cases admitting that not all the code needs to be both efficient and easy to maintain.</p>
+
+<p>In most cases maintainability wins, and avoiding “premature optimization” is
+very much a necessity in C++.</p>
+
+
+  </article>
+
+</div>
+
+      </div>
+    </div>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col  footer-col-1">
+        <ul class="contact-list">
+          <li>Nerijus Arlauskas</li>
+          <li><a href="mailto:nercury@gmail.com">nercury@gmail.com</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-2">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/Nercury">
+              <span class="icon  icon--github">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/>
+                </svg>
+              </span>
+
+              <span class="username">Nercury</span>
+            </a>
+          </li>
+          
+
+          
+          <li>
+            <a href="https://twitter.com/nercury">
+              <span class="icon  icon--twitter">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809
+                  c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/>
+                </svg>
+              </span>
+
+              <span class="username">nercury</span>
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-3">
+        <p class="text">Articles and tutorials about Rust, Embedded development and Computer Graphics.
+</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>

@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <title>Rust and OpenGL from scratch - Procedural Macros</title>
+    <meta name="description" content="Articles and tutorials about Rust, Embedded development and Computer Graphics.
+">
+
+    <link rel="shortcut icon" type="image/png" href="/favicon.ico"/>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/pygments/default.css">
+    <link rel="stylesheet" href="/css/font-awesome.css">
+    <link rel="canonical" href="http://nercury.github.io/rust/opengl/tutorial/2018/07/11/opengl-in-rust-from-scratch-10-procedural-macros.html">
+    <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles/color-brewer.css">
+
+    <script src="/js/highlight.pack.js"></script>
+
+    <script src="/js/jquery.min.js"></script>
+    
+    <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+      ga('create', 'UA-56288576-1', 'auto');
+      ga('require', 'displayfeatures');
+      ga('send', 'pageview');
+    </script>
+    
+    <script>
+        $(function() {
+            hljs.initHighlightingOnLoad();
+            return $("h1, h2, h3, h4, h5, h6").each(function(i, el) {
+                console.log(el);
+                var $el, icon, id;
+                $el = $(el);
+                id = $el.attr('id');
+                icon = '<i class="fa fa-link"></i>';
+                if (id) {
+                  return $el.prepend($("<a />").addClass("header-link").attr("href", "#" + id).html(icon));
+                }
+            });
+        });
+    </script>
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Ironic Blog</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+        
+          
+          <a class="page-link" href="/about/">About Me</a>
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <div class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Rust and OpenGL from scratch - Procedural Macros</h1>
+    <p class="post-meta">Jul 11, 2018</p>
+  </header>
+
+  <article class="post-content">
+    <p>Welcome back!</p>
+
+<p><a href="/rust/opengl/tutorial/2018/06/27/opengl-in-rust-from-scratch-09-vertex-attribute-format.html">Previously</a>, 
+we have written this repetitive impl for our <code class="language-plaintext highlighter-rouge">Vertex</code> type:</p>
+
+<p>(some code omitted)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Copy,</span> <span class="nd">Clone,</span> <span class="nd">Debug)]</span>
+<span class="nd">#[repr(C,</span> <span class="nd">packed)]</span>
+<span class="k">struct</span> <span class="n">Vertex</span> <span class="p">{</span>
+    <span class="n">pos</span><span class="p">:</span> <span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="p">,</span>
+    <span class="n">clr</span><span class="p">:</span> <span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span> <span class="n">Vertex</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">vertex_attrib_pointers</span><span class="p">(</span><span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="n">stride</span> <span class="o">=</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="n">Self</span><span class="o">&gt;</span><span class="p">();</span> <span class="c">// byte offset between consecutive attributes</span>
+
+        <span class="c">// pos</span>
+
+        <span class="k">let</span> <span class="n">location</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="c">// layout (location = 0)</span>
+        <span class="k">let</span> <span class="n">offset</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="c">// offset of the first component</span>
+
+        <span class="k">unsafe</span> <span class="p">{</span>
+            <span class="nn">data</span><span class="p">::</span><span class="nn">f32_f32_f32</span><span class="p">::</span><span class="nf">vertex_attrib_pointer</span><span class="p">(</span><span class="n">gl</span><span class="p">,</span> <span class="n">stride</span><span class="p">,</span> <span class="n">location</span><span class="p">,</span> <span class="n">offset</span><span class="p">);</span>
+        <span class="p">}</span>
+        
+        <span class="c">// clr</span>
+
+        <span class="k">let</span> <span class="n">location</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="c">// layout (location = 1)</span>
+        <span class="k">let</span> <span class="n">offset</span> <span class="o">=</span> <span class="n">offset</span> <span class="o">+</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="o">&gt;</span><span class="p">();</span> <span class="c">// offset of the first component</span>
+
+        <span class="k">unsafe</span> <span class="p">{</span>
+            <span class="nn">data</span><span class="p">::</span><span class="nn">f32_f32_f32</span><span class="p">::</span><span class="nf">vertex_attrib_pointer</span><span class="p">(</span><span class="n">gl</span><span class="p">,</span> <span class="n">stride</span><span class="p">,</span> <span class="n">location</span><span class="p">,</span> <span class="n">offset</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>This time, we will auto-generate this <code class="language-plaintext highlighter-rouge">impl Vertex</code> code using 
+<a href="https://doc.rust-lang.org/book/second-edition/appendix-04-macros.html#procedural-macros-for-custom-derive">procedural macros</a>.</p>
+
+<h2 id="what-are-the-procedural-macros">What are the Procedural Macros?</h2>
+
+<p>Procedural macros allow us to generate code at compile time. You’ve used them before:
+for example, the <code class="language-plaintext highlighter-rouge">failure</code> crate we’ve tried recently uses procedural macros
+to automatically implement <code class="language-plaintext highlighter-rouge">Fail</code> trait when we write <code class="language-plaintext highlighter-rouge">#[derive(Fail)]</code> above the struct.</p>
+
+<p>A procedural macro applied to a struct can receive the tokens for struct from the compiler,
+and output any amount of code for this struct (in form of tokens) that will be then inlined bellow
+the struct and type-checked as usual.</p>
+
+<p>Procedural macro can not remove or add fields on a struct, it can only append a new code.
+Which is perfectly fine for our use case.</p>
+
+<h2 id="the-goal">The Goal</h2>
+
+<p>The goal is to replace the code above with some attributes on our type:</p>
+
+<p>(src/main.rs, example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(VertexAttribPointers)]</span>
+<span class="nd">#[derive(Copy,</span> <span class="nd">Clone,</span> <span class="nd">Debug)]</span>
+<span class="nd">#[repr(C,</span> <span class="nd">packed)]</span>
+<span class="k">struct</span> <span class="n">Vertex</span> <span class="p">{</span>
+    <span class="nd">#[location</span> <span class="nd">=</span> <span class="s">"0"</span><span class="nd">]</span>
+    <span class="n">pos</span><span class="p">:</span> <span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="p">,</span>
+    <span class="nd">#[location</span> <span class="nd">=</span> <span class="s">"1"</span><span class="nd">]</span>
+    <span class="n">clr</span><span class="p">:</span> <span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h2 id="the-simplest-possible-implementation">The simplest possible Implementation</h2>
+
+<p>We can start by auto-generating <code class="language-plaintext highlighter-rouge">impl Vertex</code> code as-is, to test that 
+this set up can work at all. We will simply hardcode the procedural macro output for now.</p>
+
+<p>There is one caveat: procedural macro will need to live in it’s own crate. However, as
+strange as it may seem, this crate would not need to depend on <code class="language-plaintext highlighter-rouge">render_gl</code> crate
+to generate code for <code class="language-plaintext highlighter-rouge">render_gl::data</code> structs: all it is going to care of are tokenized 
+code input and output.</p>
+
+<p>The longer-term plan in our examples would be to move <code class="language-plaintext highlighter-rouge">render_gl</code> and <code class="language-plaintext highlighter-rouge">resources</code> modules
+into their own crates. However, I want to keep the code for each part separately
+downloadable, and I am reluctant to move it into a separate crate shared by all lessons
+until it is clear that we won’t need to change it. However, for procedural macros, 
+we <em>have</em> to have a separate crate, and it is clear that it <em>will</em> need to change, so I
+have to keep the code inside the lesson’s directory.</p>
+
+<p>However, in your own project, you may do as you wish.</p>
+
+<p>Let’s create <code class="language-plaintext highlighter-rouge">render_gl_derive</code> crate. The <code class="language-plaintext highlighter-rouge">_derive</code> suffix is a convention for macro
+crates that implement <code class="language-plaintext highlighter-rouge">derive</code>:</p>
+
+<p><img src="/images/opengl-rust/10/lesson-10-derive.gif" alt="open gl derive" /></p>
+
+<p>It would sit nicely there alongside <code class="language-plaintext highlighter-rouge">render_gl</code> and <code class="language-plaintext highlighter-rouge">resources</code> crates, but for
+now we will leave <code class="language-plaintext highlighter-rouge">render_gl</code> and <code class="language-plaintext highlighter-rouge">resources</code> inside the <code class="language-plaintext highlighter-rouge">src</code>. Again, I do this to 
+simplify the example code.</p>
+
+<p>Now, we can set up a minimal procedural macro crate.</p>
+
+<p>Inside <code class="language-plaintext highlighter-rouge">Cargo.toml</code>, we add the usual stuff, as well as dependencies on
+<code class="language-plaintext highlighter-rouge">quote</code> and <code class="language-plaintext highlighter-rouge">syn</code> crates. We are following here <a href="https://doc.rust-lang.org/book/second-edition/appendix-04-macros.html#procedural-macros-for-custom-derive">the official 
+tutorial for procedural macros</a>.</p>
+
+<p>(render_gl_derive/Cargo.toml, full file contents)</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[package]</span>
+<span class="py">name</span> <span class="p">=</span> <span class="s">"lesson_10_render_gl_derive"</span>
+<span class="py">version</span> <span class="p">=</span> <span class="s">"0.1.0"</span>
+<span class="py">authors</span> <span class="p">=</span> <span class="p">[]</span>
+
+<span class="nn">[dependencies]</span>
+<span class="py">quote</span> <span class="p">=</span> <span class="s">"0.3.15"</span>
+<span class="py">syn</span> <span class="p">=</span> <span class="s">"0.11.11"</span>
+
+<span class="nn">[lib]</span>
+<span class="py">proc-macro</span> <span class="p">=</span> <span class="kc">true</span>
+</code></pre></div></div>
+
+<p>Two notes here:</p>
+
+<ul>
+  <li>We need to mark crate with <code class="language-plaintext highlighter-rouge">proc-macro = true</code> flag at the end.</li>
+  <li>I’ve prefixed the crate name with <code class="language-plaintext highlighter-rouge">lesson_10_</code>, because I am going to copy this
+code into the next lesson, and because the lessons are living in the same parent
+<a href="https://doc.rust-lang.org/book/second-edition/ch14-03-cargo-workspaces.html">cargo workspace</a>,
+I will be using these prefixes to give different names to the same crates in different lessons.</li>
+</ul>
+
+<p>(render_gl_derive/src/lib.rs, full file contents)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#![recursion_limit=</span><span class="s">"128"</span><span class="nd">]</span>
+
+<span class="k">extern</span> <span class="n">crate</span> <span class="n">proc_macro</span><span class="p">;</span>
+<span class="k">extern</span> <span class="n">crate</span> <span class="n">syn</span><span class="p">;</span>
+<span class="nd">#[macro_use]</span> <span class="k">extern</span> <span class="n">crate</span> <span class="n">quote</span><span class="p">;</span>
+
+<span class="nd">#[proc_macro_derive(VertexAttribPointers,</span> <span class="nd">attributes())]</span>
+<span class="k">pub</span> <span class="k">fn</span> <span class="nf">vertex_attrib_pointers_derive</span><span class="p">(</span><span class="n">input</span><span class="p">:</span> <span class="nn">proc_macro</span><span class="p">::</span><span class="n">TokenStream</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">proc_macro</span><span class="p">::</span><span class="n">TokenStream</span> <span class="p">{</span>
+    <span class="c">// Construct a string representation of the type definition</span>
+    <span class="k">let</span> <span class="n">s</span> <span class="o">=</span> <span class="n">input</span><span class="nf">.to_string</span><span class="p">();</span>
+
+    <span class="c">// Parse the string representation</span>
+    <span class="k">let</span> <span class="n">ast</span> <span class="o">=</span> <span class="nn">syn</span><span class="p">::</span><span class="nf">parse_derive_input</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+
+    <span class="c">// Build the impl</span>
+    <span class="k">let</span> <span class="n">gen</span> <span class="o">=</span> <span class="nf">generate_impl</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ast</span><span class="p">);</span>
+
+    <span class="c">// Return the generated impl</span>
+    <span class="n">gen</span><span class="nf">.parse</span><span class="p">()</span><span class="nf">.unwrap</span><span class="p">()</span>
+<span class="p">}</span>
+
+<span class="k">fn</span> <span class="nf">generate_impl</span><span class="p">(</span><span class="n">ast</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">syn</span><span class="p">::</span><span class="n">DeriveInput</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">quote</span><span class="p">::</span><span class="n">Tokens</span> <span class="p">{</span>
+    <span class="nd">quote!</span> <span class="p">{</span>
+        <span class="k">impl</span> <span class="n">Vertex</span> <span class="p">{</span>
+            <span class="k">fn</span> <span class="nf">vertex_attrib_pointers</span><span class="p">(</span><span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">)</span> <span class="p">{</span>
+                <span class="k">let</span> <span class="n">stride</span> <span class="o">=</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="n">Self</span><span class="o">&gt;</span><span class="p">();</span> <span class="c">// byte offset between consecutive attributes</span>
+
+                <span class="k">let</span> <span class="n">location</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="c">// layout (location = 0)</span>
+                <span class="k">let</span> <span class="n">offset</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="c">// offset of the first component</span>
+
+                <span class="k">unsafe</span> <span class="p">{</span>
+                    <span class="nn">data</span><span class="p">::</span><span class="nn">f32_f32_f32</span><span class="p">::</span><span class="nf">vertex_attrib_pointer</span><span class="p">(</span><span class="n">gl</span><span class="p">,</span> <span class="n">stride</span><span class="p">,</span> <span class="n">location</span><span class="p">,</span> <span class="n">offset</span><span class="p">);</span>
+                <span class="p">}</span>
+
+                <span class="k">let</span> <span class="n">location</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="c">// layout (location = 1)</span>
+                <span class="k">let</span> <span class="n">offset</span> <span class="o">=</span> <span class="n">offset</span> <span class="o">+</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="o">&gt;</span><span class="p">();</span> <span class="c">// offset of the first component</span>
+
+                <span class="k">unsafe</span> <span class="p">{</span>
+                    <span class="nn">data</span><span class="p">::</span><span class="nn">f32_f32_f32</span><span class="p">::</span><span class="nf">vertex_attrib_pointer</span><span class="p">(</span><span class="n">gl</span><span class="p">,</span> <span class="n">stride</span><span class="p">,</span> <span class="n">location</span><span class="p">,</span> <span class="n">offset</span><span class="p">);</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Let’s go over this code bit by bit.</p>
+
+<p>The <code class="language-plaintext highlighter-rouge">#![recursion_limit="128"]</code> is needed because we will be using some amazing macros from
+<code class="language-plaintext highlighter-rouge">quote</code> crate.</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="n">crate</span> <span class="n">proc_macro</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>The <code class="language-plaintext highlighter-rouge">proc_macro</code> crate is a compiler hack: it does not exist, except inside
+a crate marked with <code class="language-plaintext highlighter-rouge">proc-macro</code>, and we suddenly get access to compiler tokens.</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="n">crate</span> <span class="n">syn</span><span class="p">;</span>
+<span class="nd">#[macro_use]</span> <span class="k">extern</span> <span class="n">crate</span> <span class="n">quote</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>These crates will be used to work with macro input and output in a convenient way.</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[proc_macro_derive(VertexAttribPointers,</span> <span class="nd">attributes())]</span>
+<span class="k">pub</span> <span class="k">fn</span> <span class="nf">vertex_attrib_pointers_derive</span><span class="p">(</span><span class="n">input</span><span class="p">:</span> <span class="nn">proc_macro</span><span class="p">::</span><span class="n">TokenStream</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">proc_macro</span><span class="p">::</span><span class="n">TokenStream</span> <span class="p">{</span>
+    <span class="o">...</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>This line “registers” our derive implementation. We may choose any name we want,
+I’ve picked <code class="language-plaintext highlighter-rouge">VertexAttribPointers</code>. Our function will be called <code class="language-plaintext highlighter-rouge">vertex_attrib_pointers_derive</code>.</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">fn</span> <span class="nf">vertex_attrib_pointers_derive</span><span class="p">(</span><span class="n">input</span><span class="p">:</span> <span class="nn">proc_macro</span><span class="p">::</span><span class="n">TokenStream</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">proc_macro</span><span class="p">::</span><span class="n">TokenStream</span> <span class="p">{</span>
+    <span class="c">// Construct a string representation of the type definition</span>
+    <span class="k">let</span> <span class="n">s</span> <span class="o">=</span> <span class="n">input</span><span class="nf">.to_string</span><span class="p">();</span>
+
+    <span class="c">// Parse the string representation</span>
+    <span class="k">let</span> <span class="n">ast</span> <span class="o">=</span> <span class="nn">syn</span><span class="p">::</span><span class="nf">parse_derive_input</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+
+    <span class="c">// Build the impl</span>
+    <span class="k">let</span> <span class="n">gen</span> <span class="o">=</span> <span class="nf">generate_impl</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ast</span><span class="p">);</span>
+
+    <span class="c">// Return the generated impl</span>
+    <span class="n">gen</span><span class="nf">.parse</span><span class="p">()</span><span class="nf">.unwrap</span><span class="p">()</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Inside this helper function, we take tokens from the compiler (they are a string),
+then parse them with <code class="language-plaintext highlighter-rouge">syn</code> crate into AST (abstract syntax tree, which will allow
+us to inspect the code in a convenient way). Then, we run our function to generate 
+the implementation code, and then return the string back to the compiler.</p>
+
+<p>Let’s got back to the next part, the <code class="language-plaintext highlighter-rouge">generate_impl</code> function:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">generate_impl</span><span class="p">(</span><span class="n">ast</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">syn</span><span class="p">::</span><span class="n">DeriveInput</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">quote</span><span class="p">::</span><span class="n">Tokens</span> <span class="p">{</span>
+    <span class="nd">quote!</span> <span class="p">{</span>
+        <span class="k">impl</span> <span class="n">Vertex</span> <span class="p">{</span>
+            <span class="k">fn</span> <span class="nf">vertex_attrib_pointers</span><span class="p">(</span><span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">)</span> <span class="p">{</span>
+                <span class="k">let</span> <span class="n">stride</span> <span class="o">=</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="n">Self</span><span class="o">&gt;</span><span class="p">();</span> <span class="c">// byte offset between consecutive attributes</span>
+
+                <span class="k">let</span> <span class="n">location</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="c">// layout (location = 0)</span>
+                <span class="k">let</span> <span class="n">offset</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="c">// offset of the first component</span>
+
+                <span class="k">unsafe</span> <span class="p">{</span>
+                    <span class="nn">data</span><span class="p">::</span><span class="nn">f32_f32_f32</span><span class="p">::</span><span class="nf">vertex_attrib_pointer</span><span class="p">(</span><span class="n">gl</span><span class="p">,</span> <span class="n">stride</span><span class="p">,</span> <span class="n">location</span><span class="p">,</span> <span class="n">offset</span><span class="p">);</span>
+                <span class="p">}</span>
+
+                <span class="k">let</span> <span class="n">location</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="c">// layout (location = 1)</span>
+                <span class="k">let</span> <span class="n">offset</span> <span class="o">=</span> <span class="n">offset</span> <span class="o">+</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="o">&gt;</span><span class="p">();</span> <span class="c">// offset of the first component</span>
+
+                <span class="k">unsafe</span> <span class="p">{</span>
+                    <span class="nn">data</span><span class="p">::</span><span class="nn">f32_f32_f32</span><span class="p">::</span><span class="nf">vertex_attrib_pointer</span><span class="p">(</span><span class="n">gl</span><span class="p">,</span> <span class="n">stride</span><span class="p">,</span> <span class="n">location</span><span class="p">,</span> <span class="n">offset</span><span class="p">);</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Now, this is amazing. The input for this function is a <code class="language-plaintext highlighter-rouge">ast: &amp;syn::DeriveInput</code> type,
+which can now be inspected to find all the fields on the struct.</p>
+
+<p>The return result of this function is generated with <code class="language-plaintext highlighter-rouge">quote</code> macro (more on it soon). So,
+everything you see between <code class="language-plaintext highlighter-rouge">quote! {</code> and <code class="language-plaintext highlighter-rouge">}</code> <em>is a macro</em>, which is converted to
+<code class="language-plaintext highlighter-rouge">quote::Tokens</code> type by <code class="language-plaintext highlighter-rouge">quote!</code>.</p>
+
+<p>Inside the <code class="language-plaintext highlighter-rouge">quote!</code>, we’ve copy-pasted our <code class="language-plaintext highlighter-rouge">impl Vertex</code> code as-is.</p>
+
+<p>Now, let’s make sure this code is used from our main function.</p>
+
+<h3 id="using-our-procedural-macro">Using our Procedural Macro</h3>
+
+<p>We can reference our new crate inside our main <code class="language-plaintext highlighter-rouge">Cargo.toml</code>:</p>
+
+<p>(Cargo.toml, add the dependency to the <code class="language-plaintext highlighter-rouge">[dependencies]</code> section)</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">lesson_10_render_gl_derive</span> <span class="o">=</span> <span class="p">{</span> <span class="py">path</span> <span class="p">=</span> <span class="s">"render_gl_derive"</span> <span class="p">}</span>
+</code></pre></div></div>
+
+<p>And use it inside the <code class="language-plaintext highlighter-rouge">main.rs</code>:</p>
+
+<p>(src/main.rs, add <code class="language-plaintext highlighter-rouge">extern crate</code> line)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[macro_use]</span> <span class="k">extern</span> <span class="n">crate</span> <span class="n">lesson_10_render_gl_derive</span> <span class="k">as</span> <span class="n">render_gl_derive</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>(again, I have to do the <code class="language-plaintext highlighter-rouge">lesson_10_</code> prefix dance that you may skip)</p>
+
+<p>Now, we can delete <code class="language-plaintext highlighter-rouge">impl Vertex</code> code, and the crate should fail to compile:</p>
+
+<pre><code class="language-plain">84 |         Vertex::vertex_attrib_pointers(&amp;gl);
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ function or associated item not found in `Vertex`
+</code></pre>
+
+<p>But then, if we add <code class="language-plaintext highlighter-rouge">#[derive(VertexAttribPointers)]</code> attribute to <code class="language-plaintext highlighter-rouge">Vertex</code> struct, it should:</p>
+
+<p>(src/main.rs, modify <code class="language-plaintext highlighter-rouge">struct Vertex</code>)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(VertexAttribPointers)]</span>
+<span class="nd">#[derive(Copy,</span> <span class="nd">Clone,</span> <span class="nd">Debug)]</span>
+<span class="nd">#[repr(C,</span> <span class="nd">packed)]</span>
+<span class="k">struct</span> <span class="n">Vertex</span> <span class="p">{</span>
+    <span class="n">pos</span><span class="p">:</span> <span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="p">,</span>
+    <span class="n">clr</span><span class="p">:</span> <span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Now, we just need to replace the hardcoded implementation with another one that
+generates different code dependant on the number of fields, their types and attributes.
+Let’s continue!</p>
+
+<h2 id="generating-the-impl-based-on-the-struct-definition">Generating the impl based on the Struct Definition</h2>
+
+<p>We can “debug” the procedural macro code by panicking. Panic happens at compile-time
+and is included in error as a help message. For example, we can panic and 
+check the contents of
+<code class="language-plaintext highlighter-rouge">ast: &amp;syn::DeriveInput</code>:</p>
+
+<p>(render_gl_derive/src/lib.rs, inside fn generate_impl, example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">panic!</span><span class="p">(</span><span class="s">"ast = {:#?}"</span><span class="p">,</span> <span class="n">ast</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>When we try to compile it, we get this error message:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">error</span><span class="p">:</span> <span class="n">proc</span><span class="o">-</span><span class="n">macro</span> <span class="n">derive</span> <span class="n">panicked</span>
+  <span class="o">-</span><span class="k">-&gt;</span> <span class="n">lesson</span><span class="o">-</span><span class="mi">10</span><span class="err">\</span><span class="n">src</span><span class="err">\</span><span class="n">main</span><span class="py">.rs</span><span class="p">:</span><span class="mi">13</span><span class="p">:</span><span class="mi">10</span>
+   <span class="p">|</span>
+<span class="mi">13</span> <span class="p">|</span> <span class="nd">#[derive(VertexAttribPointers)]</span>
+   <span class="p">|</span>          <span class="o">^^^^^^^^^^^^^^^^^^^^</span>
+   <span class="p">|</span>
+   <span class="o">=</span> <span class="n">help</span><span class="p">:</span> <span class="n">message</span><span class="p">:</span> <span class="n">ast</span> <span class="o">=</span> <span class="n">DeriveInput</span> <span class="p">{</span>
+               <span class="n">ident</span><span class="p">:</span> <span class="nf">Ident</span><span class="p">(</span>
+                   <span class="s">"Vertex"</span>
+               <span class="p">),</span>
+               <span class="n">vis</span><span class="p">:</span> <span class="n">Inherited</span><span class="p">,</span>
+               <span class="n">attrs</span><span class="p">:</span> <span class="p">[</span>
+                   <span class="n">Attribute</span> <span class="p">{</span>
+                       <span class="n">style</span><span class="p">:</span> <span class="n">Outer</span><span class="p">,</span>
+                       <span class="n">value</span><span class="p">:</span> <span class="nf">List</span><span class="p">(</span>
+                           <span class="nf">Ident</span><span class="p">(</span>
+                               <span class="s">"repr"</span>
+                           <span class="p">),</span>
+                           <span class="p">[</span>
+                               <span class="nf">MetaItem</span><span class="p">(</span>
+                                   <span class="nf">Word</span><span class="p">(</span>
+                                       <span class="nf">Ident</span><span class="p">(</span>
+                                           <span class="s">"C"</span>
+                                       <span class="p">)</span>
+                                   <span class="p">)</span>
+                               <span class="p">),</span>
+                               <span class="nf">MetaItem</span><span class="p">(</span>
+                                   <span class="nf">Word</span><span class="p">(</span>
+                                       <span class="nf">Ident</span><span class="p">(</span>
+                                           <span class="s">"packed"</span>
+                                       <span class="p">)</span>
+                                   <span class="p">)</span>
+                               <span class="p">)</span>
+                           <span class="p">]</span>
+                       <span class="p">),</span>
+                       <span class="n">is_sugared_doc</span><span class="p">:</span> <span class="k">false</span>
+                   <span class="p">}</span>
+               <span class="p">],</span>
+               <span class="n">generics</span><span class="p">:</span> <span class="n">Generics</span> <span class="p">{</span>
+                   <span class="n">lifetimes</span><span class="p">:</span> <span class="p">[],</span>
+                   <span class="n">ty_params</span><span class="p">:</span> <span class="p">[],</span>
+                   <span class="n">where_clause</span><span class="p">:</span> <span class="n">WhereClause</span> <span class="p">{</span>
+                       <span class="n">predicates</span><span class="p">:</span> <span class="p">[]</span>
+                   <span class="p">}</span>
+               <span class="p">},</span>
+               <span class="n">body</span><span class="p">:</span> <span class="nf">Struct</span><span class="p">(</span>
+                   <span class="nf">Struct</span><span class="p">(</span>
+                       <span class="p">[</span>
+                           <span class="n">Field</span> <span class="p">{</span>
+                               <span class="n">ident</span><span class="p">:</span> <span class="nf">Some</span><span class="p">(</span>
+                                   <span class="nf">Ident</span><span class="p">(</span>
+                                       <span class="s">"pos"</span>
+                                   <span class="p">)</span>
+                               <span class="p">),</span>
+                               <span class="n">vis</span><span class="p">:</span> <span class="n">Inherited</span><span class="p">,</span>
+                               <span class="n">attrs</span><span class="p">:</span> <span class="p">[],</span>
+                               <span class="n">ty</span><span class="p">:</span> <span class="nf">Path</span><span class="p">(</span>
+                                   <span class="nb">None</span><span class="p">,</span>
+                                   <span class="n">Path</span> <span class="p">{</span>
+                                       <span class="n">global</span><span class="p">:</span> <span class="k">false</span><span class="p">,</span>
+                                       <span class="n">segments</span><span class="p">:</span> <span class="p">[</span>
+                                           <span class="n">PathSegment</span> <span class="p">{</span>
+                                               <span class="n">ident</span><span class="p">:</span> <span class="nf">Ident</span><span class="p">(</span>
+                                                   <span class="s">"data"</span>
+                                               <span class="p">),</span>
+                                               <span class="n">parameters</span><span class="p">:</span> <span class="nf">AngleBracketed</span><span class="p">(</span>
+                                                   <span class="n">AngleBracketedParameterData</span> <span class="p">{</span>
+                                                       <span class="n">lifetimes</span><span class="p">:</span> <span class="p">[],</span>
+                                                       <span class="n">types</span><span class="p">:</span> <span class="p">[],</span>
+                                                       <span class="n">bindings</span><span class="p">:</span> <span class="p">[]</span>
+                                                   <span class="p">}</span>
+                                               <span class="p">)</span>
+                                           <span class="p">},</span>
+                                           <span class="n">PathSegment</span> <span class="p">{</span>
+                                               <span class="n">ident</span><span class="p">:</span> <span class="nf">Ident</span><span class="p">(</span>
+                                                   <span class="s">"f32_f32_f32"</span>
+                                               <span class="p">),</span>
+                                               <span class="n">parameters</span><span class="p">:</span> <span class="nf">AngleBracketed</span><span class="p">(</span>
+                                                   <span class="n">AngleBracketedParameterData</span> <span class="p">{</span>
+                                                       <span class="n">lifetimes</span><span class="p">:</span> <span class="p">[],</span>
+                                                       <span class="n">types</span><span class="p">:</span> <span class="p">[],</span>
+                                                       <span class="n">bindings</span><span class="p">:</span> <span class="p">[]</span>
+                                                   <span class="p">}</span>
+                                               <span class="p">)</span>
+                                           <span class="p">}</span>
+                                       <span class="p">]</span>
+                                   <span class="p">}</span>
+                               <span class="p">)</span>
+                           <span class="p">},</span>
+                           <span class="n">Field</span> <span class="p">{</span>
+                               <span class="n">ident</span><span class="p">:</span> <span class="nf">Some</span><span class="p">(</span>
+                                   <span class="nf">Ident</span><span class="p">(</span>
+                                       <span class="s">"clr"</span>
+                                   <span class="p">)</span>
+                               <span class="p">),</span>
+                               <span class="n">vis</span><span class="p">:</span> <span class="n">Inherited</span><span class="p">,</span>
+                               <span class="n">attrs</span><span class="p">:</span> <span class="p">[],</span>
+                               <span class="n">ty</span><span class="p">:</span> <span class="nf">Path</span><span class="p">(</span>
+                                   <span class="nb">None</span><span class="p">,</span>
+                                   <span class="n">Path</span> <span class="p">{</span>
+                                       <span class="n">global</span><span class="p">:</span> <span class="k">false</span><span class="p">,</span>
+                                       <span class="n">segments</span><span class="p">:</span> <span class="p">[</span>
+                                           <span class="n">PathSegment</span> <span class="p">{</span>
+                                               <span class="n">ident</span><span class="p">:</span> <span class="nf">Ident</span><span class="p">(</span>
+                                                   <span class="s">"data"</span>
+                                               <span class="p">),</span>
+                                               <span class="n">parameters</span><span class="p">:</span> <span class="nf">AngleBracketed</span><span class="p">(</span>
+                                                   <span class="n">AngleBracketedParameterData</span> <span class="p">{</span>
+                                                       <span class="n">lifetimes</span><span class="p">:</span> <span class="p">[],</span>
+                                                       <span class="n">types</span><span class="p">:</span> <span class="p">[],</span>
+                                                       <span class="n">bindings</span><span class="p">:</span> <span class="p">[]</span>
+                                                   <span class="p">}</span>
+                                               <span class="p">)</span>
+                                           <span class="p">},</span>
+                                           <span class="n">PathSegment</span> <span class="p">{</span>
+                                               <span class="n">ident</span><span class="p">:</span> <span class="nf">Ident</span><span class="p">(</span>
+                                                   <span class="s">"f32_f32_f32"</span>
+                                               <span class="p">),</span>
+                                               <span class="n">parameters</span><span class="p">:</span> <span class="nf">AngleBracketed</span><span class="p">(</span>
+                                                   <span class="n">AngleBracketedParameterData</span> <span class="p">{</span>
+                                                       <span class="n">lifetimes</span><span class="p">:</span> <span class="p">[],</span>
+                                                       <span class="n">types</span><span class="p">:</span> <span class="p">[],</span>
+                                                       <span class="n">bindings</span><span class="p">:</span> <span class="p">[]</span>
+                                                   <span class="p">}</span>
+                                               <span class="p">)</span>
+                                           <span class="p">}</span>
+                                       <span class="p">]</span>
+                                   <span class="p">}</span>
+                               <span class="p">)</span>
+                           <span class="p">}</span>
+                       <span class="p">]</span>
+                   <span class="p">)</span>
+               <span class="p">)</span>
+           <span class="p">}</span>
+</code></pre></div></div>
+
+<p>As you can see, in the <code class="language-plaintext highlighter-rouge">ast</code> we have all the information we need about the struct, like its name,
+its fields, the field types, generic parameters, attributes, lifetimes, and so on.</p>
+
+<p>We can now simply loop over this struct’s fields and build our impl code. For that, we will invoke
+<code class="language-plaintext highlighter-rouge">quote</code> separately for each field and its type, and then combine the results in a single
+piece of code blob. This documentation might come in handy:</p>
+
+<ul>
+  <li><a href="https://docs.rs/quote/0.6.3/quote/">The main doc page of the <code class="language-plaintext highlighter-rouge">quote</code> crate</a>;</li>
+  <li><a href="https://docs.rs/quote/0.6.3/quote/macro.quote.html">The documentation of the <code class="language-plaintext highlighter-rouge">quote</code> macro</a>;</li>
+  <li><a href="https://air.mozilla.org/procedural-macros-in-rust/">The announcement video of quote macro</a> (video note: <em>syntax extensions</em> no longer exist).
+    <iframe src="https://air.mozilla.org/procedural-macros-in-rust/video/" width="640" height="380" frameborder="0" allowfullscreen=""></iframe>
+  </li>
+</ul>
+
+<p>To check if we are generating the right thing, we will panic inside <code class="language-plaintext highlighter-rouge">generate_impl</code> function.
+We start by generating <code class="language-plaintext highlighter-rouge">impl Vertex {}</code> code:</p>
+
+<p>(render_gl_derive/src/lib.rs, inside <code class="language-plaintext highlighter-rouge">generate_impl</code> function)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">ident</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">ast</span><span class="py">.ident</span><span class="p">;</span>
+<span class="k">let</span> <span class="n">generics</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">ast</span><span class="py">.generics</span><span class="p">;</span>
+<span class="k">let</span> <span class="n">where_clause</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">ast</span><span class="py">.generics.where_clause</span><span class="p">;</span>
+
+<span class="nd">panic!</span><span class="p">(</span><span class="s">"code = {:#?}"</span><span class="p">,</span> <span class="nd">quote!</span><span class="p">{</span>
+    <span class="k">impl</span> #<span class="n">ident</span> #<span class="n">generics</span> #<span class="n">where_clause</span> <span class="p">{</span>
+        <span class="c">// continue here</span>
+    <span class="p">}</span>
+<span class="p">});</span>
+</code></pre></div></div>
+
+<p>This produces “help” error message:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="mi">13</span> <span class="p">|</span> <span class="nd">#[derive(VertexAttribPointers)]</span>
+   <span class="p">|</span>          <span class="o">^^^^^^^^^^^^^^^^^^^^</span>
+   <span class="p">|</span>
+   <span class="o">=</span> <span class="n">help</span><span class="p">:</span> <span class="n">message</span><span class="p">:</span> <span class="n">code</span> <span class="o">=</span> <span class="nf">Tokens</span><span class="p">(</span>
+               <span class="s">"impl Vertex { }"</span>
+           <span class="p">)</span>
+</code></pre></div></div>
+
+<p>To be thorough, we have also included the <code class="language-plaintext highlighter-rouge">generics</code> tokens, to generate the correct code
+if our vertex had any generics (not that we plan any at this point). To see it in effect,
+we can test it out with these examples:</p>
+
+<p>(src/main.rs, temporary example change to <code class="language-plaintext highlighter-rouge">Vertex</code>)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Vertex</span><span class="o">&lt;</span><span class="n">A</span><span class="p">,</span> <span class="n">B</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">pos</span><span class="p">:</span> <span class="n">A</span><span class="p">,</span>
+    <span class="n">clr</span><span class="p">:</span> <span class="n">B</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>produces:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">=</span> <span class="n">help</span><span class="p">:</span> <span class="n">message</span><span class="p">:</span> <span class="n">code</span> <span class="o">=</span> <span class="nf">Tokens</span><span class="p">(</span>
+           <span class="s">"impl Vertex &lt; A , B &gt; { }"</span>
+       <span class="p">)</span>
+</code></pre></div></div>
+
+<p>As well as</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Vertex</span><span class="o">&lt;</span><span class="n">A</span><span class="p">,</span> <span class="n">B</span><span class="p">:</span> <span class="n">Display</span><span class="o">&gt;</span> <span class="k">where</span> <span class="n">A</span><span class="p">:</span> <span class="n">Clone</span> <span class="p">{</span>
+    <span class="n">pos</span><span class="p">:</span> <span class="n">A</span><span class="p">,</span>
+    <span class="n">clr</span><span class="p">:</span> <span class="n">B</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>produces:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">=</span> <span class="n">help</span><span class="p">:</span> <span class="n">message</span><span class="p">:</span> <span class="n">code</span> <span class="o">=</span> <span class="nf">Tokens</span><span class="p">(</span>
+           <span class="s">"impl Vertex &lt; A , B : Display &gt; where A : Clone { }"</span>
+       <span class="p">)</span>
+</code></pre></div></div>
+
+<p>Of course, the generics and <code class="language-plaintext highlighter-rouge">where</code> clauses might be completely unnecessary for our use case, but
+I have added them for the completeness sake.</p>
+
+<p>Inside the <code class="language-plaintext highlighter-rouge">impl</code> block, we can now add the function implementation. The stride calculation
+will always be the same, so we can add it too. It uses <code class="language-plaintext highlighter-rouge">Self</code> keyword which refers to
+containing struct, so we don’t need to use the <code class="language-plaintext highlighter-rouge">#ident</code> here (but we could):</p>
+
+<p>(render_gl_derive/src/lib.rs, inside <code class="language-plaintext highlighter-rouge">generate_impl</code> function, continued)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="nd">#[allow(unused_variables)]</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">vertex_attrib_pointers</span><span class="p">(</span><span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="n">stride</span> <span class="o">=</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="n">Self</span><span class="o">&gt;</span><span class="p">();</span> <span class="c">// byte offset between consecutive attributes</span>
+        <span class="k">let</span> <span class="n">offset</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+        
+        <span class="c">// continue here</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>Next, we will need some repeated macro code for each field. We will generate
+tokens for each field in a new <code class="language-plaintext highlighter-rouge">generate_vertex_attrib_pointer_calls</code> function 
+(which will return a Vec of them), 
+and then assign the return value to <code class="language-plaintext highlighter-rouge">fields_vertex_attrib_pointer</code>:</p>
+
+<p>(render_gl_derive/src/lib.rs, above <code class="language-plaintext highlighter-rouge">panic!("code = {:#?}", quote!{</code>)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">fields_vertex_attrib_pointer</span> 
+    <span class="o">=</span> <span class="nf">generate_vertex_attrib_pointer_calls</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ast</span><span class="py">.body</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>By consulting the <code class="language-plaintext highlighter-rouge">quote</code> macro docs, we can find how to include anything that
+implements <code class="language-plaintext highlighter-rouge">IntoIterator&lt;Item=ToTokens&gt;</code> trait (<code class="language-plaintext highlighter-rouge">Vec&lt;quote::Tokens&gt;</code> would) as
+repeatable code contents:</p>
+
+<p>(render_gl_derive/src/lib.rs, continued)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="err">#</span><span class="p">(</span><span class="err">#</span><span class="n">fields_vertex_attrib_pointer</span><span class="p">)</span><span class="o">*</span>
+</code></pre></div></div>
+
+<p>Now, we just need to write <code class="language-plaintext highlighter-rouge">generate_vertex_attrib_pointer_calls</code> function
+following the same technique (by the “same technique” I mean inspecting types with <code class="language-plaintext highlighter-rouge">panic</code> calls
+until we arrive at something reasonable):</p>
+
+<p>(render_gl_derive/src/lib.rs, new function)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">generate_vertex_attrib_pointer_calls</span><span class="p">(</span><span class="n">body</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">syn</span><span class="p">::</span><span class="n">Body</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nn">quote</span><span class="p">::</span><span class="n">Tokens</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">match</span> <span class="n">body</span> <span class="p">{</span>
+        <span class="o">&amp;</span><span class="nn">syn</span><span class="p">::</span><span class="nn">Body</span><span class="p">::</span><span class="nf">Enum</span><span class="p">(</span><span class="mi">_</span><span class="p">)</span> 
+            <span class="k">=&gt;</span> <span class="nd">panic!</span><span class="p">(</span><span class="s">"VertexAttribPointers can not be implemented for enums"</span><span class="p">),</span>
+        <span class="o">&amp;</span><span class="nn">syn</span><span class="p">::</span><span class="nn">Body</span><span class="p">::</span><span class="nf">Struct</span><span class="p">(</span><span class="nn">syn</span><span class="p">::</span><span class="nn">VariantData</span><span class="p">::</span><span class="n">Unit</span><span class="p">)</span> 
+            <span class="k">=&gt;</span>  <span class="nd">panic!</span><span class="p">(</span><span class="s">"VertexAttribPointers can not be implemented for Unit structs"</span><span class="p">),</span>
+        <span class="o">&amp;</span><span class="nn">syn</span><span class="p">::</span><span class="nn">Body</span><span class="p">::</span><span class="nf">Struct</span><span class="p">(</span><span class="nn">syn</span><span class="p">::</span><span class="nn">VariantData</span><span class="p">::</span><span class="nf">Tuple</span><span class="p">(</span><span class="mi">_</span><span class="p">))</span> 
+            <span class="k">=&gt;</span>  <span class="nd">panic!</span><span class="p">(</span><span class="s">"VertexAttribPointers can not be implemented for Tuple structs"</span><span class="p">),</span>
+        <span class="o">&amp;</span><span class="nn">syn</span><span class="p">::</span><span class="nn">Body</span><span class="p">::</span><span class="nf">Struct</span><span class="p">(</span><span class="nn">syn</span><span class="p">::</span><span class="nn">VariantData</span><span class="p">::</span><span class="nf">Struct</span><span class="p">(</span><span class="k">ref</span> <span class="n">s</span><span class="p">))</span> <span class="k">=&gt;</span> <span class="p">{</span>
+            <span class="n">s</span><span class="nf">.iter</span><span class="p">()</span>
+                <span class="nf">.map</span><span class="p">(</span><span class="n">generate_struct_field_vertex_attrib_pointer_call</span><span class="p">)</span>
+                <span class="nf">.collect</span><span class="p">()</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Here, we decide <em>not</em> to handle enums, unit structs (with no size), 
+tuple structs (with unpredictable order), just plain structs please.</p>
+
+<p>For that, we will write the actual token generation in <code class="language-plaintext highlighter-rouge">generate_struct_field_vertex_attrib_pointer_call</code>
+call:</p>
+
+<p>(render_gl_derive/src/lib.rs, new function)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">generate_struct_field_vertex_attrib_pointer_call</span><span class="p">(</span><span class="n">field</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">syn</span><span class="p">::</span><span class="n">Field</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">quote</span><span class="p">::</span><span class="n">Tokens</span> <span class="p">{</span>
+    <span class="nd">panic!</span><span class="p">(</span><span class="s">"field = {:#?}"</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Here we can continue our “debugging technique” by panicking to check how our field
+data looks like:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>   <span class="o">=</span> <span class="n">help</span><span class="p">:</span> <span class="n">message</span><span class="p">:</span> <span class="n">field</span> <span class="o">=</span> <span class="n">Field</span> <span class="p">{</span>
+               <span class="n">ident</span><span class="p">:</span> <span class="nf">Some</span><span class="p">(</span>
+                   <span class="nf">Ident</span><span class="p">(</span>
+                       <span class="s">"pos"</span>
+                   <span class="p">)</span>
+               <span class="p">),</span>
+               <span class="n">vis</span><span class="p">:</span> <span class="n">Inherited</span><span class="p">,</span>
+               <span class="n">attrs</span><span class="p">:</span> <span class="p">[],</span>
+               <span class="n">ty</span><span class="p">:</span> <span class="nf">Path</span><span class="p">(</span>
+                   <span class="nb">None</span><span class="p">,</span>
+                   <span class="n">Path</span> <span class="p">{</span>
+                       <span class="n">global</span><span class="p">:</span> <span class="k">false</span><span class="p">,</span>
+                       <span class="n">segments</span><span class="p">:</span> <span class="p">[</span>
+                           <span class="n">PathSegment</span> <span class="p">{</span>
+                               <span class="n">ident</span><span class="p">:</span> <span class="nf">Ident</span><span class="p">(</span>
+                                   <span class="s">"data"</span>
+                               <span class="p">),</span>
+                               <span class="n">parameters</span><span class="p">:</span> <span class="nf">AngleBracketed</span><span class="p">(</span>
+                                   <span class="n">AngleBracketedParameterData</span> <span class="p">{</span>
+                                       <span class="n">lifetimes</span><span class="p">:</span> <span class="p">[],</span>
+                                       <span class="n">types</span><span class="p">:</span> <span class="p">[],</span>
+                                       <span class="n">bindings</span><span class="p">:</span> <span class="p">[]</span>
+                                   <span class="p">}</span>
+                               <span class="p">)</span>
+                           <span class="p">},</span>
+                           <span class="n">PathSegment</span> <span class="p">{</span>
+                               <span class="n">ident</span><span class="p">:</span> <span class="nf">Ident</span><span class="p">(</span>
+                                   <span class="s">"f32_f32_f32"</span>
+                               <span class="p">),</span>
+                               <span class="n">parameters</span><span class="p">:</span> <span class="nf">AngleBracketed</span><span class="p">(</span>
+                                   <span class="n">AngleBracketedParameterData</span> <span class="p">{</span>
+                                       <span class="n">lifetimes</span><span class="p">:</span> <span class="p">[],</span>
+                                       <span class="n">types</span><span class="p">:</span> <span class="p">[],</span>
+                                       <span class="n">bindings</span><span class="p">:</span> <span class="p">[]</span>
+                                   <span class="p">}</span>
+                               <span class="p">)</span>
+                           <span class="p">}</span>
+                       <span class="p">]</span>
+                   <span class="p">}</span>
+               <span class="p">)</span>
+           <span class="p">}</span>
+</code></pre></div></div>
+
+<p>The code we plan to generate is this (reordered a bit so that each field is generated
+in exactly the same way):</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">stride</span> <span class="o">=</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="n">Self</span><span class="o">&gt;</span><span class="p">();</span> <span class="c">// byte offset between consecutive attributes</span>
+<span class="k">let</span> <span class="n">offset</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="c">// offset of the first component</span>
+
+<span class="k">let</span> <span class="n">location</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="c">// layout (location = 0)</span>
+<span class="k">unsafe</span> <span class="p">{</span>
+    <span class="nn">data</span><span class="p">::</span><span class="nn">f32_f32_f32</span><span class="p">::</span><span class="nf">vertex_attrib_pointer</span><span class="p">(</span><span class="n">gl</span><span class="p">,</span> <span class="n">stride</span><span class="p">,</span> <span class="n">location</span><span class="p">,</span> <span class="n">offset</span><span class="p">);</span>
+<span class="p">}</span>
+<span class="k">let</span> <span class="n">offset</span> <span class="o">=</span> <span class="n">offset</span> <span class="o">+</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="o">&gt;</span><span class="p">();</span> <span class="c">// offset of the second component</span>
+
+<span class="k">let</span> <span class="n">location</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="c">// layout (location = 1)</span>
+<span class="k">unsafe</span> <span class="p">{</span>
+    <span class="nn">data</span><span class="p">::</span><span class="nn">f32_f32_f32</span><span class="p">::</span><span class="nf">vertex_attrib_pointer</span><span class="p">(</span><span class="n">gl</span><span class="p">,</span> <span class="n">stride</span><span class="p">,</span> <span class="n">location</span><span class="p">,</span> <span class="n">offset</span><span class="p">);</span>
+<span class="p">}</span>
+<span class="k">let</span> <span class="n">offset</span> <span class="o">=</span> <span class="n">offset</span> <span class="o">+</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="o">&gt;</span><span class="p">();</span> <span class="c">// offset of the third component</span>
+</code></pre></div></div>
+
+<p>The last line is unnecessary, however we can rely on the compiler to optimize this dead 
+code away.</p>
+
+<p>But we have one bit of information missing: location.
+Of course, we could simply assume that the <code class="language-plaintext highlighter-rouge">location</code> always starts at <code class="language-plaintext highlighter-rouge">0</code> and is
+incremented by <code class="language-plaintext highlighter-rouge">1</code> for each field, however this would not be a very flexible design
+(much worse it can be prone to bugs when adding fields in the middle).</p>
+
+<p>Instead, it would be best if we could specify the location for each field over
+a custom attribute, like <code class="language-plaintext highlighter-rouge">#[location = 0]</code>, <code class="language-plaintext highlighter-rouge">#[location = 1]</code> and so on.</p>
+
+<p>It is actually really simple to do: in our <code class="language-plaintext highlighter-rouge">proc_macro_derive</code>, we simply list <code class="language-plaintext highlighter-rouge">location</code>
+as a possible attribute for our procedural macro:</p>
+
+<p>(render_gl_derive/src/lib.rs, change <code class="language-plaintext highlighter-rouge">#[proc_macro_derive(VertexAttribPointers, attributes())]</code>)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[proc_macro_derive(VertexAttribPointers,</span> <span class="nd">attributes(location))]</span>
+</code></pre></div></div>
+
+<p>And now this attribute is legal to add to our <code class="language-plaintext highlighter-rouge">Vertex</code> struct:</p>
+
+<p>(src/main.rs, modify <code class="language-plaintext highlighter-rouge">struct Vertex</code>)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(VertexAttribPointers)]</span>
+<span class="nd">#[derive(Copy,</span> <span class="nd">Clone,</span> <span class="nd">Debug)]</span>
+<span class="nd">#[repr(C,</span> <span class="nd">packed)]</span>
+<span class="k">struct</span> <span class="n">Vertex</span> <span class="p">{</span>
+    <span class="nd">#[location</span> <span class="nd">=</span> <span class="mi">0</span><span class="nd">]</span>
+    <span class="n">pos</span><span class="p">:</span> <span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="p">,</span>
+    <span class="nd">#[location</span> <span class="nd">=</span> <span class="mi">1</span><span class="nd">]</span>
+    <span class="n">clr</span><span class="p">:</span> <span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Now when we run our panicking implementation again, we can find the
+attr value inside <code class="language-plaintext highlighter-rouge">attrs</code>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>   <span class="o">=</span> <span class="n">help</span><span class="p">:</span> <span class="n">message</span><span class="p">:</span> <span class="n">field</span> <span class="o">=</span> <span class="n">Field</span> <span class="p">{</span>
+               <span class="o">...</span>
+               <span class="n">attrs</span><span class="p">:</span> <span class="p">[</span>
+                   <span class="n">Attribute</span> <span class="p">{</span>
+                       <span class="n">style</span><span class="p">:</span> <span class="n">Outer</span><span class="p">,</span>
+                       <span class="n">value</span><span class="p">:</span> <span class="nf">NameValue</span><span class="p">(</span>
+                           <span class="nf">Ident</span><span class="p">(</span>
+                               <span class="s">"location"</span>
+                           <span class="p">),</span>
+                           <span class="nf">Int</span><span class="p">(</span>
+                               <span class="mi">0</span><span class="p">,</span>
+                               <span class="n">Unsuffixed</span>
+                           <span class="p">)</span>
+                       <span class="p">),</span>
+                       <span class="n">is_sugared_doc</span><span class="p">:</span> <span class="k">false</span>
+                   <span class="p">}</span>
+               <span class="p">],</span>
+               <span class="o">...</span>
+           <span class="p">}</span>
+</code></pre></div></div>
+
+<p>In <code class="language-plaintext highlighter-rouge">generate_struct_field_vertex_attrib_pointer_call</code>, we can start by requiring <code class="language-plaintext highlighter-rouge">location</code>
+attribute in <code class="language-plaintext highlighter-rouge">field.attrs</code>, and printing a reasonable message if it is missing:</p>
+
+<p>(render_gl_derive/src/lib.rs, <code class="language-plaintext highlighter-rouge">generate_struct_field_vertex_attrib_pointer_call</code>, full)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">generate_struct_field_vertex_attrib_pointer_call</span><span class="p">(</span><span class="n">field</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">syn</span><span class="p">::</span><span class="n">Field</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">quote</span><span class="p">::</span><span class="n">Tokens</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">field_name</span> <span class="o">=</span> <span class="k">match</span> <span class="n">field</span><span class="py">.ident</span> <span class="p">{</span>
+        <span class="nf">Some</span><span class="p">(</span><span class="k">ref</span> <span class="n">i</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="nd">format!</span><span class="p">(</span><span class="s">"{}"</span><span class="p">,</span> <span class="n">i</span><span class="p">),</span>
+        <span class="nb">None</span> <span class="k">=&gt;</span> <span class="nn">String</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="s">""</span><span class="p">),</span>
+    <span class="p">};</span>
+    <span class="k">let</span> <span class="n">location_attr</span> <span class="o">=</span> <span class="n">field</span><span class="py">.attrs</span>
+        <span class="nf">.iter</span><span class="p">()</span>
+        <span class="nf">.filter</span><span class="p">(|</span><span class="n">a</span><span class="p">|</span> <span class="n">a</span><span class="py">.value</span><span class="nf">.name</span><span class="p">()</span> <span class="o">==</span> <span class="s">"location"</span><span class="p">)</span>
+        <span class="nf">.next</span><span class="p">()</span>
+        <span class="nf">.unwrap_or_else</span><span class="p">(||</span> <span class="nd">panic!</span><span class="p">(</span>
+            <span class="s">"Field {:?} is missing #[location = ?] attribute"</span><span class="p">,</span> <span class="n">field_name</span>
+        <span class="p">));</span>
+        
+    <span class="c">// continue here</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Then, we can extract the integer value literal from it:</p>
+
+<p>(render_gl_derive/src/lib.rs, continued)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">location_value_literal</span> <span class="o">=</span> <span class="k">match</span> <span class="n">location_attr</span><span class="py">.value</span> <span class="p">{</span>
+    <span class="nn">syn</span><span class="p">::</span><span class="nn">MetaItem</span><span class="p">::</span><span class="nf">NameValue</span><span class="p">(</span><span class="mi">_</span><span class="p">,</span> <span class="k">ref</span> <span class="n">literal</span> <span class="o">@</span> <span class="nn">syn</span><span class="p">::</span><span class="nn">Lit</span><span class="p">::</span><span class="nf">Int</span><span class="p">(</span><span class="mi">_</span><span class="p">,</span> <span class="mi">_</span><span class="p">))</span> <span class="k">=&gt;</span> <span class="n">literal</span><span class="p">,</span>
+    <span class="mi">_</span> <span class="k">=&gt;</span> <span class="nd">panic!</span><span class="p">(</span><span class="s">"Field {} location attribute value must be an integer literal"</span><span class="p">,</span> <span class="n">field_name</span><span class="p">)</span>
+<span class="p">};</span>
+
+<span class="c">// continue here</span>
+</code></pre></div></div>
+
+<p>Here we match <code class="language-plaintext highlighter-rouge">syn::Lit::Int(_, _)</code>, but take <code class="language-plaintext highlighter-rouge">Lit</code> token itself out with a <code class="language-plaintext highlighter-rouge">literal @</code>subpattern, 
+because it will be directly usable from the <code class="language-plaintext highlighter-rouge">quote</code> macro.</p>
+
+<p>Speaking of which:</p>
+
+<p>(render_gl_derive/src/lib.rs, continued)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">field_ty</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">field</span><span class="py">.ty</span><span class="p">;</span>
+<span class="nd">quote!</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">location</span> <span class="o">=</span> #<span class="n">location_value_literal</span><span class="p">;</span>
+    <span class="k">unsafe</span> <span class="p">{</span>
+        #<span class="nn">field_ty</span><span class="p">::</span><span class="nf">vertex_attrib_pointer</span><span class="p">(</span><span class="n">gl</span><span class="p">,</span> <span class="n">stride</span><span class="p">,</span> <span class="n">location</span><span class="p">,</span> <span class="n">offset</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="k">let</span> <span class="n">offset</span> <span class="o">=</span> <span class="n">offset</span> <span class="o">+</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span>#<span class="n">field_ty</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>All that’s left is removing panic code <code class="language-plaintext highlighter-rouge">panic!("code = {:#?}" ...)</code> that surrounds the <code class="language-plaintext highlighter-rouge">quote</code> macro
+from <code class="language-plaintext highlighter-rouge">generate_impl</code> function, and we should be good to go!</p>
+
+<p>However, if we try to compile it, we receive this surprising error:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">error</span><span class="p">[</span><span class="n">E0658</span><span class="p">]:</span> <span class="n">non</span><span class="o">-</span><span class="n">string</span> <span class="n">literals</span> <span class="n">in</span> <span class="n">attributes</span><span class="p">,</span> <span class="n">or</span> <span class="n">string</span> <span class="n">literals</span> <span class="n">in</span> <span class="n">top</span><span class="o">-</span><span class="n">level</span> <span class="n">positions</span><span class="p">,</span> <span class="n">are</span> <span class="nf">experimental</span> <span class="p">(</span><span class="n">see</span> <span class="n">issue</span> <span class="err">#</span><span class="mi">34981</span><span class="p">)</span>
+  <span class="o">-</span><span class="k">-&gt;</span> <span class="n">lesson</span><span class="o">-</span><span class="mi">10</span><span class="err">\</span><span class="n">src</span><span class="err">\</span><span class="n">main</span><span class="py">.rs</span><span class="p">:</span><span class="mi">16</span><span class="p">:</span><span class="mi">5</span>
+   <span class="p">|</span>
+<span class="mi">16</span> <span class="p">|</span>     <span class="nd">#[location</span> <span class="nd">=</span> <span class="mi">0</span><span class="nd">]</span>
+   <span class="p">|</span>     <span class="o">^^^^^^^^^^^^^^^</span>
+</code></pre></div></div>
+
+<p>Yep, it’s a bit sad, but we will have to use <code class="language-plaintext highlighter-rouge">#[location = "0"]</code> <a href="https://github.com/rust-lang/rust/issues/34981">until this feature is stabilized</a>.
+It is easy to rewrite the code a bit to require string literal on our attribute:</p>
+
+<p>(render_gl_derive/src/lib.rs, full <code class="language-plaintext highlighter-rouge">generate_struct_field_vertex_attrib_pointer_call</code> function)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">generate_struct_field_vertex_attrib_pointer_call</span><span class="p">(</span><span class="n">field</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">syn</span><span class="p">::</span><span class="n">Field</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">quote</span><span class="p">::</span><span class="n">Tokens</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">field_name</span> <span class="o">=</span> <span class="k">match</span> <span class="n">field</span><span class="py">.ident</span> <span class="p">{</span>
+        <span class="nf">Some</span><span class="p">(</span><span class="k">ref</span> <span class="n">i</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="nd">format!</span><span class="p">(</span><span class="s">"{}"</span><span class="p">,</span> <span class="n">i</span><span class="p">),</span>
+        <span class="nb">None</span> <span class="k">=&gt;</span> <span class="nn">String</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="s">""</span><span class="p">),</span>
+    <span class="p">};</span>
+    <span class="k">let</span> <span class="n">location_attr</span> <span class="o">=</span> <span class="n">field</span><span class="py">.attrs</span>
+        <span class="nf">.iter</span><span class="p">()</span>
+        <span class="nf">.filter</span><span class="p">(|</span><span class="n">a</span><span class="p">|</span> <span class="n">a</span><span class="py">.value</span><span class="nf">.name</span><span class="p">()</span> <span class="o">==</span> <span class="s">"location"</span><span class="p">)</span>
+        <span class="nf">.next</span><span class="p">()</span>
+        <span class="nf">.unwrap_or_else</span><span class="p">(||</span> <span class="nd">panic!</span><span class="p">(</span>
+            <span class="s">"Field {} is missing #[location = ?] attribute"</span><span class="p">,</span> <span class="n">field_name</span>
+        <span class="p">));</span>
+
+    <span class="k">let</span> <span class="n">location_value</span><span class="p">:</span> <span class="nb">usize</span> <span class="o">=</span> <span class="k">match</span> <span class="n">location_attr</span><span class="py">.value</span> <span class="p">{</span>
+        <span class="nn">syn</span><span class="p">::</span><span class="nn">MetaItem</span><span class="p">::</span><span class="nf">NameValue</span><span class="p">(</span><span class="mi">_</span><span class="p">,</span> <span class="nn">syn</span><span class="p">::</span><span class="nn">Lit</span><span class="p">::</span><span class="nf">Str</span><span class="p">(</span><span class="k">ref</span> <span class="n">s</span><span class="p">,</span> <span class="mi">_</span><span class="p">))</span> <span class="k">=&gt;</span> <span class="n">s</span><span class="nf">.parse</span><span class="p">()</span>
+            <span class="nf">.unwrap_or_else</span><span class="p">(</span>
+                <span class="p">|</span><span class="mi">_</span><span class="p">|</span> <span class="nd">panic!</span><span class="p">(</span><span class="s">"Field {} location attribute value must contain an integer"</span><span class="p">,</span> <span class="n">field_name</span><span class="p">)</span>
+            <span class="p">),</span>
+        <span class="mi">_</span> <span class="k">=&gt;</span> <span class="nd">panic!</span><span class="p">(</span><span class="s">"Field {} location attribute value must be a string literal"</span><span class="p">,</span> <span class="n">field_name</span><span class="p">)</span>
+    <span class="p">};</span>
+
+    <span class="k">let</span> <span class="n">field_ty</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">field</span><span class="py">.ty</span><span class="p">;</span>
+    <span class="nd">quote!</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="n">location</span> <span class="o">=</span> #<span class="n">location_value</span><span class="p">;</span>
+        <span class="k">unsafe</span> <span class="p">{</span>
+            #<span class="nn">field_ty</span><span class="p">::</span><span class="nf">vertex_attrib_pointer</span><span class="p">(</span><span class="n">gl</span><span class="p">,</span> <span class="n">stride</span><span class="p">,</span> <span class="n">location</span><span class="p">,</span> <span class="n">offset</span><span class="p">);</span>
+        <span class="p">}</span>
+        <span class="k">let</span> <span class="n">offset</span> <span class="o">=</span> <span class="n">offset</span> <span class="o">+</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span>#<span class="n">field_ty</span><span class="o">&gt;</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>And modify our <code class="language-plaintext highlighter-rouge">Vertex</code> type:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(VertexAttribPointers)]</span>
+<span class="nd">#[derive(Copy,</span> <span class="nd">Clone,</span> <span class="nd">Debug)]</span>
+<span class="nd">#[repr(C,</span> <span class="nd">packed)]</span>
+<span class="k">struct</span> <span class="n">Vertex</span> <span class="p">{</span>
+    <span class="nd">#[location</span> <span class="nd">=</span> <span class="s">"0"</span><span class="nd">]</span>
+    <span class="n">pos</span><span class="p">:</span> <span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="p">,</span>
+    <span class="nd">#[location</span> <span class="nd">=</span> <span class="s">"1"</span><span class="nd">]</span>
+    <span class="n">clr</span><span class="p">:</span> <span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>With that, our code should finally compile.</p>
+
+<h2 id="referencing-the-crates-by-full-path">Referencing the crates by Full Path</h2>
+
+<p>If we tried to move our <code class="language-plaintext highlighter-rouge">Vertex</code> type from the crate root (main.rs file)
+to some submodule, we will find that the generated implementation no longer sees module paths
+such as <code class="language-plaintext highlighter-rouge">std</code> or <code class="language-plaintext highlighter-rouge">gl</code>. We need to change them to be absolute.</p>
+
+<p>We nee to change <code class="language-plaintext highlighter-rouge">std::mem</code> to <code class="language-plaintext highlighter-rouge">::std::mem</code> and <code class="language-plaintext highlighter-rouge">gl::Gl</code> to <code class="language-plaintext highlighter-rouge">::gl::Gl</code>.</p>
+
+<h2 id="discussion">Discussion</h2>
+
+<p>The final procedural macro implementation is much shorter than this blog post:</p>
+
+<p>(render_gl_derive/src/lib.rs, full)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#![recursion_limit=</span><span class="s">"128"</span><span class="nd">]</span>
+
+<span class="k">extern</span> <span class="n">crate</span> <span class="n">proc_macro</span><span class="p">;</span>
+<span class="k">extern</span> <span class="n">crate</span> <span class="n">syn</span><span class="p">;</span>
+<span class="nd">#[macro_use]</span> <span class="k">extern</span> <span class="n">crate</span> <span class="n">quote</span><span class="p">;</span>
+
+<span class="nd">#[proc_macro_derive(VertexAttribPointers,</span> <span class="nd">attributes(location))]</span>
+<span class="k">pub</span> <span class="k">fn</span> <span class="nf">vertex_attrib_pointers_derive</span><span class="p">(</span><span class="n">input</span><span class="p">:</span> <span class="nn">proc_macro</span><span class="p">::</span><span class="n">TokenStream</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">proc_macro</span><span class="p">::</span><span class="n">TokenStream</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">s</span> <span class="o">=</span> <span class="n">input</span><span class="nf">.to_string</span><span class="p">();</span>
+    <span class="k">let</span> <span class="n">ast</span> <span class="o">=</span> <span class="nn">syn</span><span class="p">::</span><span class="nf">parse_derive_input</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+    <span class="k">let</span> <span class="n">gen</span> <span class="o">=</span> <span class="nf">generate_impl</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ast</span><span class="p">);</span>
+    <span class="n">gen</span><span class="nf">.parse</span><span class="p">()</span><span class="nf">.unwrap</span><span class="p">()</span>
+<span class="p">}</span>
+
+<span class="k">fn</span> <span class="nf">generate_impl</span><span class="p">(</span><span class="n">ast</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">syn</span><span class="p">::</span><span class="n">DeriveInput</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">quote</span><span class="p">::</span><span class="n">Tokens</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">ident</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">ast</span><span class="py">.ident</span><span class="p">;</span>
+    <span class="k">let</span> <span class="n">generics</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">ast</span><span class="py">.generics</span><span class="p">;</span>
+    <span class="k">let</span> <span class="n">where_clause</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">ast</span><span class="py">.generics.where_clause</span><span class="p">;</span>
+    <span class="k">let</span> <span class="n">fields_vertex_attrib_pointer</span> <span class="o">=</span> <span class="nf">generate_vertex_attrib_pointer_calls</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ast</span><span class="py">.body</span><span class="p">);</span>
+
+    <span class="nd">quote!</span><span class="p">{</span>
+        <span class="k">impl</span> #<span class="n">ident</span> #<span class="n">generics</span> #<span class="n">where_clause</span> <span class="p">{</span>
+            <span class="nd">#[allow(unused_variables)]</span>
+            <span class="k">pub</span> <span class="k">fn</span> <span class="nf">vertex_attrib_pointers</span><span class="p">(</span><span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">::</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">)</span> <span class="p">{</span>
+                <span class="k">let</span> <span class="n">stride</span> <span class="o">=</span> <span class="p">::</span><span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span><span class="n">Self</span><span class="o">&gt;</span><span class="p">();</span>
+                <span class="k">let</span> <span class="n">offset</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+                #<span class="p">(</span>#<span class="n">fields_vertex_attrib_pointer</span><span class="p">)</span><span class="o">*</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">fn</span> <span class="nf">generate_vertex_attrib_pointer_calls</span><span class="p">(</span><span class="n">body</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">syn</span><span class="p">::</span><span class="n">Body</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="nn">quote</span><span class="p">::</span><span class="n">Tokens</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">match</span> <span class="n">body</span> <span class="p">{</span>
+        <span class="o">&amp;</span><span class="nn">syn</span><span class="p">::</span><span class="nn">Body</span><span class="p">::</span><span class="nf">Enum</span><span class="p">(</span><span class="mi">_</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="nd">panic!</span><span class="p">(</span><span class="s">"VertexAttribPointers can not be implemented for enums"</span><span class="p">),</span>
+        <span class="o">&amp;</span><span class="nn">syn</span><span class="p">::</span><span class="nn">Body</span><span class="p">::</span><span class="nf">Struct</span><span class="p">(</span><span class="nn">syn</span><span class="p">::</span><span class="nn">VariantData</span><span class="p">::</span><span class="n">Unit</span><span class="p">)</span> <span class="k">=&gt;</span>  <span class="nd">panic!</span><span class="p">(</span><span class="s">"VertexAttribPointers can not be implemented for Unit structs"</span><span class="p">),</span>
+        <span class="o">&amp;</span><span class="nn">syn</span><span class="p">::</span><span class="nn">Body</span><span class="p">::</span><span class="nf">Struct</span><span class="p">(</span><span class="nn">syn</span><span class="p">::</span><span class="nn">VariantData</span><span class="p">::</span><span class="nf">Tuple</span><span class="p">(</span><span class="mi">_</span><span class="p">))</span> <span class="k">=&gt;</span>  <span class="nd">panic!</span><span class="p">(</span><span class="s">"VertexAttribPointers can not be implemented for Tuple structs"</span><span class="p">),</span>
+        <span class="o">&amp;</span><span class="nn">syn</span><span class="p">::</span><span class="nn">Body</span><span class="p">::</span><span class="nf">Struct</span><span class="p">(</span><span class="nn">syn</span><span class="p">::</span><span class="nn">VariantData</span><span class="p">::</span><span class="nf">Struct</span><span class="p">(</span><span class="k">ref</span> <span class="n">s</span><span class="p">))</span> <span class="k">=&gt;</span> <span class="p">{</span>
+            <span class="n">s</span><span class="nf">.iter</span><span class="p">()</span><span class="nf">.map</span><span class="p">(</span><span class="n">generate_struct_field_vertex_attrib_pointer_call</span><span class="p">)</span><span class="nf">.collect</span><span class="p">()</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">fn</span> <span class="nf">generate_struct_field_vertex_attrib_pointer_call</span><span class="p">(</span><span class="n">field</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">syn</span><span class="p">::</span><span class="n">Field</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">quote</span><span class="p">::</span><span class="n">Tokens</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">field_name</span> <span class="o">=</span> <span class="k">match</span> <span class="n">field</span><span class="py">.ident</span> <span class="p">{</span>
+        <span class="nf">Some</span><span class="p">(</span><span class="k">ref</span> <span class="n">i</span><span class="p">)</span> <span class="k">=&gt;</span> <span class="nd">format!</span><span class="p">(</span><span class="s">"{}"</span><span class="p">,</span> <span class="n">i</span><span class="p">),</span>
+        <span class="nb">None</span> <span class="k">=&gt;</span> <span class="nn">String</span><span class="p">::</span><span class="nf">from</span><span class="p">(</span><span class="s">""</span><span class="p">),</span>
+    <span class="p">};</span>
+    <span class="k">let</span> <span class="n">location_attr</span> <span class="o">=</span> <span class="n">field</span><span class="py">.attrs</span>
+        <span class="nf">.iter</span><span class="p">()</span>
+        <span class="nf">.filter</span><span class="p">(|</span><span class="n">a</span><span class="p">|</span> <span class="n">a</span><span class="py">.value</span><span class="nf">.name</span><span class="p">()</span> <span class="o">==</span> <span class="s">"location"</span><span class="p">)</span>
+        <span class="nf">.next</span><span class="p">()</span>
+        <span class="nf">.unwrap_or_else</span><span class="p">(||</span> <span class="nd">panic!</span><span class="p">(</span>
+            <span class="s">"Field {} is missing #[location = ?] attribute"</span><span class="p">,</span> <span class="n">field_name</span>
+        <span class="p">));</span>
+
+    <span class="k">let</span> <span class="n">location_value</span><span class="p">:</span> <span class="nb">usize</span> <span class="o">=</span> <span class="k">match</span> <span class="n">location_attr</span><span class="py">.value</span> <span class="p">{</span>
+        <span class="nn">syn</span><span class="p">::</span><span class="nn">MetaItem</span><span class="p">::</span><span class="nf">NameValue</span><span class="p">(</span><span class="mi">_</span><span class="p">,</span> <span class="nn">syn</span><span class="p">::</span><span class="nn">Lit</span><span class="p">::</span><span class="nf">Str</span><span class="p">(</span><span class="k">ref</span> <span class="n">s</span><span class="p">,</span> <span class="mi">_</span><span class="p">))</span> <span class="k">=&gt;</span> <span class="n">s</span><span class="nf">.parse</span><span class="p">()</span>
+            <span class="nf">.unwrap_or_else</span><span class="p">(</span>
+                <span class="p">|</span><span class="mi">_</span><span class="p">|</span> <span class="nd">panic!</span><span class="p">(</span><span class="s">"Field {} location attribute value must contain an integer"</span><span class="p">,</span> <span class="n">field_name</span><span class="p">)</span>
+            <span class="p">),</span>
+        <span class="mi">_</span> <span class="k">=&gt;</span> <span class="nd">panic!</span><span class="p">(</span><span class="s">"Field {} location attribute value must be a string literal"</span><span class="p">,</span> <span class="n">field_name</span><span class="p">)</span>
+    <span class="p">};</span>
+
+    <span class="k">let</span> <span class="n">field_ty</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">field</span><span class="py">.ty</span><span class="p">;</span>
+    <span class="nd">quote!</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="n">location</span> <span class="o">=</span> #<span class="n">location_value</span><span class="p">;</span>
+        <span class="k">unsafe</span> <span class="p">{</span>
+            #<span class="nn">field_ty</span><span class="p">::</span><span class="nf">vertex_attrib_pointer</span><span class="p">(</span><span class="n">gl</span><span class="p">,</span> <span class="n">stride</span><span class="p">,</span> <span class="n">location</span><span class="p">,</span> <span class="n">offset</span><span class="p">);</span>
+        <span class="p">}</span>
+        <span class="k">let</span> <span class="n">offset</span> <span class="o">=</span> <span class="n">offset</span> <span class="o">+</span> <span class="p">::</span><span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nn">size_of</span><span class="p">::</span><span class="o">&lt;</span>#<span class="n">field_ty</span><span class="o">&gt;</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>However it requires a bit learning to get there the first time.</p>
+
+<p>But having done this once, we can see how procedural macro can be
+quite powerful for certain use cases. From now on, extending the code to support
+additional features such as padding between the fields is quite trivial (hint: make a 
+data type for padding).</p>
+
+<p>We also saw an interesting property of procedural macro: it has no idea if
+function <code class="language-plaintext highlighter-rouge">vertex_attrib_pointer</code> exists on a type, it simply generates the code.
+The code, of course, would fail to compile if there was no such <code class="language-plaintext highlighter-rouge">vertex_attrib_pointer</code>
+function implemented.</p>
+
+<p>Should we continue using procedural macros? Well, it was possible to avoid them, with a bit more
+boilerplate. But it is good to know they exist! Yet another tool in our toolbox with its own
+trade-offs.</p>
+
+<p>Next time, <a href="/rust/opengl/tutorial/2018/07/12/opengl-in-rust-from-scratch-11-vertex-data-types.html">we will implement the remaining 65 OpenGL data types</a>.</p>
+
+<p><a href="https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-10">Full source code is available on github</a>.</p>
+
+  </article>
+
+</div>
+
+      </div>
+    </div>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col  footer-col-1">
+        <ul class="contact-list">
+          <li>Nerijus Arlauskas</li>
+          <li><a href="mailto:nercury@gmail.com">nercury@gmail.com</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-2">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/Nercury">
+              <span class="icon  icon--github">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/>
+                </svg>
+              </span>
+
+              <span class="username">Nercury</span>
+            </a>
+          </li>
+          
+
+          
+          <li>
+            <a href="https://twitter.com/nercury">
+              <span class="icon  icon--twitter">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809
+                  c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/>
+                </svg>
+              </span>
+
+              <span class="username">nercury</span>
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-3">
+        <p class="text">Articles and tutorials about Rust, Embedded development and Computer Graphics.
+</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>

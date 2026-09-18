@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <title>Zero-Runtime-Cost Mixed List in Rust</title>
+    <meta name="description" content="Articles and tutorials about Rust, Embedded development and Computer Graphics.
+">
+
+    <link rel="shortcut icon" type="image/png" href="/favicon.ico"/>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/pygments/default.css">
+    <link rel="stylesheet" href="/css/font-awesome.css">
+    <link rel="canonical" href="http://nercury.github.io/rust/interesting/2015/12/12/typed-arrays.html">
+    <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles/color-brewer.css">
+
+    <script src="/js/highlight.pack.js"></script>
+
+    <script src="/js/jquery.min.js"></script>
+    
+    <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+      ga('create', 'UA-56288576-1', 'auto');
+      ga('require', 'displayfeatures');
+      ga('send', 'pageview');
+    </script>
+    
+    <script>
+        $(function() {
+            hljs.initHighlightingOnLoad();
+            return $("h1, h2, h3, h4, h5, h6").each(function(i, el) {
+                console.log(el);
+                var $el, icon, id;
+                $el = $(el);
+                id = $el.attr('id');
+                icon = '<i class="fa fa-link"></i>';
+                if (id) {
+                  return $el.prepend($("<a />").addClass("header-link").attr("href", "#" + id).html(icon));
+                }
+            });
+        });
+    </script>
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Ironic Blog</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+        
+          
+          <a class="page-link" href="/about/">About Me</a>
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <div class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Zero-Runtime-Cost Mixed List in Rust</h1>
+    <p class="post-meta">Dec 12, 2015</p>
+  </header>
+
+  <article class="post-content">
+    <blockquote>
+  <p>Well, either that, or just another way to learn associated types.</p>
+</blockquote>
+
+<p>Type system in Rust is interesting.</p>
+
+<p>Pushing adds a new element to a list. Let’s say we define such trait <code class="language-plaintext highlighter-rouge">Push</code>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">trait</span> <span class="n">Push</span><span class="o">&lt;</span><span class="n">X</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Next</span><span class="p">;</span>
+    <span class="k">fn</span> <span class="nf">push</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">X</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Next</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Let’s go over this quickly.</p>
+
+<p>The trait <code class="language-plaintext highlighter-rouge">Push</code> is generic over the type <code class="language-plaintext highlighter-rouge">X</code>. The <code class="language-plaintext highlighter-rouge">X</code> type will be provided at the location
+where the trait <code class="language-plaintext highlighter-rouge">Push</code> is <em>used</em>.</p>
+
+<p>The <code class="language-plaintext highlighter-rouge">type Next</code> is another generic type. However, the difference from <code class="language-plaintext highlighter-rouge">X</code> is that <code class="language-plaintext highlighter-rouge">Next</code> will
+be provided by trait <em>implementation</em>.</p>
+
+<p>An implementation is also required to provide a <code class="language-plaintext highlighter-rouge">fn push</code> method. We know it is a <em>member method</em> of some
+instance from the keyword argument <code class="language-plaintext highlighter-rouge">self</code>. And because it is bare <code class="language-plaintext highlighter-rouge">self</code> (not <code class="language-plaintext highlighter-rouge">&amp;self</code>),
+it is going to <em>consume</em> or <em>take ownership</em> of the instance when called.</p>
+
+<p>The <code class="language-plaintext highlighter-rouge">fn push</code> requires one argument of the type of <code class="language-plaintext highlighter-rouge">X</code> and returns whatever type is associated over
+<code class="language-plaintext highlighter-rouge">Self::Next</code> as a result.</p>
+
+<h3 id="intent">Intent</h3>
+
+<p>Calling push is going to combine <em>input</em> of <code class="language-plaintext highlighter-rouge">Self</code> with another type of <code class="language-plaintext highlighter-rouge">X</code> and return output
+type of <code class="language-plaintext highlighter-rouge">Self::Next</code> as a result.</p>
+
+<h2 id="list-or-what">List? Or what?</h2>
+
+<p>So, where is our list? Well, this blog post is titled Zero-Cost, so there isn’t any.</p>
+
+<p>But we can implement <code class="language-plaintext highlighter-rouge">Push</code> for <em>any other type</em>, and it will <em>look like</em> we are working with list,
+while in fact everything is known at compile-time and is kept in stack (or optimized away).</p>
+
+<p>Besides <code class="language-plaintext highlighter-rouge">Push</code>, we will see how to implement <code class="language-plaintext highlighter-rouge">Pop</code> and iterate over the thing.</p>
+
+<p>You may have already guessed that the <em>type</em> of this “list” is going to be obnoxious. But, we
+are brave, right?</p>
+
+<h2 id="implementing-push">Implementing Push</h2>
+
+<p>We can think of <code class="language-plaintext highlighter-rouge">()</code> type (also known as <em>unit type</em> or <em>empty tuple</em>) as a list of no size.
+Implementing <code class="language-plaintext highlighter-rouge">Push</code> for it is quite easy:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="n">X</span><span class="o">&gt;</span> <span class="n">Push</span><span class="o">&lt;</span><span class="n">X</span><span class="o">&gt;</span> <span class="k">for</span> <span class="p">()</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Next</span> <span class="o">=</span> <span class="p">(</span><span class="n">X</span><span class="p">,);</span>
+
+    <span class="k">fn</span> <span class="nf">push</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">X</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Next</span> <span class="p">{</span>
+        <span class="p">(</span><span class="n">other</span><span class="p">,)</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Here, we provide the concrete types for everything, except for <code class="language-plaintext highlighter-rouge">X</code>.</p>
+
+<p>The <code class="language-plaintext highlighter-rouge">X</code> we are going to push will remain unknown. In other words, implementation remains generic for
+any <code class="language-plaintext highlighter-rouge">X</code>, and that’s what <code class="language-plaintext highlighter-rouge">impl&lt;X&gt;</code> is saying.</p>
+
+<p>We fix the target type to <em>empty tuple</em> with <code class="language-plaintext highlighter-rouge">impl .. for ()</code>.</p>
+
+<p>We specify that the <code class="language-plaintext highlighter-rouge">Next</code> type is going to be another tuple of single element <code class="language-plaintext highlighter-rouge">X</code>. We need to use
+funny comma in <code class="language-plaintext highlighter-rouge">(X,)</code>, to disambiguate it from type in parenthesis <code class="language-plaintext highlighter-rouge">(X)</code>, which otherwise
+would be resolved to the plain <code class="language-plaintext highlighter-rouge">X</code>.</p>
+
+<p>In <code class="language-plaintext highlighter-rouge">push</code> implementation we put <code class="language-plaintext highlighter-rouge">other</code> value into a single-element tuple <code class="language-plaintext highlighter-rouge">(other,)</code> and return it.</p>
+
+<h3 id="tuple-of-two">Tuple of Two</h3>
+
+<p>Similarly, we can implement <code class="language-plaintext highlighter-rouge">Push</code> for a tuple of one element. Predictably, the result is going to
+be a tuple of two elements:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="n">T1</span><span class="p">,</span> <span class="n">X</span><span class="o">&gt;</span> <span class="n">Push</span><span class="o">&lt;</span><span class="n">X</span><span class="o">&gt;</span> <span class="k">for</span> <span class="p">(</span><span class="n">T1</span><span class="p">,)</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Next</span> <span class="o">=</span> <span class="p">(</span><span class="n">T1</span><span class="p">,</span> <span class="n">X</span><span class="p">);</span>
+
+    <span class="k">fn</span> <span class="nf">push</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">X</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Next</span> <span class="p">{</span>
+        <span class="p">(</span><span class="k">self</span><span class="err">.</span><span class="mi">0</span><span class="p">,</span> <span class="n">other</span><span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Here the <code class="language-plaintext highlighter-rouge">self.0</code> is a syntax for taking first argument (which is zero) from tuple.</p>
+
+<h3 id="how-does-it-look">How does it look?</h3>
+
+<p>We can now write this little code (the <code class="language-plaintext highlighter-rouge">Push</code> trait has to be in scope):</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">items</span> <span class="o">=</span> <span class="p">()</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="k">true</span><span class="p">);</span>
+
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"{:#?}"</span><span class="p">,</span> <span class="n">items</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The <code class="language-plaintext highlighter-rouge">{:#?}</code> is funny little placeholder for pretty-printing the value for debugging.</p>
+
+<p>We get this output:</p>
+
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ cargo run
+   Compiling types v0.1.0 (file:///Users/nercury/fun/types)
+     Running `target/debug/types`
+(
+    5,
+    true
+)
+</code></pre></div></div>
+
+<p>That’s a tuple allright. Let’s call <code class="language-plaintext highlighter-rouge">push</code> <em>one more time</em>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">let</span> <span class="n">items</span> <span class="o">=</span> <span class="p">()</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="k">true</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span>
+
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"{:#?}"</span><span class="p">,</span> <span class="n">items</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>Output:</p>
+
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>26:17 error: no method named `push` found for type `(_, bool)` in the current
+scope
+    .push(2);
+     ^~~~~~~
+26:17 help: items from traits can only be used if the trait is implemented and
+in scope; the following trait defines an item `push`, perhaps you need to
+implement it:
+26:17 help: candidate #1: `Push`
+</code></pre></div></div>
+
+<p>Rust is telling us that we can keep on going by implementing <code class="language-plaintext highlighter-rouge">Push</code> for <code class="language-plaintext highlighter-rouge">(T1, T2)</code>,
+then for <code class="language-plaintext highlighter-rouge">(T1, T2, T3)</code>, and then for <code class="language-plaintext highlighter-rouge">(T1, T2, T3, T4)</code> and so on.</p>
+
+<p>Indeed, we can do it. We can write a macro that expands into these implementations for
+us.</p>
+
+<p>Or we can wait, maybe Rust will have variadic generics one day.</p>
+
+<p>What else can we do?</p>
+
+<h2 id="list-of-unlimited-size">List of Unlimited Size</h2>
+
+<p>Well, we can represent list as “an element” called <em>Head</em> and “all other elements”, called <em>Tail</em>.
+So, when we add new item, it becomes new <em>Head</em>, and previous head becomes part of <em>Tail</em>. This
+is common sequence representation in functional languages.</p>
+
+<p>However, here we will continue extending previously defined implementations, just to show
+that we don’t need to follow exact rules.</p>
+
+<h3 id="the-chains">The chains</h3>
+
+<p>First, let’s imagine what should happen when we push <em>one more</em> element for <code class="language-plaintext highlighter-rouge">(T1, T2)</code>:</p>
+
+<p><img src="/images/typed-arrays/push_1.png" alt="Adding T3 to (T1, T2)" /></p>
+
+<p>And then another <code class="language-plaintext highlighter-rouge">T4</code> to <code class="language-plaintext highlighter-rouge">((T1, T2), (T3,))</code>:</p>
+
+<p><img src="/images/typed-arrays/push_2.png" alt="Adding T4 to ((T1, T2), (T3,))" /></p>
+
+<p>And then another <code class="language-plaintext highlighter-rouge">T5</code> to <code class="language-plaintext highlighter-rouge">((T1, T2), (T3, T4))</code>:</p>
+
+<p><img src="/images/typed-arrays/push_3.png" alt="Adding T4 to ((T1, T2), (T3, T4))" /></p>
+
+<p>Aaaaaaaand… we are done! Because the implementation for these:</p>
+
+<div class="language-haskell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">((</span><span class="kt">T1</span><span class="p">,</span> <span class="kt">T2</span><span class="p">),</span> <span class="p">(</span><span class="kt">T3</span><span class="p">,))</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="kt">T4</span><span class="p">)</span>
+<span class="p">(((</span><span class="kt">T1</span><span class="p">,</span> <span class="kt">T2</span><span class="p">),</span> <span class="p">(</span><span class="kt">T3</span><span class="p">,</span> <span class="kt">T4</span><span class="p">)),</span> <span class="p">(</span><span class="kt">T5</span><span class="p">,))</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="kt">T6</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>Will be generic no matter what <em>Tail</em> there is:</p>
+
+<div class="language-haskell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">(</span><span class="kt">Tail</span><span class="p">,</span> <span class="p">(</span><span class="kt">T3</span><span class="p">,))</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="kt">T4</span><span class="p">)</span>
+<span class="p">(</span><span class="kt">Tail</span><span class="p">,</span> <span class="p">(</span><span class="kt">T5</span><span class="p">,))</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="kt">T6</span><span class="p">)</span>
+</code></pre></div></div>
+
+<h3 id="chain-tree-implementation">Chain Tree Implementation</h3>
+
+<p>However, we can’t continue to use tuples for representing the chain. We already used them to mean “a sequence of items”, and
+here we want to build a tree of them.</p>
+
+<p>But we can define a new type for this chain, so that compiler treats it as a new type and lets us
+provide different <code class="language-plaintext highlighter-rouge">Push</code> for it:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Debug)]</span> <span class="c">// makes this pretty printable</span>
+<span class="k">struct</span> <span class="n">Chain</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">(</span><span class="n">T</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>Then, the addition of <code class="language-plaintext highlighter-rouge">T3</code> to <code class="language-plaintext highlighter-rouge">(T1, T2)</code> will look thus:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="n">T1</span><span class="p">,</span> <span class="n">T2</span><span class="p">,</span> <span class="n">X</span><span class="o">&gt;</span> <span class="n">Push</span><span class="o">&lt;</span><span class="n">X</span><span class="o">&gt;</span> <span class="k">for</span> <span class="p">(</span><span class="n">T1</span><span class="p">,</span> <span class="n">T2</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Next</span> <span class="o">=</span> <span class="n">Chain</span><span class="o">&lt;</span><span class="p">((</span><span class="n">T1</span><span class="p">,</span> <span class="n">T2</span><span class="p">),</span> <span class="p">(</span><span class="n">X</span><span class="p">,))</span><span class="o">&gt;</span><span class="p">;</span>
+
+    <span class="k">fn</span> <span class="nf">push</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">X</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Next</span> <span class="p">{</span>
+        <span class="nf">Chain</span><span class="p">((</span>
+            <span class="k">self</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">other</span><span class="p">,),</span>
+        <span class="p">))</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Addition of <code class="language-plaintext highlighter-rouge">T4</code> to <code class="language-plaintext highlighter-rouge">Chain((T1, T2), (T3,))</code> will look like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="n">TailT</span><span class="p">,</span> <span class="n">H1</span><span class="p">,</span> <span class="n">X</span><span class="o">&gt;</span> <span class="n">Push</span><span class="o">&lt;</span><span class="n">X</span><span class="o">&gt;</span> <span class="k">for</span> <span class="n">Chain</span><span class="o">&lt;</span><span class="p">(</span><span class="n">TailT</span><span class="p">,</span> <span class="p">(</span><span class="n">H1</span><span class="p">,))</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Next</span> <span class="o">=</span> <span class="n">Chain</span><span class="o">&lt;</span><span class="p">(</span><span class="n">TailT</span><span class="p">,</span> <span class="n">Chain</span><span class="o">&lt;</span><span class="p">(</span><span class="n">H1</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span><span class="o">&gt;</span><span class="p">)</span><span class="o">&gt;</span><span class="p">;</span>
+
+    <span class="k">fn</span> <span class="nf">push</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">X</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Next</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="nf">Chain</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">=</span> <span class="k">self</span><span class="p">;</span>
+        <span class="k">let</span> <span class="n">head</span> <span class="o">=</span> <span class="n">value</span><span class="err">.</span><span class="mi">1</span><span class="p">;</span>
+        <span class="nf">Chain</span><span class="p">((</span>
+            <span class="n">value</span><span class="err">.</span><span class="mi">0</span><span class="p">,</span>
+            <span class="nf">Chain</span><span class="p">((</span><span class="n">head</span><span class="err">.</span><span class="mi">0</span><span class="p">,</span> <span class="n">other</span><span class="p">)),</span>
+        <span class="p">))</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Note how here we no longer care what’s in the Tail. We just move it from the previous chain to
+the new one.</p>
+
+<p>Also we wrap the second element in the <code class="language-plaintext highlighter-rouge">Chain</code>, because it is full and we need to pick it up
+in next implementation based on this.</p>
+
+<p>And then, finally, let’s implement addition of <code class="language-plaintext highlighter-rouge">T5</code> to <code class="language-plaintext highlighter-rouge">Chain(_, Chain(_))</code>, where <code class="language-plaintext highlighter-rouge">_</code> means “whatever”:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="n">C1</span><span class="p">,</span> <span class="n">C2</span><span class="p">,</span> <span class="n">X</span><span class="o">&gt;</span> <span class="n">Push</span><span class="o">&lt;</span><span class="n">X</span><span class="o">&gt;</span> <span class="k">for</span> <span class="n">Chain</span><span class="o">&lt;</span><span class="p">(</span><span class="n">C1</span><span class="p">,</span> <span class="n">Chain</span><span class="o">&lt;</span><span class="n">C2</span><span class="o">&gt;</span><span class="p">)</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Next</span> <span class="o">=</span> <span class="n">Chain</span><span class="o">&lt;</span><span class="p">(</span><span class="n">Chain</span><span class="o">&lt;</span><span class="p">(</span><span class="n">C1</span><span class="p">,</span> <span class="n">Chain</span><span class="o">&lt;</span><span class="n">C2</span><span class="o">&gt;</span><span class="p">)</span><span class="o">&gt;</span><span class="p">,</span> <span class="p">(</span><span class="n">X</span><span class="p">,))</span><span class="o">&gt;</span><span class="p">;</span>
+
+    <span class="k">fn</span> <span class="nf">push</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">X</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Next</span> <span class="p">{</span>
+        <span class="nf">Chain</span><span class="p">(</span>
+            <span class="p">(</span>
+                <span class="k">self</span><span class="p">,</span>
+                <span class="p">(</span>
+                    <span class="n">other</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Here, when we have two formed chains, <em>everything</em> inside <code class="language-plaintext highlighter-rouge">self</code> becomes a new <em>Tail</em>, and
+we return a chain of this new <em>Tail</em> and a new <em>Head</em> <code class="language-plaintext highlighter-rouge">X</code>.</p>
+
+<h3 id="using-this-new-chain">Using This new Chain</h3>
+
+<p>Let’s see how adding <em>one more element</em> works now:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">let</span> <span class="n">items</span> <span class="o">=</span> <span class="p">()</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="k">true</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span>
+
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"{:#?}"</span><span class="p">,</span> <span class="n">items</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>Output:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nf">Chain</span><span class="p">(</span>
+    <span class="p">(</span>
+        <span class="p">(</span>
+            <span class="mi">5</span><span class="p">,</span>
+            <span class="k">true</span>
+        <span class="p">),</span>
+        <span class="p">(</span>
+            <span class="mi">2</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+<span class="p">)</span>
+</code></pre></div></div>
+
+<p>And another:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">let</span> <span class="n">items</span> <span class="o">=</span> <span class="p">()</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="k">true</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="s">"Hello,"</span><span class="p">);</span>
+
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"{:#?}"</span><span class="p">,</span> <span class="n">items</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>Output:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nf">Chain</span><span class="p">(</span>
+    <span class="p">(</span>
+        <span class="p">(</span>
+            <span class="mi">5</span><span class="p">,</span>
+            <span class="k">true</span>
+        <span class="p">),</span>
+        <span class="nf">Chain</span><span class="p">(</span>
+            <span class="p">(</span>
+                <span class="mi">2</span><span class="p">,</span>
+                <span class="s">"Hello,"</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+<span class="p">)</span>
+</code></pre></div></div>
+
+<p>Is it unlimited?</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">let</span> <span class="n">items</span> <span class="o">=</span> <span class="p">()</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="k">true</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="s">"Hello,"</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="s">"I"</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="s">"don't"</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="s">"even"</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="s">"care"</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="s">"stop"</span><span class="p">);</span>
+
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"{:#?}"</span><span class="p">,</span> <span class="n">items</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>Indeed it is:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nf">Chain</span><span class="p">(</span>
+    <span class="p">(</span>
+        <span class="nf">Chain</span><span class="p">(</span>
+            <span class="p">(</span>
+                <span class="nf">Chain</span><span class="p">(</span>
+                    <span class="p">(</span>
+                        <span class="nf">Chain</span><span class="p">(</span>
+                            <span class="p">(</span>
+                                <span class="p">(</span>
+                                    <span class="mi">5</span><span class="p">,</span>
+                                    <span class="k">true</span>
+                                <span class="p">),</span>
+                                <span class="nf">Chain</span><span class="p">(</span>
+                                    <span class="p">(</span>
+                                        <span class="mi">2</span><span class="p">,</span>
+                                        <span class="s">"Hello,"</span>
+                                    <span class="p">)</span>
+                                <span class="p">)</span>
+                            <span class="p">)</span>
+                        <span class="p">),</span>
+                        <span class="nf">Chain</span><span class="p">(</span>
+                            <span class="p">(</span>
+                                <span class="s">"I"</span><span class="p">,</span>
+                                <span class="s">"don</span><span class="se">\'</span><span class="s">t"</span>
+                            <span class="p">)</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="p">),</span>
+                <span class="nf">Chain</span><span class="p">(</span>
+                    <span class="p">(</span>
+                        <span class="s">"even"</span><span class="p">,</span>
+                        <span class="s">"care"</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">),</span>
+        <span class="nf">Chain</span><span class="p">(</span>
+            <span class="p">(</span>
+                <span class="mi">2</span><span class="p">,</span>
+                <span class="s">"stop"</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+<span class="p">)</span>
+</code></pre></div></div>
+
+<p>Some readers may know or have noticed what <em>everything</em> could be implemented as simple <em>Head</em> - <em>Tail</em>
+tree. The problem with that, however, is that debugging or printing such type would be even more awkward.
+Here, we could make the chain contents bigger (let’s say tuple of 12), and resort to <code class="language-plaintext highlighter-rouge">Chain</code> tree only when contents exceed certain size.</p>
+
+<h2 id="implementing-pop">Implementing Pop</h2>
+
+<p>Let’s first define a trait for it:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">trait</span> <span class="n">Pop</span><span class="o">&lt;</span><span class="n">X</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Next</span><span class="p">;</span>
+    <span class="k">fn</span> <span class="nf">pop</span><span class="p">(</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Next</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Removing element from this list requires modification of list type, so the simple <code class="language-plaintext highlighter-rouge">&amp;mut self</code>
+won’t work here. So, we return a tuple with the removed element and the remaining <em>Tail</em> of a
+new type.</p>
+
+<p>Now, let’s implement it for all the types we have. Work is similar to <code class="language-plaintext highlighter-rouge">Push</code>, but
+backwards:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="n">Tail</span><span class="p">,</span> <span class="n">H1</span><span class="p">,</span> <span class="n">X</span><span class="o">&gt;</span> <span class="n">Pop</span><span class="o">&lt;</span><span class="n">X</span><span class="o">&gt;</span> <span class="k">for</span> <span class="n">Chain</span><span class="o">&lt;</span><span class="p">(</span><span class="n">Tail</span><span class="p">,</span> <span class="n">Chain</span><span class="o">&lt;</span><span class="p">(</span><span class="n">H1</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span><span class="o">&gt;</span><span class="p">)</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Next</span> <span class="o">=</span> <span class="n">Chain</span><span class="o">&lt;</span><span class="p">(</span><span class="n">Tail</span><span class="p">,</span> <span class="p">(</span><span class="n">H1</span><span class="p">,))</span><span class="o">&gt;</span><span class="p">;</span>
+
+    <span class="k">fn</span> <span class="nf">pop</span><span class="p">(</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Next</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="nf">Chain</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">=</span> <span class="k">self</span><span class="p">;</span>
+        <span class="k">let</span> <span class="nf">Chain</span><span class="p">(</span><span class="n">head</span><span class="p">)</span> <span class="o">=</span> <span class="n">value</span><span class="err">.</span><span class="mi">1</span><span class="p">;</span>
+        <span class="p">(</span><span class="n">head</span><span class="err">.</span><span class="mi">1</span><span class="p">,</span> <span class="nf">Chain</span><span class="p">((</span><span class="n">value</span><span class="err">.</span><span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">head</span><span class="err">.</span><span class="mi">0</span><span class="p">,))))</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">Tail</span><span class="p">,</span> <span class="n">X</span><span class="o">&gt;</span> <span class="n">Pop</span><span class="o">&lt;</span><span class="n">X</span><span class="o">&gt;</span> <span class="k">for</span> <span class="n">Chain</span><span class="o">&lt;</span><span class="p">(</span><span class="n">Tail</span><span class="p">,</span> <span class="p">(</span><span class="n">X</span><span class="p">,))</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Next</span> <span class="o">=</span> <span class="n">Tail</span><span class="p">;</span>
+
+    <span class="k">fn</span> <span class="nf">pop</span><span class="p">(</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Next</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="nf">Chain</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">=</span> <span class="k">self</span><span class="p">;</span>
+        <span class="k">let</span> <span class="n">tail</span> <span class="o">=</span> <span class="n">value</span><span class="err">.</span><span class="mi">0</span><span class="p">;</span>
+        <span class="k">let</span> <span class="n">head</span> <span class="o">=</span> <span class="n">value</span><span class="err">.</span><span class="mi">1</span><span class="p">;</span>
+        <span class="p">(</span><span class="n">head</span><span class="err">.</span><span class="mi">0</span><span class="p">,</span> <span class="n">tail</span><span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">T1</span><span class="p">,</span> <span class="n">X</span><span class="o">&gt;</span> <span class="n">Pop</span><span class="o">&lt;</span><span class="n">X</span><span class="o">&gt;</span> <span class="k">for</span> <span class="p">(</span><span class="n">T1</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Next</span> <span class="o">=</span> <span class="p">(</span><span class="n">T1</span><span class="p">,);</span>
+
+    <span class="k">fn</span> <span class="nf">pop</span><span class="p">(</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Next</span><span class="p">)</span> <span class="p">{</span>
+        <span class="p">(</span><span class="k">self</span><span class="err">.</span><span class="mi">1</span><span class="p">,</span> <span class="p">(</span><span class="k">self</span><span class="err">.</span><span class="mi">0</span><span class="p">,))</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">X</span><span class="o">&gt;</span> <span class="n">Pop</span><span class="o">&lt;</span><span class="n">X</span><span class="o">&gt;</span> <span class="k">for</span> <span class="p">(</span><span class="n">X</span><span class="p">,)</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Next</span> <span class="o">=</span> <span class="p">();</span>
+
+    <span class="k">fn</span> <span class="nf">pop</span><span class="p">(</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Next</span><span class="p">)</span> <span class="p">{</span>
+        <span class="p">(</span><span class="k">self</span><span class="err">.</span><span class="mi">0</span><span class="p">,</span> <span class="p">())</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Let’s check it out:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">items</span> <span class="o">=</span> <span class="p">()</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="k">true</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="s">"Hello,"</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="s">"I"</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="s">"don't"</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="s">"even"</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="s">"care"</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="nf">.push</span><span class="p">(</span><span class="s">"stop"</span><span class="p">);</span>
+
+    <span class="k">let</span> <span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">items</span><span class="p">)</span> <span class="o">=</span> <span class="n">items</span><span class="nf">.pop</span><span class="p">();</span> <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">value</span><span class="p">);</span>
+    <span class="k">let</span> <span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">items</span><span class="p">)</span> <span class="o">=</span> <span class="n">items</span><span class="nf">.pop</span><span class="p">();</span> <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">value</span><span class="p">);</span>
+    <span class="k">let</span> <span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">items</span><span class="p">)</span> <span class="o">=</span> <span class="n">items</span><span class="nf">.pop</span><span class="p">();</span> <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">value</span><span class="p">);</span>
+    <span class="k">let</span> <span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">items</span><span class="p">)</span> <span class="o">=</span> <span class="n">items</span><span class="nf">.pop</span><span class="p">();</span> <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">value</span><span class="p">);</span>
+    <span class="k">let</span> <span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">items</span><span class="p">)</span> <span class="o">=</span> <span class="n">items</span><span class="nf">.pop</span><span class="p">();</span> <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">value</span><span class="p">);</span>
+    <span class="k">let</span> <span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">items</span><span class="p">)</span> <span class="o">=</span> <span class="n">items</span><span class="nf">.pop</span><span class="p">();</span> <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">value</span><span class="p">);</span>
+    <span class="k">let</span> <span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">items</span><span class="p">)</span> <span class="o">=</span> <span class="n">items</span><span class="nf">.pop</span><span class="p">();</span> <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">value</span><span class="p">);</span>
+    <span class="k">let</span> <span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">items</span><span class="p">)</span> <span class="o">=</span> <span class="n">items</span><span class="nf">.pop</span><span class="p">();</span> <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">value</span><span class="p">);</span>
+    <span class="k">let</span> <span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">items</span><span class="p">)</span> <span class="o">=</span> <span class="n">items</span><span class="nf">.pop</span><span class="p">();</span> <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">value</span><span class="p">);</span>
+    <span class="k">let</span> <span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">items</span><span class="p">)</span> <span class="o">=</span> <span class="n">items</span><span class="nf">.pop</span><span class="p">();</span> <span class="nd">println!</span><span class="p">(</span><span class="s">"{:?}"</span><span class="p">,</span> <span class="n">value</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Output:</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="go">"stop"
+2
+"care"
+"even"
+"don\'t"
+"I"
+"Hello,"
+2
+true
+5
+</span></code></pre></div></div>
+
+<p>However, if we call <code class="language-plaintext highlighter-rouge">pop</code> just <em>one more time</em>:</p>
+
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ cargo run
+   Compiling types v0.1.0 (file:///Users/nercury/fun/types)
+129:37 error: no method named `pop` found for type `()` in the current scope
+let (value, items) = items.pop(); println!("{:?}", value);
+                           ^~~~~
+</code></pre></div></div>
+
+<p>Which brings home the fact that all of this is just type system trick.</p>
+
+<h2 id="passing-around-this-scary-type">Passing Around this Scary Type</h2>
+
+<p>Let’s say, for some reason, somewhere, this is worth the effort.</p>
+
+<p>However, no one is going to pass around such types. Well, at least not without some help from
+type system. Question is, can it provide enough help?</p>
+
+<p>For example, if we have a some other methods that add items to our list, we don’t even want to
+know the input type. We just want something that can be <code class="language-plaintext highlighter-rouge">Push</code>ed to,
+modify input object, and return resulting output. However, the output type depends directly
+on input. It would be great if we could abstract over it somehow, so that we could
+provide only added types.</p>
+
+<p>Well, let’s do exactly that. First, create a trait that we will abuse to figure out the output
+based on input:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">trait</span> <span class="n">AddTo</span><span class="o">&lt;</span><span class="n">Input</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Output</span><span class="p">;</span>
+
+    <span class="k">fn</span> <span class="nf">add_to</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">list</span><span class="p">:</span> <span class="n">Input</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Output</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Let’s say we have some structure that contains the items that we want to add to our list:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Copy,</span> <span class="nd">Clone)]</span> <span class="c">// tells rust this type is primitive and can be copied</span>
+<span class="k">struct</span> <span class="n">Data</span> <span class="p">{</span>
+    <span class="n">a</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+    <span class="n">b</span><span class="p">:</span> <span class="nb">i32</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Then we can implement addition like this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="n">Input</span><span class="p">,</span> <span class="n">T2</span><span class="p">,</span> <span class="n">Final</span><span class="o">&gt;</span> <span class="n">AddTo</span><span class="o">&lt;</span><span class="n">Input</span><span class="o">&gt;</span> <span class="k">for</span> <span class="n">Data</span>
+    <span class="k">where</span>
+        <span class="n">Input</span><span class="p">:</span> <span class="n">Push</span><span class="o">&lt;</span><span class="nb">bool</span><span class="p">,</span> <span class="n">Next</span><span class="o">=</span><span class="n">T2</span><span class="o">&gt;</span><span class="p">,</span>
+        <span class="n">T2</span><span class="p">:</span> <span class="n">Push</span><span class="o">&lt;</span><span class="nb">i32</span><span class="p">,</span> <span class="n">Next</span><span class="o">=</span><span class="n">Final</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">{</span>
+    <span class="k">type</span> <span class="n">Output</span> <span class="o">=</span> <span class="n">Final</span><span class="p">;</span>
+
+    <span class="k">fn</span> <span class="nf">add_to</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">list</span><span class="p">:</span> <span class="n">Input</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="nn">Self</span><span class="p">::</span><span class="n">Output</span> <span class="p">{</span>
+        <span class="n">list</span>
+            <span class="nf">.push</span><span class="p">(</span><span class="k">self</span><span class="py">.a</span><span class="p">)</span>
+            <span class="nf">.push</span><span class="p">(</span><span class="k">self</span><span class="py">.b</span><span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Here, we say that input should be <code class="language-plaintext highlighter-rouge">Push</code> that has <code class="language-plaintext highlighter-rouge">Next</code> element equal to <code class="language-plaintext highlighter-rouge">T2</code>, and <code class="language-plaintext highlighter-rouge">T2</code> should
+be <code class="language-plaintext highlighter-rouge">Push</code> that has the next element equal to <code class="language-plaintext highlighter-rouge">Final</code>. Then we say that the <code class="language-plaintext highlighter-rouge">Output = Final</code>, and
+everything clicks into place.</p>
+
+<p>Let’s see how it works:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">items</span> <span class="o">=</span> <span class="p">();</span>
+
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">data</span> <span class="o">=</span> <span class="n">Data</span> <span class="p">{</span>
+        <span class="n">a</span><span class="p">:</span> <span class="k">true</span><span class="p">,</span>
+        <span class="n">b</span><span class="p">:</span> <span class="mi">42</span><span class="p">,</span>
+    <span class="p">};</span>
+
+    <span class="c">// add items from data</span>
+    <span class="k">let</span> <span class="n">items</span> <span class="o">=</span> <span class="n">data</span><span class="nf">.add_to</span><span class="p">(</span><span class="n">items</span><span class="p">);</span>
+
+    <span class="c">// add another unrelated item</span>
+    <span class="k">let</span> <span class="n">items</span> <span class="o">=</span> <span class="n">items</span><span class="nf">.push</span><span class="p">(</span><span class="s">"and"</span><span class="p">);</span>
+
+    <span class="c">// modify data and add items from data once more</span>
+    <span class="n">data</span><span class="py">.a</span> <span class="o">=</span> <span class="k">false</span><span class="p">;</span>
+    <span class="k">let</span> <span class="n">items</span> <span class="o">=</span> <span class="n">data</span><span class="nf">.add_to</span><span class="p">(</span><span class="n">items</span><span class="p">);</span>
+
+    <span class="nd">println!</span><span class="p">(</span><span class="s">"{:#?}"</span><span class="p">,</span> <span class="n">items</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>When we print the result, we get the expected sequence:</p>
+
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Chain(
+    (
+        Chain(
+            (
+                (
+                    true,
+                    42
+                ),
+                Chain(
+                    (
+                        "and",
+                        false
+                    )
+                )
+            )
+        ),
+        (
+            42,
+        )
+    )
+)
+</code></pre></div></div>
+
+<h2 id="iterating-over-the-items">Iterating over the Items</h2>
+
+<p>Iterators usually require all items to be of the same type. Here, the types are different,
+so the only way to iterate is to do some work while iterating, so that end result erases
+all the type differences.</p>
+
+<p>For that, we will implement a simple reduce with an abstract visitor.</p>
+
+<p>In other words, for every type we will provide a bit of code (visitor), that does some work
+with the value of that type and accumulates the result into the output that is the same type
+for all elements.</p>
+
+<p>Here is the trait for visitor:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">trait</span> <span class="n">Visit</span><span class="o">&lt;</span><span class="n">A</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">visit</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">acc</span><span class="p">:</span> <span class="n">A</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">A</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Let’s implement it for all our list types. Here, we require that contained types
+also implement <code class="language-plaintext highlighter-rouge">Visit</code>, and forward work to them:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span><span class="o">&lt;</span><span class="n">A</span><span class="p">,</span> <span class="n">T1</span><span class="o">&gt;</span> <span class="n">Visit</span><span class="o">&lt;</span><span class="n">A</span><span class="o">&gt;</span> <span class="k">for</span> <span class="p">(</span><span class="n">T1</span><span class="p">,)</span>
+    <span class="k">where</span> <span class="n">T1</span><span class="p">:</span> <span class="n">Visit</span><span class="o">&lt;</span><span class="n">A</span><span class="o">&gt;</span>
+<span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">visit</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">acc</span><span class="p">:</span> <span class="n">A</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">A</span> <span class="p">{</span>
+        <span class="k">self</span><span class="err">.</span><span class="mi">0</span><span class="nf">.visit</span><span class="p">(</span><span class="n">acc</span><span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">A</span><span class="p">,</span> <span class="n">T1</span><span class="p">,</span> <span class="n">T2</span><span class="o">&gt;</span> <span class="n">Visit</span><span class="o">&lt;</span><span class="n">A</span><span class="o">&gt;</span> <span class="k">for</span> <span class="p">(</span><span class="n">T1</span><span class="p">,</span> <span class="n">T2</span><span class="p">)</span>
+    <span class="k">where</span>
+        <span class="n">T1</span><span class="p">:</span> <span class="n">Visit</span><span class="o">&lt;</span><span class="n">A</span><span class="o">&gt;</span><span class="p">,</span>
+        <span class="n">T2</span><span class="p">:</span> <span class="n">Visit</span><span class="o">&lt;</span><span class="n">A</span><span class="o">&gt;</span>
+<span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">visit</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">acc</span><span class="p">:</span> <span class="n">A</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">A</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="n">acc</span> <span class="o">=</span> <span class="k">self</span><span class="err">.</span><span class="mi">0</span><span class="nf">.visit</span><span class="p">(</span><span class="n">acc</span><span class="p">);</span>
+        <span class="k">self</span><span class="err">.</span><span class="mi">1</span><span class="nf">.visit</span><span class="p">(</span><span class="n">acc</span><span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">A</span><span class="p">,</span> <span class="n">T1</span><span class="p">,</span> <span class="n">T2</span><span class="o">&gt;</span> <span class="n">Visit</span><span class="o">&lt;</span><span class="n">A</span><span class="o">&gt;</span> <span class="k">for</span> <span class="n">Chain</span><span class="o">&lt;</span><span class="p">(</span><span class="n">T1</span><span class="p">,</span> <span class="n">T2</span><span class="p">)</span><span class="o">&gt;</span>
+    <span class="k">where</span>
+        <span class="n">T1</span><span class="p">:</span> <span class="n">Visit</span><span class="o">&lt;</span><span class="n">A</span><span class="o">&gt;</span><span class="p">,</span>
+        <span class="n">T2</span><span class="p">:</span> <span class="n">Visit</span><span class="o">&lt;</span><span class="n">A</span><span class="o">&gt;</span>
+<span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">visit</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="n">acc</span><span class="p">:</span> <span class="n">A</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">A</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="nf">Chain</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">=</span> <span class="k">self</span><span class="p">;</span>
+        <span class="k">let</span> <span class="n">acc</span> <span class="o">=</span> <span class="n">value</span><span class="err">.</span><span class="mi">0</span><span class="nf">.visit</span><span class="p">(</span><span class="n">acc</span><span class="p">);</span>
+        <span class="n">value</span><span class="err">.</span><span class="mi">1</span><span class="nf">.visit</span><span class="p">(</span><span class="n">acc</span><span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h3 id="collecting-the-accumulated-result">Collecting the Accumulated Result</h3>
+
+<p>Suppose we want every value to append a textual representation of itself to a single output string.</p>
+
+<p>Let’s define a type for it, which will be our accumulator:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">#[derive(Debug)]</span>
+<span class="k">struct</span> <span class="nf">Text</span><span class="p">(</span><span class="nb">String</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>Then, we need to implement <code class="language-plaintext highlighter-rouge">Visit</code> for every type that we ever added to our list:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Visit</span><span class="o">&lt;</span><span class="n">Text</span><span class="o">&gt;</span> <span class="k">for</span> <span class="nb">bool</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">visit</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="nf">Text</span> <span class="p">(</span><span class="k">mut</span> <span class="n">s</span><span class="p">):</span> <span class="n">Text</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Text</span> <span class="p">{</span>
+        <span class="k">match</span> <span class="k">self</span> <span class="p">{</span>
+            <span class="k">true</span> <span class="k">=&gt;</span> <span class="n">s</span><span class="nf">.push_str</span><span class="p">(</span><span class="s">"&lt;true&gt;"</span><span class="p">),</span>
+            <span class="k">false</span> <span class="k">=&gt;</span> <span class="n">s</span><span class="nf">.push_str</span><span class="p">(</span><span class="s">"&lt;false&gt;"</span><span class="p">),</span>
+        <span class="p">}</span>
+        <span class="nf">Text</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">impl</span> <span class="n">Visit</span><span class="o">&lt;</span><span class="n">Text</span><span class="o">&gt;</span> <span class="k">for</span> <span class="nb">i32</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">visit</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="nf">Text</span> <span class="p">(</span><span class="k">mut</span> <span class="n">s</span><span class="p">):</span> <span class="n">Text</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Text</span> <span class="p">{</span>
+        <span class="n">s</span><span class="nf">.push_str</span><span class="p">(</span><span class="o">&amp;</span><span class="nd">format!</span><span class="p">(</span><span class="s">"&lt;i32 value {}&gt;"</span><span class="p">,</span> <span class="k">self</span><span class="p">));</span>
+        <span class="nf">Text</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="n">Visit</span><span class="o">&lt;</span><span class="n">Text</span><span class="o">&gt;</span> <span class="k">for</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="nb">str</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">visit</span><span class="p">(</span><span class="k">self</span><span class="p">,</span> <span class="nf">Text</span> <span class="p">(</span><span class="k">mut</span> <span class="n">s</span><span class="p">):</span> <span class="n">Text</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Text</span> <span class="p">{</span>
+        <span class="n">s</span><span class="nf">.push_str</span><span class="p">(</span><span class="o">&amp;</span><span class="nd">format!</span><span class="p">(</span><span class="s">"&lt;{}&gt;"</span><span class="p">,</span> <span class="k">self</span><span class="p">));</span>
+        <span class="nf">Text</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>And call the <code class="language-plaintext highlighter-rouge">visit</code>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">println!</span><span class="p">(</span><span class="s">"{:#?}"</span><span class="p">,</span> <span class="n">items</span><span class="nf">.visit</span><span class="p">(</span><span class="nf">Text</span><span class="p">(</span><span class="nn">String</span><span class="p">::</span><span class="nf">new</span><span class="p">())));</span>
+</code></pre></div></div>
+
+<p>Output:</p>
+
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Text(
+    "&lt;true&gt;&lt;i32 value 42&gt;&lt;and&gt;&lt;false&gt;&lt;i32 value 42&gt;"
+)
+</code></pre></div></div>
+
+<p>How cool is that? This actually looks reasonable!</p>
+
+<p>So, what’s not reasonable?</p>
+
+<h3 id="type-errors">Type Errors</h3>
+
+<p>Let’s say, in above example we forget to implement <code class="language-plaintext highlighter-rouge">Visit</code> for <code class="language-plaintext highlighter-rouge">str</code>. We get this error:</p>
+
+<div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>204:55 error: no method named `visit` found for type
+`Chain&lt;(Chain&lt;((bool, i32), Chain&lt;(&amp;str, bool)&gt;)&gt;, (i32,))&gt;`
+in the current scope
+println!("{:#?}", items.visit(Text(String::new())));
+                        ^~~~~~~~~~~~~~~~~~~~~~~~~~
+</code></pre></div></div>
+
+<p>This was not really helpful. However, it was kind of expected…</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>It is a bit doubtful that this kind of generic list would be actually worth it, simply
+because the type of it is going to remain horrendous.</p>
+
+<p>However, in some cases this can provide a type-checked mixed-type execution sequences. And
+I am guessing that they may be as fast as writing these sequence actions by hand.</p>
+
+  </article>
+
+</div>
+
+      </div>
+    </div>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col  footer-col-1">
+        <ul class="contact-list">
+          <li>Nerijus Arlauskas</li>
+          <li><a href="mailto:nercury@gmail.com">nercury@gmail.com</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-2">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/Nercury">
+              <span class="icon  icon--github">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/>
+                </svg>
+              </span>
+
+              <span class="username">Nercury</span>
+            </a>
+          </li>
+          
+
+          
+          <li>
+            <a href="https://twitter.com/nercury">
+              <span class="icon  icon--twitter">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809
+                  c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/>
+                </svg>
+              </span>
+
+              <span class="username">nercury</span>
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-3">
+        <p class="text">Articles and tutorials about Rust, Embedded development and Computer Graphics.
+</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>

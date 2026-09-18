@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <title>Rust and OpenGL from scratch - GL Generator</title>
+    <meta name="description" content="Articles and tutorials about Rust, Embedded development and Computer Graphics.
+">
+
+    <link rel="shortcut icon" type="image/png" href="/favicon.ico"/>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/pygments/default.css">
+    <link rel="stylesheet" href="/css/font-awesome.css">
+    <link rel="canonical" href="http://nercury.github.io/rust/opengl/tutorial/2018/02/12/opengl-in-rust-from-scratch-06-gl-generator.html">
+    <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles/color-brewer.css">
+
+    <script src="/js/highlight.pack.js"></script>
+
+    <script src="/js/jquery.min.js"></script>
+    
+    <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+      ga('create', 'UA-56288576-1', 'auto');
+      ga('require', 'displayfeatures');
+      ga('send', 'pageview');
+    </script>
+    
+    <script>
+        $(function() {
+            hljs.initHighlightingOnLoad();
+            return $("h1, h2, h3, h4, h5, h6").each(function(i, el) {
+                console.log(el);
+                var $el, icon, id;
+                $el = $(el);
+                id = $el.attr('id');
+                icon = '<i class="fa fa-link"></i>';
+                if (id) {
+                  return $el.prepend($("<a />").addClass("header-link").attr("href", "#" + id).html(icon));
+                }
+            });
+        });
+    </script>
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Ironic Blog</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+        
+          
+          <a class="page-link" href="/about/">About Me</a>
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <div class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Rust and OpenGL from scratch - GL Generator</h1>
+    <p class="post-meta">Feb 12, 2018</p>
+  </header>
+
+  <article class="post-content">
+    <p>Welcome back!</p>
+
+<p><a href="/rust/opengl/tutorial/2018/02/11/opengl-in-rust-from-scratch-05-triangle-colors.html">Previously</a>, 
+we have rendered a colored triangle to the window.</p>
+
+<p>Our program was a mixed bag of decent shader compiler code and the error-prone VBO buffer and VAO
+layout handling mess.</p>
+
+<p>Before getting deep into improving this situation, we are going to step back a bit and improve
+the way we load and use OpenGL. We will create our own project-specific <code class="language-plaintext highlighter-rouge">gl</code> crate.</p>
+
+<p>This will allow us:</p>
+
+<ul>
+  <li>To ensure gl context functions invoked from the thread they were created from;</li>
+  <li>Enable debug checks for all gl function calls;</li>
+  <li>Have control of enabled OpenGL extensions;</li>
+  <li>Have control of supported API level, i.e. remove new OpenGL functions that we are not using.</li>
+</ul>
+
+<h2 id="build-script">Build script</h2>
+
+<p><a href="https://github.com/brendanzab/gl-rs/blob/master/gl/src/lib.rs">The entire implementation of <code class="language-plaintext highlighter-rouge">gl</code> crate is this</a>:</p>
+
+<p>(src/lib.rs in gl crate)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">include!</span><span class="p">(</span><span class="nd">concat!</span><span class="p">(</span><span class="nd">env!</span><span class="p">(</span><span class="s">"OUT_DIR"</span><span class="p">),</span> <span class="s">"/bindings.rs"</span><span class="p">));</span>
+</code></pre></div></div>
+
+<p>Crate code is included from this mysterious <code class="language-plaintext highlighter-rouge">bindings.rs</code> file.</p>
+
+<p>The code in <code class="language-plaintext highlighter-rouge">bindings.rs</code> is auto-generated in a build script, which is in the crate’s root
+directory. We have <a href="/rust/opengl/tutorial/2018/02/09/opengl-in-rust-from-scratch-02-opengl-context.html">discussed that this was happening previously</a>, but now we are going to really 
+dig into it. <a href="https://github.com/brendanzab/gl-rs/blob/master/gl/build.rs">Let’s take a look at the build script’s code</a>:</p>
+
+<p>(build.rs in gl crate)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="n">crate</span> <span class="n">gl_generator</span><span class="p">;</span>
+
+<span class="k">use</span> <span class="nn">gl_generator</span><span class="p">::{</span><span class="n">Registry</span><span class="p">,</span> <span class="n">Fallbacks</span><span class="p">,</span> <span class="n">GlobalGenerator</span><span class="p">,</span> <span class="n">Api</span><span class="p">,</span> <span class="n">Profile</span><span class="p">};</span>
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">env</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">fs</span><span class="p">::</span><span class="n">File</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">path</span><span class="p">::</span><span class="n">Path</span><span class="p">;</span>
+
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">out_dir</span> <span class="o">=</span> <span class="nn">env</span><span class="p">::</span><span class="nf">var</span><span class="p">(</span><span class="s">"OUT_DIR"</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">file</span> <span class="o">=</span> <span class="nn">File</span><span class="p">::</span><span class="nf">create</span><span class="p">(</span><span class="o">&amp;</span><span class="nn">Path</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="o">&amp;</span><span class="n">out_dir</span><span class="p">)</span><span class="nf">.join</span><span class="p">(</span><span class="s">"bindings.rs"</span><span class="p">))</span><span class="nf">.unwrap</span><span class="p">();</span>
+
+    <span class="nn">Registry</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Api</span><span class="p">::</span><span class="n">Gl</span><span class="p">,</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="nn">Profile</span><span class="p">::</span><span class="n">Core</span><span class="p">,</span> <span class="nn">Fallbacks</span><span class="p">::</span><span class="n">All</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="nf">.write_bindings</span><span class="p">(</span><span class="n">GlobalGenerator</span><span class="p">,</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">file</span><span class="p">)</span>
+        <span class="nf">.unwrap</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p><a href="https://doc.rust-lang.org/cargo/reference/build-scripts.html">Build scripts allow the crate authors to include code that is executed before the build
+by the cargo</a>.</p>
+
+<p>When running the build script, cargo pass various useful environment variables, such
+as <code class="language-plaintext highlighter-rouge">OUT_DIR</code>. The <code class="language-plaintext highlighter-rouge">OUT_DIR</code> points to build directory, where the script writes
+generated <code class="language-plaintext highlighter-rouge">bindings.rs</code> code.</p>
+
+<p>Then, the contents of this file are included in <code class="language-plaintext highlighter-rouge">src/lib.rs</code> by referencing the same
+environment variable <code class="language-plaintext highlighter-rouge">OUT_DIR</code>.</p>
+
+<h2 id="our-own-gl-crate">Our own gl crate</h2>
+
+<p>Let’s create a new project-specific <code class="language-plaintext highlighter-rouge">gl</code> crate, which won’t be published to <code class="language-plaintext highlighter-rouge">crates.io</code>.</p>
+
+<p>(in project root)</p>
+
+<pre><code class="language-txt">&gt; mkdir lib
+&gt; cd lib
+&gt; cargo new --vcs none --lib gl
+</code></pre>
+
+<p><code class="language-plaintext highlighter-rouge">--vcs none</code> will disable <code class="language-plaintext highlighter-rouge">.git</code> for this library, because it will be using our project’s VCS (if any).
+<code class="language-plaintext highlighter-rouge">--lib</code> will create a library crate.</p>
+
+<p>I had this structure in mind:</p>
+
+<p><img src="/images/opengl-rust/06/lib-gl-crate.jpg" alt="Triangle" /></p>
+
+<p>You may pick other name than <code class="language-plaintext highlighter-rouge">/lib</code> in your project, it’s completely arbitrary.</p>
+
+<p>Now we simply copy-paste the setup from original <code class="language-plaintext highlighter-rouge">gl</code> project, making changes that suits
+our project.</p>
+
+<p>We write the same brief code in <code class="language-plaintext highlighter-rouge">lib.rs</code>:</p>
+
+<p>(lib/gl/src/lib.rs)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">include!</span><span class="p">(</span><span class="nd">concat!</span><span class="p">(</span><span class="nd">env!</span><span class="p">(</span><span class="s">"OUT_DIR"</span><span class="p">),</span> <span class="s">"/bindings.rs"</span><span class="p">));</span>
+</code></pre></div></div>
+
+<p>Add <code class="language-plaintext highlighter-rouge">[build-dependencies]</code> section (which is used for build-script) with <code class="language-plaintext highlighter-rouge">gl-generator</code>
+dependency (expect the relative path thing):</p>
+
+<p>(lib/gl/Cargo.toml, incomplete)</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[build-dependencies]</span>
+<span class="nn">gl_generator</span> <span class="o">=</span> <span class="p">{</span> <span class="py">version</span> <span class="p">=</span> <span class="s">"0.9.0"</span> <span class="p">}</span>
+</code></pre></div></div>
+
+<p>This can be simplified to:</p>
+
+<p>(lib/gl/Cargo.toml, incomplete)</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[build-dependencies]</span>
+<span class="py">gl_generator</span> <span class="p">=</span> <span class="s">"0.9.0"</span>
+</code></pre></div></div>
+
+<p>And we add modified build script:</p>
+
+<p>(lib/gl/build.rs, incomplete)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="n">crate</span> <span class="n">gl_generator</span><span class="p">;</span>
+
+<span class="k">use</span> <span class="nn">gl_generator</span><span class="p">::{</span><span class="n">Registry</span><span class="p">,</span> <span class="n">Fallbacks</span><span class="p">,</span> <span class="n">StructGenerator</span><span class="p">,</span> <span class="n">Api</span><span class="p">,</span> <span class="n">Profile</span><span class="p">};</span>
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">env</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">fs</span><span class="p">::</span><span class="n">File</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">path</span><span class="p">::</span><span class="n">Path</span><span class="p">;</span>
+
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">out_dir</span> <span class="o">=</span> <span class="nn">env</span><span class="p">::</span><span class="nf">var</span><span class="p">(</span><span class="s">"OUT_DIR"</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">file_gl</span> <span class="o">=</span> <span class="nn">File</span><span class="p">::</span><span class="nf">create</span><span class="p">(</span><span class="o">&amp;</span><span class="nn">Path</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="o">&amp;</span><span class="n">out_dir</span><span class="p">)</span><span class="nf">.join</span><span class="p">(</span><span class="s">"bindings.rs"</span><span class="p">))</span><span class="nf">.unwrap</span><span class="p">();</span>
+
+    <span class="nn">Registry</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Api</span><span class="p">::</span><span class="n">Gl</span><span class="p">,</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="nn">Profile</span><span class="p">::</span><span class="n">Core</span><span class="p">,</span> <span class="nn">Fallbacks</span><span class="p">::</span><span class="n">All</span><span class="p">,</span> <span class="p">[</span>
+        <span class="s">"GL_NV_command_list"</span><span class="p">,</span> <span class="c">// additional extension we want to use</span>
+    <span class="p">])</span>
+        <span class="nf">.write_bindings</span><span class="p">(</span>
+            <span class="n">StructGenerator</span><span class="p">,</span> <span class="c">// different generator</span>
+            <span class="o">&amp;</span><span class="k">mut</span> <span class="n">file_gl</span>
+        <span class="p">)</span>
+        <span class="nf">.unwrap</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>As an example we can include some extension, like “GL_NV_command_list”, and we 
+use different <code class="language-plaintext highlighter-rouge">StructGenerator</code> instead of <code class="language-plaintext highlighter-rouge">GlobalGenerator</code>.</p>
+
+<h2 id="fixing-up-our-project">Fixing up our project</h2>
+
+<p>In our project dependencies, we can point <code class="language-plaintext highlighter-rouge">gl</code> to our new <code class="language-plaintext highlighter-rouge">gl</code> crate:</p>
+
+<p>(Cargo.toml, incomplete)</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[dependencies]</span>
+<span class="nn">gl</span> <span class="o">=</span> <span class="p">{</span> <span class="py">path</span> <span class="p">=</span> <span class="s">"lib/gl"</span> <span class="p">}</span>
+</code></pre></div></div>
+
+<p>When we now try to compile our project, we get bunch of errors. This happens because
+with <code class="language-plaintext highlighter-rouge">StructGenerator</code> OpenGL methods are not global, but members of a struct <code class="language-plaintext highlighter-rouge">gl::Gl</code>, 
+which we should probably now use everywhere.</p>
+
+<h3 id="first-attempt-hello-lifetime-specifier">First attempt: hello, lifetime specifier</h3>
+
+<p>However, if we tried to use a reference to <code class="language-plaintext highlighter-rouge">gl::Gl</code> in our <code class="language-plaintext highlighter-rouge">Program</code> struct, we would quickly encounter few issues:</p>
+
+<p>(example, wait, don’t do this)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Program</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">from_shaders</span><span class="p">(</span><span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">,</span> <span class="n">shaders</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="n">Shader</span><span class="p">])</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="n">Program</span><span class="p">,</span> <span class="nb">String</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="c">// use "." instead of "::"</span>
+        <span class="k">let</span> <span class="n">program_id</span> <span class="o">=</span> <span class="k">unsafe</span> <span class="p">{</span> <span class="n">gl</span><span class="nf">.CreateProgram</span><span class="p">()</span> <span class="p">};</span> 
+        
+        <span class="o">...</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>We would be able to do this in “from_shaders” function, however, <code class="language-plaintext highlighter-rouge">drop</code> function can not have
+any additional parameters:</p>
+
+<p>(example, wait, don’t do this)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Drop</span> <span class="k">for</span> <span class="n">Program</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="k">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span> <span class="c">// "Drop" will only have "&amp;mut self" parameter</span>
+        <span class="k">unsafe</span> <span class="p">{</span>
+            <span class="c">// no "gl" here!</span>
+        
+            <span class="n">gl</span><span class="nf">.DeleteProgram</span><span class="p">(</span><span class="k">self</span><span class="py">.id</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>First idea, especially if we are new to Rust, would be to store <code class="language-plaintext highlighter-rouge">&amp;Gl</code> in <code class="language-plaintext highlighter-rouge">Program</code> struct,
+so that we can access it from <code class="language-plaintext highlighter-rouge">drop</code>:</p>
+
+<p>(example, wait, don’t do this, but you may try)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">struct</span> <span class="n">Program</span> <span class="p">{</span>
+    <span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">,</span>
+    <span class="n">id</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLuint</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="o">...</span> 
+
+<span class="k">impl</span> <span class="n">Drop</span> <span class="k">for</span> <span class="n">Program</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="k">drop</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">unsafe</span> <span class="p">{</span>
+            <span class="k">self</span><span class="py">.gl</span><span class="nf">.DeleteProgram</span><span class="p">(</span><span class="k">self</span><span class="py">.id</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Then, Rust would inform us that we don’t have lifetime specifier:</p>
+
+<pre><code class="language-txt">error[E0106]: missing lifetime specifier
+ --&gt; src\render_gl.rs:6:9
+  |
+6 |     gl: &amp;gl::Gl,
+  |         ^ expected lifetime parameter
+</code></pre>
+
+<p>Then we may add the requested specifier to the <code class="language-plaintext highlighter-rouge">Program</code>:</p>
+
+<p>(example, wait, don’t do this, but you may try)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">struct</span> <span class="n">Program</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">,</span>
+    <span class="n">id</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLuint</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>After adding lifetime specifier to multiple other places, we will realize that
+while it works, <code class="language-plaintext highlighter-rouge">Program&lt;'a&gt;</code> is very inflexible to use. If we tried, as an example, 
+to include <code class="language-plaintext highlighter-rouge">Program&lt;'a&gt;</code> in another <code class="language-plaintext highlighter-rouge">Struct</code>, that struct would also need to gain a lifetime
+specifier <code class="language-plaintext highlighter-rouge">Struct&lt;'a&gt;</code>. Consider briefly, that our <code class="language-plaintext highlighter-rouge">Program</code> won’t be the only thing
+to use <code class="language-plaintext highlighter-rouge">Gl</code>, and if all the things required lifetime specifiers, we would have
+a very bad time.</p>
+
+<p>Lifetime is inconvenient thing to use in this case. Lifetime specifier <code class="language-plaintext highlighter-rouge">'a</code> on a struct
+means that it contains a pointer to some memory location, and while this struct
+is in use, this memory location can not be:</p>
+
+<ul>
+  <li>Moved</li>
+  <li>Modified</li>
+  <li>Deallocated</li>
+</ul>
+
+<p>The lifetime specifier would make much more sense on something like iterator,
+where we would need to ensure that the original data we are iterating over is not modified,
+because our iterator has pointers to it.</p>
+
+<p>Ah, you might say, but objects <strong>are</strong> pointers! Yes, but in other languages pointers usually
+point to heap, while Rust’s references can point to both! Rust’s references are nothing
+like objects in Java-like languages, they are pointers to a memory location. And Rust ensures
+they are valid at compile time.</p>
+
+<h3 id="second-attempt-manual-de-init">Second attempt: manual de-init</h3>
+
+<p>Ok, ok, we give up. What if we do not store <code class="language-plaintext highlighter-rouge">&amp;Gl</code> in a <code class="language-plaintext highlighter-rouge">Program</code>, but add a manual <code class="language-plaintext highlighter-rouge">deinit</code>
+function, where we can pass the <code class="language-plaintext highlighter-rouge">&amp;Gl</code> argument?</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Drop</span> <span class="k">for</span> <span class="n">Program</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">deinit</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">unsafe</span> <span class="p">{</span>
+            <span class="n">gl</span><span class="nf">.DeleteProgram</span><span class="p">(</span><span class="k">self</span><span class="py">.id</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Of course, we would need to call this <code class="language-plaintext highlighter-rouge">deinit</code> manually:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">program</span><span class="nf">.deinit</span><span class="p">(</span><span class="o">&amp;</span><span class="n">gl</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>Not a big problem, right?</p>
+
+<p>It is certainly possible to go this way, and go quite a long way before it becomes annoying. 
+However, if we follow this pattern, every thing will get its <code class="language-plaintext highlighter-rouge">init</code> and <code class="language-plaintext highlighter-rouge">deinit</code> functions, which 
+we will have to always remember to call, sometimes in correct other, and sometimes with a boolean
+check. For example, in a hypothetical terrains renderer (which I might have written), or in 
+some hypothetical future tutorial (which I do not promise to write), we might see this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Terrains</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">init</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Gl</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">self</span><span class="py">.shader</span><span class="nf">.init</span><span class="p">(</span><span class="n">gl</span><span class="p">);</span>
+        <span class="k">self</span><span class="py">.grid_texture</span><span class="nf">.init</span><span class="p">(</span><span class="n">gl</span><span class="p">);</span>
+        <span class="k">self</span><span class="py">.overlay_texture</span><span class="nf">.init</span><span class="p">(</span><span class="n">gl</span><span class="p">);</span>
+        <span class="k">self</span><span class="py">.tiles_texture</span><span class="nf">.init</span><span class="p">(</span><span class="n">gl</span><span class="p">);</span>
+        <span class="k">if</span> <span class="k">self</span><span class="py">.debug</span> <span class="p">{</span>
+            <span class="k">self</span><span class="py">.debuglines</span><span class="nf">.init</span><span class="p">(</span><span class="n">gl</span><span class="p">);</span>
+        <span class="p">}</span>
+        <span class="k">self</span><span class="py">.terrains</span><span class="nf">.load</span><span class="p">(</span><span class="n">gl</span><span class="p">);</span>
+    <span class="p">}</span>
+    
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">deinit</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Gl</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">self</span><span class="py">.shader</span><span class="nf">.deinit</span><span class="p">(</span><span class="n">gl</span><span class="p">);</span>
+        <span class="k">self</span><span class="py">.grid_texture</span><span class="nf">.deinit</span><span class="p">(</span><span class="n">gl</span><span class="p">);</span>
+        <span class="k">self</span><span class="py">.overlay_texture</span><span class="nf">.deinit</span><span class="p">(</span><span class="n">gl</span><span class="p">);</span>
+        <span class="k">self</span><span class="py">.tiles_texture</span><span class="nf">.deinit</span><span class="p">(</span><span class="n">gl</span><span class="p">);</span>
+        <span class="k">if</span> <span class="k">self</span><span class="py">.debug</span> <span class="p">{</span>
+            <span class="k">self</span><span class="py">.debuglines</span><span class="nf">.deinit</span><span class="p">(</span><span class="n">gl</span><span class="p">);</span>
+        <span class="p">}</span>
+        <span class="k">self</span><span class="py">.terrains</span><span class="nf">.unload</span><span class="p">(</span><span class="n">gl</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>It might work. That’s all I can say about this approach.</p>
+
+<h3 id="almost-final-attempt-ownership">Almost final attempt: ownership</h3>
+
+<p>What if, instead of storing a pointer (yes, it is better to think of references as pointers) in 
+a <code class="language-plaintext highlighter-rouge">Program</code> (and later <code class="language-plaintext highlighter-rouge">Shader</code>) structs, we put a value there?</p>
+
+<p>(let’s do this! in render_gl.rs)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">struct</span> <span class="n">Program</span> <span class="p">{</span>
+    <span class="n">gl</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">,</span>
+    <span class="n">id</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLuint</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>By placing a value in a struct in Rust, we express the intention for that value
+to be deleted togeter with a parent struct.</p>
+
+<p>But we may not want Gl to be deleted, right? Yes, but Gl can be cloned:</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">gl2</span> <span class="o">=</span> <span class="n">gl</span><span class="nf">.clone</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p>Gl implements <a href="https://doc.rust-lang.org/std/clone/trait.Clone.html">Clone trait</a>, which performs
+a deep copy of gl value. When we create our shaders and program, we can pass clone of it everywhere:</p>
+
+<p>(main.rs, modified)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">vert_shader</span> <span class="o">=</span> <span class="nn">render_gl</span><span class="p">::</span><span class="nn">Shader</span><span class="p">::</span><span class="nf">from_vert_source</span><span class="p">(</span>
+    <span class="n">gl</span><span class="nf">.clone</span><span class="p">(),</span> <span class="o">&amp;</span><span class="nn">CString</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nd">include_str!</span><span class="p">(</span><span class="s">"triangle.vert"</span><span class="p">))</span><span class="nf">.unwrap</span><span class="p">()</span>
+<span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+
+<span class="k">let</span> <span class="n">frag_shader</span> <span class="o">=</span> <span class="nn">render_gl</span><span class="p">::</span><span class="nn">Shader</span><span class="p">::</span><span class="nf">from_frag_source</span><span class="p">(</span>
+    <span class="n">gl</span><span class="nf">.clone</span><span class="p">(),</span> <span class="o">&amp;</span><span class="nn">CString</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nd">include_str!</span><span class="p">(</span><span class="s">"triangle.frag"</span><span class="p">))</span><span class="nf">.unwrap</span><span class="p">()</span>
+<span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+
+<span class="k">let</span> <span class="n">shader_program</span> <span class="o">=</span> <span class="nn">render_gl</span><span class="p">::</span><span class="nn">Program</span><span class="p">::</span><span class="nf">from_shaders</span><span class="p">(</span>
+    <span class="n">gl</span><span class="nf">.clone</span><span class="p">(),</span> <span class="o">&amp;</span><span class="p">[</span><span class="n">vert_shader</span><span class="p">,</span> <span class="n">frag_shader</span><span class="p">]</span>
+<span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p>Let’s roll with it for now, and also add it to <code class="language-plaintext highlighter-rouge">Shader</code> struct:</p>
+
+<p>(render_gl.rs, modified)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">struct</span> <span class="n">Shader</span> <span class="p">{</span>
+    <span class="n">gl</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">,</span>
+    <span class="n">id</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLuint</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Modify constructor methods and implementations:</p>
+
+<p>(render_gl.rs, modified)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Program</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">from_shaders</span><span class="p">(</span><span class="n">gl</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">,</span> <span class="n">shaders</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="n">Shader</span><span class="p">])</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="n">Program</span><span class="p">,</span> <span class="nb">String</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="k">let</span> <span class="n">program_id</span> <span class="o">=</span> <span class="k">unsafe</span> <span class="p">{</span> <span class="n">gl</span><span class="nf">.CreateProgram</span><span class="p">()</span> <span class="p">};</span>
+        
+        <span class="o">...</span>
+        
+        <span class="nf">Ok</span><span class="p">(</span><span class="n">Program</span> <span class="p">{</span> <span class="n">gl</span><span class="p">,</span> <span class="n">id</span><span class="p">:</span> <span class="n">program_id</span> <span class="p">})</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>A standalone method such as <code class="language-plaintext highlighter-rouge">shader_from_source</code> that we have written previously does not need 
+full ownership of <code class="language-plaintext highlighter-rouge">gl</code>, a reference will suffice:</p>
+
+<p>(render_gl.rs, modified)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">fn</span> <span class="nf">shader_from_source</span><span class="p">(</span>
+    <span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">,</span> <span class="c">// a reference to gl</span>
+    <span class="n">source</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">CStr</span><span class="p">,</span>
+    <span class="n">kind</span><span class="p">:</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLenum</span>
+<span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="nn">gl</span><span class="p">::</span><span class="nn">types</span><span class="p">::</span><span class="n">GLuint</span><span class="p">,</span> <span class="nb">String</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="o">...</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>In <code class="language-plaintext highlighter-rouge">main.rs</code>, we will need to use new <code class="language-plaintext highlighter-rouge">Gl</code> constructor to initialize <code class="language-plaintext highlighter-rouge">gl</code>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">gl</span> <span class="o">=</span> <span class="nn">gl</span><span class="p">::</span><span class="nn">Gl</span><span class="p">::</span><span class="nf">load_with</span><span class="p">(|</span><span class="n">s</span><span class="p">|</span> <span class="n">video_subsystem</span><span class="nf">.gl_get_proc_address</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">as</span> <span class="o">*</span><span class="k">const</span> <span class="nn">std</span><span class="p">::</span><span class="nn">os</span><span class="p">::</span><span class="nn">raw</span><span class="p">::</span><span class="nb">c_void</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>When we do all these replacements, the program should compile and run.</p>
+
+<h2 id="final-version-shared-gl-reference">Final version: shared gl reference</h2>
+
+<p>We are doing a deep copy of <code class="language-plaintext highlighter-rouge">Gl</code> struct. How big is it exactly?</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">println!</span><span class="p">(</span><span class="s">"size of Gl: {}"</span><span class="p">,</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nf">size_of_val</span><span class="p">(</span><span class="o">&amp;</span><span class="n">gl</span><span class="p">));</span>
+</code></pre></div></div>
+
+<pre><code class="language-txt">size of Gl: 11392
+</code></pre>
+
+<p>Oops, 11KB deep cloning sounds a bit worrisome.
+We can put the <code class="language-plaintext highlighter-rouge">gl</code> struct behind a reference-counted pointer, by wrapping it in
+<code class="language-plaintext highlighter-rouge">Rc&lt;Gl&gt;</code> type:</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">rc</span><span class="p">::</span><span class="nb">Rc</span><span class="p">;</span>
+<span class="k">let</span> <span class="n">gl</span> <span class="o">=</span> <span class="nn">Rc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span>
+    <span class="nn">gl</span><span class="p">::</span><span class="nn">Gl</span><span class="p">::</span><span class="nf">load_with</span><span class="p">(|</span><span class="n">s</span><span class="p">|</span> <span class="n">video_subsystem</span><span class="nf">.gl_get_proc_address</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">as</span> <span class="o">*</span><span class="k">const</span> <span class="nn">std</span><span class="p">::</span><span class="nn">os</span><span class="p">::</span><span class="nn">raw</span><span class="p">::</span><span class="nb">c_void</span><span class="p">)</span>
+<span class="p">);</span>
+</code></pre></div></div>
+
+<p>But then, every place we use <code class="language-plaintext highlighter-rouge">Gl</code> would suddenly need the type <code class="language-plaintext highlighter-rouge">Rc&lt;Gl&gt;</code>, which is annoying.
+It would be great if <code class="language-plaintext highlighter-rouge">Gl</code> was already reference counted inside, then we could clone it cheaply.
+If only we had an access to the <code class="language-plaintext highlighter-rouge">gl</code> crate, we could change what <code class="language-plaintext highlighter-rouge">Gl</code> is… wait.</p>
+
+<h3 id="customised-gl-crate">Customised gl crate</h3>
+
+<p>In our <code class="language-plaintext highlighter-rouge">gl</code> crate, we can put generated bindings inside a private <code class="language-plaintext highlighter-rouge">bindings</code> module:</p>
+
+<p>(rewrite lib/gl/src/lib.rs)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">bindings</span> <span class="p">{</span>
+    <span class="nd">include!</span><span class="p">(</span><span class="nd">concat!</span><span class="p">(</span><span class="nd">env!</span><span class="p">(</span><span class="s">"OUT_DIR"</span><span class="p">),</span> <span class="s">"/bindings.rs"</span><span class="p">));</span>
+<span class="p">}</span>
+
+<span class="c">// continue here</span>
+</code></pre></div></div>
+
+<p>Let’s export all the types in <code class="language-plaintext highlighter-rouge">bindings</code>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">use</span> <span class="nn">bindings</span><span class="p">::</span><span class="o">*</span><span class="p">;</span>
+
+<span class="c">// continue here</span>
+</code></pre></div></div>
+
+<p>Then, add <code class="language-plaintext highlighter-rouge">Gl</code> struct with original reference-counted <code class="language-plaintext highlighter-rouge">Gl</code> inside. The <code class="language-plaintext highlighter-rouge">#[derive(Clone)]</code> will
+will implement <code class="language-plaintext highlighter-rouge">Clone</code> trait, which will deep clone everything inside. Except, cloning
+of <code class="language-plaintext highlighter-rouge">Rc</code> only increases its reference-count, while it keeps pointing to the same data.
+The data is destroyed only when all <code class="language-plaintext highlighter-rouge">Rc</code> instances are deallocated and the shared 
+reference-count reaches zero:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">rc</span><span class="p">::</span><span class="nb">Rc</span><span class="p">;</span>
+
+<span class="nd">#[derive(Clone)]</span>
+<span class="k">pub</span> <span class="k">struct</span> <span class="n">Gl</span> <span class="p">{</span>
+    <span class="n">inner</span><span class="p">:</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="nn">bindings</span><span class="p">::</span><span class="n">Gl</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="c">// continue here</span>
+</code></pre></div></div>
+
+<p>To initialize our Gl, forward <code class="language-plaintext highlighter-rouge">load_with</code> constructor, which will create original <code class="language-plaintext highlighter-rouge">Gl</code>, but then
+wrap it in <code class="language-plaintext highlighter-rouge">Rc</code>:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Gl</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="n">load_with</span><span class="o">&lt;</span><span class="n">F</span><span class="o">&gt;</span><span class="p">(</span><span class="n">loadfn</span><span class="p">:</span> <span class="n">F</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Gl</span>
+        <span class="k">where</span> <span class="n">F</span><span class="p">:</span> <span class="nf">FnMut</span><span class="p">(</span><span class="o">&amp;</span><span class="nv">'static</span> <span class="nb">str</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">*</span><span class="k">const</span> <span class="nn">types</span><span class="p">::</span><span class="n">GLvoid</span>
+    <span class="p">{</span>
+        <span class="n">Gl</span> <span class="p">{</span>
+            <span class="n">inner</span><span class="p">:</span> <span class="nn">Rc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">bindings</span><span class="p">::</span><span class="nn">Gl</span><span class="p">::</span><span class="nf">load_with</span><span class="p">(</span><span class="n">loadfn</span><span class="p">))</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c">// continue here</span>
+</code></pre></div></div>
+
+<p>We would not want to use <code class="language-plaintext highlighter-rouge">gl.inner</code> everywhere to access wrapped value, but <a href="https://doc.rust-lang.org/book/second-edition/ch15-02-deref.html">there is a
+mechanism in rust to forward calls to inner implementation</a>, which is perfect for this use
+case:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Deref</span> <span class="k">for</span> <span class="n">Gl</span> <span class="p">{</span>
+    <span class="k">type</span> <span class="n">Target</span> <span class="o">=</span> <span class="nn">bindings</span><span class="p">::</span><span class="n">Gl</span><span class="p">;</span>
+
+    <span class="k">fn</span> <span class="nf">deref</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="o">&amp;</span><span class="nn">bindings</span><span class="p">::</span><span class="n">Gl</span> <span class="p">{</span>
+        <span class="o">&amp;</span><span class="k">self</span><span class="py">.inner</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>This is the exact same mechanism that forwards <code class="language-plaintext highlighter-rouge">&amp;str</code> or <code class="language-plaintext highlighter-rouge">[T]</code> slice functions to <code class="language-plaintext highlighter-rouge">String</code> or <code class="language-plaintext highlighter-rouge">Vec&lt;T&gt;</code>.</p>
+
+<p>With that, everything should magically compile now! If we check the size of <code class="language-plaintext highlighter-rouge">Gl</code> now…</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">println!</span><span class="p">(</span><span class="s">"size of Gl: {}"</span><span class="p">,</span> <span class="nn">std</span><span class="p">::</span><span class="nn">mem</span><span class="p">::</span><span class="nf">size_of_val</span><span class="p">(</span><span class="o">&amp;</span><span class="n">gl</span><span class="p">));</span>
+</code></pre></div></div>
+
+<pre><code class="language-txt">size of Gl: 8
+</code></pre>
+
+<p>8 bytes! It’s a pointer, finally!</p>
+
+<p>You may recognise that we have not done anything too exceptional here: for example, many
+structs in Rust’s <code class="language-plaintext highlighter-rouge">sdl</code> crate wrap reference-counted implementations inside.</p>
+
+<h3 id="some-cleanup">Some cleanup</h3>
+
+<p>Our methods now clone <code class="language-plaintext highlighter-rouge">gl</code> at the call site:</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">shader_program</span> <span class="o">=</span> <span class="nn">render_gl</span><span class="p">::</span><span class="nn">Program</span><span class="p">::</span><span class="nf">from_shaders</span><span class="p">(</span>
+    <span class="n">gl</span><span class="nf">.clone</span><span class="p">(),</span> <span class="c">// cloned at the call site</span>
+    <span class="o">&amp;</span><span class="p">[</span><span class="n">vert_shader</span><span class="p">,</span> <span class="n">frag_shader</span><span class="p">]</span>
+<span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p>Instead, it is a bit more clean to pass a reference, and leave the decision to clone to the implementation:</p>
+
+<p>(main.rs, modify method calls)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">shader_program</span> <span class="o">=</span> <span class="nn">render_gl</span><span class="p">::</span><span class="nn">Program</span><span class="p">::</span><span class="nf">from_shaders</span><span class="p">(</span>
+    <span class="o">&amp;</span><span class="n">gl</span><span class="p">,</span> <span class="c">// pass reference</span>
+    <span class="o">&amp;</span><span class="p">[</span><span class="n">vert_shader</span><span class="p">,</span> <span class="n">frag_shader</span><span class="p">]</span>
+<span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p>And then modify constructors for <code class="language-plaintext highlighter-rouge">Shader</code> and <code class="language-plaintext highlighter-rouge">Program</code>:</p>
+
+<p>(render_gl.rs, <code class="language-plaintext highlighter-rouge">Program</code> modification sample)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Program</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">from_shaders</span><span class="p">(</span><span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">,</span> <span class="n">shaders</span><span class="p">:</span> <span class="o">&amp;</span><span class="p">[</span><span class="n">Shader</span><span class="p">])</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="n">Program</span><span class="p">,</span> <span class="nb">String</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="o">...</span>
+
+        <span class="nf">Ok</span><span class="p">(</span><span class="n">Program</span> <span class="p">{</span> <span class="n">gl</span><span class="p">:</span> <span class="n">gl</span><span class="nf">.clone</span><span class="p">(),</span> <span class="n">id</span><span class="p">:</span> <span class="n">program_id</span> <span class="p">})</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c">// same with Shader</span>
+</code></pre></div></div>
+
+<h2 id="documentation">Documentation</h2>
+
+<p>Documentation for <em>your own</em> gl crate can be generated in the usual way:</p>
+
+<pre><code class="language-txt">cargo doc -p gl --no-deps --open
+</code></pre>
+
+<p>However, now we can’t see the full function list, because the original <code class="language-plaintext highlighter-rouge">Gl</code> became private.
+We can re-export it with different name to remedy the situation:</p>
+
+<p>(lib/gl/src/lib.rs)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">use</span> <span class="nn">bindings</span><span class="p">::</span><span class="n">Gl</span> <span class="k">as</span> <span class="n">InnerGl</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>It’s a bit unfortunate though that <code class="language-plaintext highlighter-rouge">Gl</code> and <code class="language-plaintext highlighter-rouge">bindings::Gl</code> causes some documentation conflicts.</p>
+
+<h2 id="debug-struct-generator">Debug Struct Generator</h2>
+
+<p>Besides the <code class="language-plaintext highlighter-rouge">StructGenerator</code>, <code class="language-plaintext highlighter-rouge">gl_generator</code> crate also contains <code class="language-plaintext highlighter-rouge">DebugStructGenerator</code>,
+which generates implementation that issues error checks after every OpenGL call.</p>
+
+<p>Let’s extend our <code class="language-plaintext highlighter-rouge">gl</code> crate to have <code class="language-plaintext highlighter-rouge">debug</code> feature, which, when enabled, will compile
+<code class="language-plaintext highlighter-rouge">gl</code> crate using <code class="language-plaintext highlighter-rouge">DebugStructGenerator</code>.</p>
+
+<p>First, add a new feature to <code class="language-plaintext highlighter-rouge">Cargo.toml</code>:</p>
+
+<p>(lib/gl/Cargo.toml, incomplete)</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[features]</span>
+<span class="py">debug</span> <span class="p">=</span> <span class="p">[]</span>
+</code></pre></div></div>
+
+<p>In our main <code class="language-plaintext highlighter-rouge">Cargo.toml</code>, we can re-export <code class="language-plaintext highlighter-rouge">debug</code> feature from <code class="language-plaintext highlighter-rouge">gl</code>, so that when
+the <code class="language-plaintext highlighter-rouge">debug</code> is enabled for the main project, child <code class="language-plaintext highlighter-rouge">gl</code> project is also compiled in <code class="language-plaintext highlighter-rouge">debug</code> mode:</p>
+
+<p>(Cargo.toml)</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">[features]</span>
+<span class="py">gl_debug</span> <span class="p">=</span> <span class="nn">["gl/debug"]</span>
+</code></pre></div></div>
+
+<p>Compiling crate with <code class="language-plaintext highlighter-rouge">cargo run --features "gl_debug"</code> will enable this feature for the
+project. Note that <code class="language-plaintext highlighter-rouge">cargo run --release</code> flag is completely different thing (it enables
+optimizations), which is what we want. We may need to compile project in release mode
+but with OpenGL error checks enabled.</p>
+
+<p>Right, but now we need to actually use this <code class="language-plaintext highlighter-rouge">debug</code> feature in a build script.</p>
+
+<p><a href="https://doc.rust-lang.org/cargo/reference/environment-variables.html">Cargo documentation</a> 
+says that our feature is enabled if <code class="language-plaintext highlighter-rouge">CARGO_FEATURE_&lt;name&gt;</code> environment variable is set.</p>
+
+<p>Let’s modify <code class="language-plaintext highlighter-rouge">gl</code> build script:</p>
+
+<p>(lib/gl/build.rs, full)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="n">crate</span> <span class="n">gl_generator</span><span class="p">;</span>
+
+<span class="k">use</span> <span class="nn">gl_generator</span><span class="p">::{</span><span class="n">Registry</span><span class="p">,</span> <span class="n">Fallbacks</span><span class="p">,</span> <span class="n">StructGenerator</span><span class="p">,</span> <span class="n">DebugStructGenerator</span><span class="p">,</span> <span class="n">Api</span><span class="p">,</span> <span class="n">Profile</span><span class="p">};</span>
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="n">env</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">fs</span><span class="p">::</span><span class="n">File</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">std</span><span class="p">::</span><span class="nn">path</span><span class="p">::</span><span class="n">Path</span><span class="p">;</span>
+
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="n">out_dir</span> <span class="o">=</span> <span class="nn">env</span><span class="p">::</span><span class="nf">var</span><span class="p">(</span><span class="s">"OUT_DIR"</span><span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+    <span class="k">let</span> <span class="k">mut</span> <span class="n">file_gl</span> <span class="o">=</span> <span class="nn">File</span><span class="p">::</span><span class="nf">create</span><span class="p">(</span><span class="o">&amp;</span><span class="nn">Path</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="o">&amp;</span><span class="n">out_dir</span><span class="p">)</span><span class="nf">.join</span><span class="p">(</span><span class="s">"bindings.rs"</span><span class="p">))</span><span class="nf">.unwrap</span><span class="p">();</span>
+
+    <span class="k">let</span> <span class="n">registry</span> <span class="o">=</span> <span class="nn">Registry</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">Api</span><span class="p">::</span><span class="n">Gl</span><span class="p">,</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="nn">Profile</span><span class="p">::</span><span class="n">Core</span><span class="p">,</span> <span class="nn">Fallbacks</span><span class="p">::</span><span class="n">All</span><span class="p">,</span> <span class="p">[</span>
+        <span class="s">"GL_NV_command_list"</span><span class="p">,</span>
+    <span class="p">]);</span>
+
+    <span class="k">if</span> <span class="nn">env</span><span class="p">::</span><span class="nf">var</span><span class="p">(</span><span class="s">"CARGO_FEATURE_DEBUG"</span><span class="p">)</span><span class="nf">.is_ok</span><span class="p">()</span> <span class="p">{</span>
+        <span class="n">registry</span><span class="nf">.write_bindings</span><span class="p">(</span>
+            <span class="n">DebugStructGenerator</span><span class="p">,</span>
+            <span class="o">&amp;</span><span class="k">mut</span> <span class="n">file_gl</span>
+        <span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="n">registry</span><span class="nf">.write_bindings</span><span class="p">(</span>
+            <span class="n">StructGenerator</span><span class="p">,</span>
+            <span class="o">&amp;</span><span class="k">mut</span> <span class="n">file_gl</span>
+        <span class="p">)</span><span class="nf">.unwrap</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Let’s make a mistake in our program. What would happen, if instead of binding to <code class="language-plaintext highlighter-rouge">vbo</code>
+variable, we bind to a number 42?</p>
+
+<p>(main.rs, test)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">gl</span><span class="nf">.BindBuffer</span><span class="p">(</span><span class="nn">gl</span><span class="p">::</span><span class="n">ARRAY_BUFFER</span><span class="p">,</span> <span class="mi">42</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>Output:</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>[OpenGL] BindBuffer(34962, 42)
+[OpenGL] ^ GL error triggered: 1282
+</code></pre></div></div>
+
+<p>Well, I guess it’s better than nothing!</p>
+
+<h2 id="autocomplete">Autocomplete</h2>
+
+<p>One small thing - my IDE offers no autocomplete for the generated code. However,
+it is easy to get it by copy-pasting whole auto-generated <code class="language-plaintext highlighter-rouge">bindings.rs</code> from
+<code class="language-plaintext highlighter-rouge">/target/debug/gl-...</code> to <code class="language-plaintext highlighter-rouge">mod bindings</code> namespace. IntelliJ can then even
+display proper documentation annotations.</p>
+
+<h2 id="discussion">Discussion</h2>
+
+<p>Arguments for using a custom generator are not strong. In the majority of cases, global
+<code class="language-plaintext highlighter-rouge">gl</code> functions would do the job just fine. However, it is good to know this
+option is available if needed.</p>
+
+<p><a href="https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-06">The code is available on github</a>.</p>
+
+<p>From now on, we will continue using this custom gl crate.</p>
+
+<p><a href="/rust/opengl/tutorial/2018/02/14/opengl-in-rust-from-scratch-07-basic-resources.html">Next time</a>, we will load shaders from files instead of embedding them as strings in the
+executable.</p>
+
+  </article>
+
+</div>
+
+      </div>
+    </div>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col  footer-col-1">
+        <ul class="contact-list">
+          <li>Nerijus Arlauskas</li>
+          <li><a href="mailto:nercury@gmail.com">nercury@gmail.com</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-2">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/Nercury">
+              <span class="icon  icon--github">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/>
+                </svg>
+              </span>
+
+              <span class="username">Nercury</span>
+            </a>
+          </li>
+          
+
+          
+          <li>
+            <a href="https://twitter.com/nercury">
+              <span class="icon  icon--twitter">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809
+                  c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/>
+                </svg>
+              </span>
+
+              <span class="username">nercury</span>
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-3">
+        <p class="text">Articles and tutorials about Rust, Embedded development and Computer Graphics.
+</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>

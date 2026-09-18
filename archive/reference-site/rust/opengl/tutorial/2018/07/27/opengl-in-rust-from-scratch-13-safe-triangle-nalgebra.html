@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <title>Rust and OpenGL from scratch - Safe Triangle and nalgebra</title>
+    <meta name="description" content="Articles and tutorials about Rust, Embedded development and Computer Graphics.
+">
+
+    <link rel="shortcut icon" type="image/png" href="/favicon.ico"/>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/pygments/default.css">
+    <link rel="stylesheet" href="/css/font-awesome.css">
+    <link rel="canonical" href="http://nercury.github.io/rust/opengl/tutorial/2018/07/27/opengl-in-rust-from-scratch-13-safe-triangle-nalgebra.html">
+    <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles/color-brewer.css">
+
+    <script src="/js/highlight.pack.js"></script>
+
+    <script src="/js/jquery.min.js"></script>
+    
+    <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+      ga('create', 'UA-56288576-1', 'auto');
+      ga('require', 'displayfeatures');
+      ga('send', 'pageview');
+    </script>
+    
+    <script>
+        $(function() {
+            hljs.initHighlightingOnLoad();
+            return $("h1, h2, h3, h4, h5, h6").each(function(i, el) {
+                console.log(el);
+                var $el, icon, id;
+                $el = $(el);
+                id = $el.attr('id');
+                icon = '<i class="fa fa-link"></i>';
+                if (id) {
+                  return $el.prepend($("<a />").addClass("header-link").attr("href", "#" + id).html(icon));
+                }
+            });
+        });
+    </script>
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Ironic Blog</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+        
+          
+          <a class="page-link" href="/about/">About Me</a>
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <div class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Rust and OpenGL from scratch - Safe Triangle and nalgebra</h1>
+    <p class="post-meta">Jul 27, 2018</p>
+  </header>
+
+  <article class="post-content">
+    <p>Welcome back!</p>
+
+<p><a href="/rust/opengl/tutorial/2018/07/25/opengl-in-rust-from-scratch-12-buffers.html">Previously</a>,
+we have create safe (ish) wrappers for VBO and VAO.</p>
+
+<p>This time, we will continue along this path and remove the rest of unsafe code from our
+<code class="language-plaintext highlighter-rouge">run</code> function.</p>
+
+<h2 id="a-structure-to-hold-data-for-triangle">A structure to hold data for Triangle</h2>
+
+<p>The data that is necessary for Triangle is the shader program, VAO and VBO.</p>
+
+<p>We can easily group them together into <code class="language-plaintext highlighter-rouge">Triangle</code> struct, and move this struct to
+another file.</p>
+
+<p>(src/main.rs, added module reference)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">triangle</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>(src/triangle.rs, added new file)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">struct</span> <span class="n">Triangle</span> <span class="p">{</span>
+    <span class="n">program</span><span class="p">:</span> <span class="nn">render_gl</span><span class="p">::</span><span class="n">Program</span><span class="p">,</span>
+    <span class="mi">_</span><span class="n">vbo</span><span class="p">:</span> <span class="nn">buffer</span><span class="p">::</span><span class="n">ArrayBuffer</span><span class="p">,</span> <span class="c">// _ to disable warning about not used vbo</span>
+    <span class="n">vao</span><span class="p">:</span> <span class="nn">buffer</span><span class="p">::</span><span class="n">VertexArray</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span> <span class="n">Triangle</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">res</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Resources</span><span class="p">,</span> <span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="n">Triangle</span><span class="p">,</span> <span class="nn">failure</span><span class="p">::</span><span class="n">Error</span><span class="o">&gt;</span> <span class="p">{</span>
+        <span class="c">// initialization code that uses resources to</span>
+        <span class="c">// load data for triangle and wrap this data in</span>
+        <span class="c">// Triangle struct, or return an error</span>
+    <span class="p">}</span>
+
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">render</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">)</span> <span class="p">{</span>
+        <span class="c">// function that renders the triangle based on loaded data</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The <code class="language-plaintext highlighter-rouge">new</code> function uses the <code class="language-plaintext highlighter-rouge">Resources</code> to load the data for the triangle into
+OpenGL objects, and then store handles to those objects inside the <code class="language-plaintext highlighter-rouge">Triangle</code> struct.</p>
+
+<p>Loading can fail, therefore the <code class="language-plaintext highlighter-rouge">new</code> returns a <code class="language-plaintext highlighter-rouge">Result</code> type. If we wanted to care
+a bit more about performance here, like, if this kind of object
+would be created many times, we would return a custom error type that
+would implement <code class="language-plaintext highlighter-rouge">Fail</code>. We have <a href="/rust/opengl/tutorial/2018/02/15/opengl-in-rust-from-scratch-08-failure.html">discussed error performance and types back in the
+<code class="language-plaintext highlighter-rouge">Failure</code> lesson</a>.</p>
+
+<p>The render renders, not much to add here.</p>
+
+<p>The triangle also depends on the <code class="language-plaintext highlighter-rouge">Vertex</code> type, which we can copy-pase here
+together with the <code class="language-plaintext highlighter-rouge">new</code> and <code class="language-plaintext highlighter-rouge">render</code> implementation:</p>
+
+<p>(src/triangle.rs, full file, modified)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="n">gl</span><span class="p">;</span>
+<span class="k">use</span> <span class="n">failure</span><span class="p">;</span>
+<span class="k">use</span> <span class="nn">render_gl</span><span class="p">::{</span><span class="k">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">buffer</span><span class="p">};</span>
+<span class="k">use</span> <span class="nn">resources</span><span class="p">::</span><span class="n">Resources</span><span class="p">;</span>
+
+<span class="nd">#[derive(VertexAttribPointers)]</span>
+<span class="nd">#[derive(Copy,</span> <span class="nd">Clone,</span> <span class="nd">Debug)]</span>
+<span class="nd">#[repr(C,</span> <span class="nd">packed)]</span>
+<span class="k">struct</span> <span class="n">Vertex</span> <span class="p">{</span>
+    <span class="nd">#[location</span> <span class="nd">=</span> <span class="s">"0"</span><span class="nd">]</span>
+    <span class="n">pos</span><span class="p">:</span> <span class="nn">data</span><span class="p">::</span><span class="n">f32_f32_f32</span><span class="p">,</span>
+    <span class="nd">#[location</span> <span class="nd">=</span> <span class="s">"1"</span><span class="nd">]</span>
+    <span class="n">clr</span><span class="p">:</span> <span class="nn">data</span><span class="p">::</span><span class="n">u2_u10_u10_u10_rev_float</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">pub</span> <span class="k">struct</span> <span class="n">Triangle</span> <span class="p">{</span>
+    <span class="n">program</span><span class="p">:</span> <span class="nn">render_gl</span><span class="p">::</span><span class="n">Program</span><span class="p">,</span>
+    <span class="mi">_</span><span class="n">vbo</span><span class="p">:</span> <span class="nn">buffer</span><span class="p">::</span><span class="n">ArrayBuffer</span><span class="p">,</span> <span class="c">// _ to disable warning about not used vbo</span>
+    <span class="n">vao</span><span class="p">:</span> <span class="nn">buffer</span><span class="p">::</span><span class="n">VertexArray</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span> <span class="n">Triangle</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">new</span><span class="p">(</span><span class="n">res</span><span class="p">:</span> <span class="o">&amp;</span><span class="n">Resources</span><span class="p">,</span> <span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Result</span><span class="o">&lt;</span><span class="n">Triangle</span><span class="p">,</span> <span class="nn">failure</span><span class="p">::</span><span class="n">Error</span><span class="o">&gt;</span> <span class="p">{</span>
+
+        <span class="c">// set up shader program</span>
+
+        <span class="k">let</span> <span class="n">program</span> <span class="o">=</span> <span class="nn">render_gl</span><span class="p">::</span><span class="nn">Program</span><span class="p">::</span><span class="nf">from_res</span><span class="p">(</span><span class="n">gl</span><span class="p">,</span> <span class="n">res</span><span class="p">,</span> <span class="s">"shaders/triangle"</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+
+        <span class="c">// set up vertex buffer object</span>
+
+        <span class="k">let</span> <span class="n">vertices</span><span class="p">:</span> <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Vertex</span><span class="o">&gt;</span> <span class="o">=</span> <span class="nd">vec!</span><span class="p">[</span>
+            <span class="n">Vertex</span> <span class="p">{</span>
+                <span class="n">pos</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span><span class="nf">.into</span><span class="p">(),</span>
+                <span class="n">clr</span><span class="p">:</span> <span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span><span class="nf">.into</span><span class="p">()</span>
+            <span class="p">},</span> <span class="c">// bottom right</span>
+            <span class="n">Vertex</span> <span class="p">{</span>
+                <span class="n">pos</span><span class="p">:</span> <span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span><span class="nf">.into</span><span class="p">(),</span>
+                <span class="n">clr</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span><span class="nf">.into</span><span class="p">()</span>
+            <span class="p">},</span> <span class="c">// bottom left</span>
+            <span class="n">Vertex</span> <span class="p">{</span>
+                <span class="n">pos</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span>  <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span><span class="nf">.into</span><span class="p">(),</span>
+                <span class="n">clr</span><span class="p">:</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span><span class="nf">.into</span><span class="p">()</span>
+            <span class="p">}</span>  <span class="c">// top</span>
+        <span class="p">];</span>
+
+        <span class="k">let</span> <span class="n">vbo</span> <span class="o">=</span> <span class="nn">buffer</span><span class="p">::</span><span class="nn">ArrayBuffer</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">gl</span><span class="p">);</span>
+        <span class="n">vbo</span><span class="nf">.bind</span><span class="p">();</span>
+        <span class="n">vbo</span><span class="nf">.static_draw_data</span><span class="p">(</span><span class="o">&amp;</span><span class="n">vertices</span><span class="p">);</span>
+        <span class="n">vbo</span><span class="nf">.unbind</span><span class="p">();</span>
+
+        <span class="c">// set up vertex array object</span>
+
+        <span class="k">let</span> <span class="n">vao</span> <span class="o">=</span> <span class="nn">buffer</span><span class="p">::</span><span class="nn">VertexArray</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">gl</span><span class="p">);</span>
+
+        <span class="n">vao</span><span class="nf">.bind</span><span class="p">();</span>
+        <span class="n">vbo</span><span class="nf">.bind</span><span class="p">();</span>
+        <span class="nn">Vertex</span><span class="p">::</span><span class="nf">vertex_attrib_pointers</span><span class="p">(</span><span class="n">gl</span><span class="p">);</span>
+        <span class="n">vbo</span><span class="nf">.unbind</span><span class="p">();</span>
+        <span class="n">vao</span><span class="nf">.unbind</span><span class="p">();</span>
+
+        <span class="nf">Ok</span><span class="p">(</span><span class="n">Triangle</span> <span class="p">{</span>
+            <span class="n">program</span><span class="p">,</span>
+            <span class="mi">_</span><span class="n">vbo</span><span class="p">:</span> <span class="n">vbo</span><span class="p">,</span>
+            <span class="n">vao</span><span class="p">,</span>
+        <span class="p">})</span>
+    <span class="p">}</span>
+
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">render</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">self</span><span class="py">.program</span><span class="nf">.set_used</span><span class="p">();</span>
+        <span class="k">self</span><span class="py">.vao</span><span class="nf">.bind</span><span class="p">();</span>
+
+        <span class="k">unsafe</span> <span class="p">{</span>
+            <span class="n">gl</span><span class="nf">.DrawArrays</span><span class="p">(</span>
+                <span class="nn">gl</span><span class="p">::</span><span class="n">TRIANGLES</span><span class="p">,</span> <span class="c">// mode</span>
+                <span class="mi">0</span><span class="p">,</span> <span class="c">// starting index in the enabled arrays</span>
+                <span class="mi">3</span> <span class="c">// number of indices to be rendered</span>
+            <span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>In the main function, we can now create the triangle with this simple call:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">triangle</span> <span class="o">=</span> <span class="nn">triangle</span><span class="p">::</span><span class="nn">Triangle</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="o">&amp;</span><span class="n">res</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">gl</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>And render replace rendering with this:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">triangle</span><span class="nf">.render</span><span class="p">(</span><span class="o">&amp;</span><span class="n">gl</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>This should build and run. We can also clean up unused use statements
+if we get any warnings.</p>
+
+<h2 id="side-note">Side Note</h2>
+
+<p>That <code class="language-plaintext highlighter-rouge">failure_to_string</code> function at the end of main does not look nice,
+so we can hide it in <code class="language-plaintext highlighter-rouge">src/debug.rs</code> submodule.</p>
+
+<h2 id="discussion-dependencies-in-render-loop">Discussion: dependencies in render loop</h2>
+
+<p>We have built a simple triangle wrapper, and it looks like this
+will be the way we will create further simple “components” that we
+will hook into initialization and rendering logic.</p>
+
+<p>These components will depend on each other and some will even modify the state
+of each other.</p>
+
+<p>In Object-Oriented languages, it is a common pattern to inject such
+components into each other at the time of initialization. However,
+in Rust, if we inject one mutable reference of, say, a <code class="language-plaintext highlighter-rouge">triangle</code> somewhere,
+we can’t do that for another component - the code won’t compile:</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">triangle</span> <span class="o">=</span> <span class="nn">triangle</span><span class="p">::</span><span class="nn">Triangle</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="o">&amp;</span><span class="n">res</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">gl</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+<span class="k">let</span> <span class="n">config</span> <span class="o">=</span> <span class="nn">Config</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="n">triangle</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+<span class="k">let</span> <span class="n">controller</span> <span class="o">=</span> <span class="nn">Controller</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="n">triangle</span><span class="p">)</span><span class="o">?</span><span class="p">;</span> <span class="c">// triangle is already borrowed as mutable</span>
+</code></pre></div></div>
+
+<p>Here we assume that hypothetical <code class="language-plaintext highlighter-rouge">Config</code> and <code class="language-plaintext highlighter-rouge">Controller</code> keeps
+the mutable pointer to <code class="language-plaintext highlighter-rouge">triangle</code> inside:</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Config</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">triangle</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="k">mut</span> <span class="n">Triangle</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">struct</span> <span class="n">Controller</span><span class="o">&lt;</span><span class="nv">'a</span><span class="o">&gt;</span> <span class="p">{</span>
+    <span class="n">triangle</span><span class="p">:</span> <span class="o">&amp;</span><span class="nv">'a</span> <span class="k">mut</span> <span class="n">Triangle</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>One solution would be to put triangle behind a reference-counted pointer:</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">triangle</span> <span class="o">=</span> <span class="nn">Rc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">triangle</span><span class="p">::</span><span class="nn">Triangle</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="o">&amp;</span><span class="n">res</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">gl</span><span class="p">)</span><span class="o">?</span><span class="p">);</span>
+<span class="k">let</span> <span class="n">config</span> <span class="o">=</span> <span class="nn">Config</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">triangle</span><span class="nf">.clone</span><span class="p">())</span><span class="o">?</span><span class="p">;</span>
+<span class="k">let</span> <span class="n">controller</span> <span class="o">=</span> <span class="nn">Controller</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">triangle</span><span class="nf">.clone</span><span class="p">())</span><span class="o">?</span><span class="p">;</span>
+
+<span class="o">...</span>
+
+<span class="c">// somewhere else</span>
+
+<span class="k">struct</span> <span class="n">Config</span> <span class="p">{</span>
+    <span class="n">triangle</span><span class="p">:</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="n">Triangle</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">struct</span> <span class="n">Controller</span> <span class="p">{</span>
+    <span class="n">triangle</span><span class="p">:</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="n">Triangle</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>This way, the triangle is shared, we get rid of lifetimes, but the triangle is
+still immutable! To make it mutable, we would have to use what is called
+<em>interior mutability</em>: additionally wrap the triangle in a <code class="language-plaintext highlighter-rouge">RefCell</code> that makes
+borrowing checks dynamically at runtime instead of compile time:</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="n">triangle</span> <span class="o">=</span> <span class="nn">Rc</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">RefCell</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="nn">triangle</span><span class="p">::</span><span class="nn">Triangle</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="o">&amp;</span><span class="n">res</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">gl</span><span class="p">)</span><span class="o">?</span><span class="p">));</span>
+<span class="k">let</span> <span class="n">config</span> <span class="o">=</span> <span class="nn">Config</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">triangle</span><span class="nf">.clone</span><span class="p">())</span><span class="o">?</span><span class="p">;</span>
+<span class="k">let</span> <span class="n">controller</span> <span class="o">=</span> <span class="nn">Controller</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">triangle</span><span class="nf">.clone</span><span class="p">())</span><span class="o">?</span><span class="p">;</span>
+
+<span class="o">...</span>
+
+<span class="c">// somewhere else</span>
+
+<span class="k">struct</span> <span class="n">Config</span> <span class="p">{</span>
+    <span class="n">triangle</span><span class="p">:</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="n">RefCell</span><span class="o">&lt;</span><span class="n">Triangle</span><span class="o">&gt;&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">struct</span> <span class="n">Controller</span> <span class="p">{</span>
+    <span class="n">triangle</span><span class="p">:</span> <span class="nb">Rc</span><span class="o">&lt;</span><span class="n">RefCell</span><span class="o">&lt;</span><span class="n">Triangle</span><span class="o">&gt;&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>If we ignore the general uglyness for a moment, this would work.
+Let’s say somewhere bellow in <code class="language-plaintext highlighter-rouge">run</code> function we use both <code class="language-plaintext highlighter-rouge">Config</code> and <code class="language-plaintext highlighter-rouge">Controller</code> this
+way:</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">config</span><span class="nf">.save_triangle_configuration</span><span class="p">();</span>
+<span class="o">..</span>
+<span class="n">controller</span><span class="nf">.shake_triangle</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p>Inside of these functions, there would be some code that mutably borrows the triangle
+to save and shake it:</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Config</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">save_triangle_configuration</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">self</span><span class="py">.triangle</span><span class="nf">.borrow_mut</span><span class="p">()</span><span class="nf">.save</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">impl</span> <span class="n">Controller</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">shake_triangle</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">self</span><span class="py">.triangle</span><span class="nf">.borrow_mut</span><span class="p">()</span><span class="nf">.harlem</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>It would work, but it is a bit annoying to have even this overhead in a
+tight rendering loop. Not to mention it looks ugly!</p>
+
+<p>The insight here would be that if the triangle is only used in these functions,
+we can limit how it is used by borrowing it only in the method call:</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">impl</span> <span class="n">Config</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">save_triangle_configuration</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">triangle</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">Triangle</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">triangle</span><span class="nf">.save</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">impl</span> <span class="n">Controller</span> <span class="p">{</span>
+    <span class="k">fn</span> <span class="nf">shake_triangle</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">triangle</span><span class="p">:</span> <span class="o">&amp;</span><span class="k">mut</span> <span class="n">Triangle</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">triangle</span><span class="nf">.harlem</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The <code class="language-plaintext highlighter-rouge">Config</code> and <code class="language-plaintext highlighter-rouge">Controller</code> no longer stores a reference to triangle.
+The setup and usage looks like this:</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">triangle</span> <span class="o">=</span> <span class="nn">triangle</span><span class="p">::</span><span class="nn">Triangle</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="o">&amp;</span><span class="n">res</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">gl</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+<span class="k">let</span> <span class="n">config</span> <span class="o">=</span> <span class="nn">Config</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
+<span class="k">let</span> <span class="n">controller</span> <span class="o">=</span> <span class="nn">Controller</span><span class="p">::</span><span class="nf">new</span><span class="p">();</span>
+
+<span class="o">..</span>
+
+<span class="n">config</span><span class="nf">.save_triangle_configuration</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="n">triangle</span><span class="p">);</span>
+<span class="o">..</span>
+<span class="n">controller</span><span class="nf">.shake_triangle</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="n">triangle</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>The upside of this approach is that we can clearly see the dependencies and
+what mutates what inside the render loop, which would be hard to track
+with the <code class="language-plaintext highlighter-rouge">RefCell</code> approach.</p>
+
+<p>The downside is that we can’t pull OO shenanigans and create a sea of objects
+with unclear data flow patterns where any component can be modified to mutate whatever
+and whenever without a need to change an external component signature.
+Ok, maybe this is not a downside. The downside is that we can’t implement something like
+a “Drawable” interface, because a <code class="language-plaintext highlighter-rouge">draw</code> on one component might need to borrow a completely
+different thing than a <code class="language-plaintext highlighter-rouge">draw</code> on another component, making function
+signatures different.</p>
+
+<p>Is this a big issue? It is hard to tell now, when we are just starting.
+However, we may always rememeber the <code class="language-plaintext highlighter-rouge">RefCell</code>, if only some use case justifies it.</p>
+
+<h2 id="viewport">Viewport</h2>
+
+<p>Great, we have a better idea of how we want to continue. Our “components”
+are going to be quite cheap, so we may not hesitate and create one for every
+OpenGL use case.</p>
+
+<p>For example, the viewport: right now, our window is resizable, therefore
+we should update the viewport size on a window resize.</p>
+
+<p>So our viewport struct should start with an initial width/height, have a method
+to update width/height, and a function which changes OpenGL state
+based on width/height.</p>
+
+<p>Then, the viewport is really an utility that belongs to <code class="language-plaintext highlighter-rouge">render_gl</code> submodule.</p>
+
+<p>(srs/render_gl/viewport.rs)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="n">gl</span><span class="p">;</span>
+
+<span class="k">pub</span> <span class="k">struct</span> <span class="n">Viewport</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="n">x</span><span class="p">:</span> <span class="nb">i32</span><span class="p">,</span>
+    <span class="k">pub</span> <span class="n">y</span><span class="p">:</span> <span class="nb">i32</span><span class="p">,</span>
+    <span class="k">pub</span> <span class="n">w</span><span class="p">:</span> <span class="nb">i32</span><span class="p">,</span>
+    <span class="k">pub</span> <span class="n">h</span><span class="p">:</span> <span class="nb">i32</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span> <span class="n">Viewport</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">for_window</span><span class="p">(</span><span class="n">w</span><span class="p">:</span> <span class="nb">i32</span><span class="p">,</span> <span class="n">h</span><span class="p">:</span> <span class="nb">i32</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">Viewport</span> <span class="p">{</span>
+        <span class="n">Viewport</span> <span class="p">{</span>
+            <span class="n">x</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="n">y</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="n">w</span><span class="p">,</span>
+            <span class="n">h</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">update_size</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="n">w</span><span class="p">:</span> <span class="nb">i32</span><span class="p">,</span> <span class="n">h</span><span class="p">:</span> <span class="nb">i32</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">self</span><span class="py">.w</span> <span class="o">=</span> <span class="n">w</span><span class="p">;</span>
+        <span class="k">self</span><span class="py">.h</span> <span class="o">=</span> <span class="n">h</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">set_used</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">unsafe</span> <span class="p">{</span>
+            <span class="n">gl</span><span class="nf">.Viewport</span><span class="p">(</span><span class="k">self</span><span class="py">.x</span><span class="p">,</span> <span class="k">self</span><span class="py">.y</span><span class="p">,</span> <span class="k">self</span><span class="py">.w</span><span class="p">,</span> <span class="k">self</span><span class="py">.h</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Inside the <code class="language-plaintext highlighter-rouge">render_gl</code>, we may hide the fact that <code class="language-plaintext highlighter-rouge">Viewport</code> lives in its
+own separate file by not making the module public and re-exporting the name
+with <code class="language-plaintext highlighter-rouge">pub use</code> (like we did with the shader):</p>
+
+<p>(src/render_gl/mod.rs, added)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">viewport</span><span class="p">;</span>
+<span class="k">pub</span> <span class="k">use</span> <span class="k">self</span><span class="p">::</span><span class="nn">viewport</span><span class="p">::</span><span class="n">Viewport</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>I have not used <code class="language-plaintext highlighter-rouge">new</code> for <code class="language-plaintext highlighter-rouge">Viewport</code> constructor, and instead settled for <code class="language-plaintext highlighter-rouge">for_window</code>
+where we don’t need to specify <code class="language-plaintext highlighter-rouge">x</code> and <code class="language-plaintext highlighter-rouge">y</code>. It is common in Rust
+to see different names for constructors that customise initialization.
+And we can skip the <code class="language-plaintext highlighter-rouge">new</code> (which should probably have parameters to initialize every variable)
+until it is needed.</p>
+
+<p>We will likely adopt a convention to use <code class="language-plaintext highlighter-rouge">set_used</code> name for
+functions that modify global open gl state. In this case, it actually
+switches viewport configuration.</p>
+
+<p>Inside the main, we can initialize the viewport:</p>
+
+<p>(src/main.rs, modified)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="k">mut</span> <span class="n">viewport</span> <span class="o">=</span> <span class="nn">render_gl</span><span class="p">::</span><span class="nn">Viewport</span><span class="p">::</span><span class="nf">for_window</span><span class="p">(</span><span class="mi">900</span><span class="p">,</span> <span class="mi">700</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>Switch to it before the main loop starts:</p>
+
+<p>(src/main.rs, modified)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">viewport</span><span class="nf">.set_used</span><span class="p">(</span><span class="o">&amp;</span><span class="n">gl</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>And then, something new: we may update the viewport when the window is resized:</p>
+
+<p>(src/main.rs, modified event loop)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">for</span> <span class="n">event</span> <span class="n">in</span> <span class="n">event_pump</span><span class="nf">.poll_iter</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">match</span> <span class="n">event</span> <span class="p">{</span>
+        <span class="nn">sdl2</span><span class="p">::</span><span class="nn">event</span><span class="p">::</span><span class="nn">Event</span><span class="p">::</span><span class="n">Quit</span> <span class="p">{</span><span class="o">..</span><span class="p">}</span> <span class="k">=&gt;</span> <span class="k">break</span> <span class="nv">'main</span><span class="p">,</span>
+        <span class="nn">sdl2</span><span class="p">::</span><span class="nn">event</span><span class="p">::</span><span class="nn">Event</span><span class="p">::</span><span class="n">Window</span> <span class="p">{</span>
+            <span class="n">win_event</span><span class="p">:</span> <span class="nn">sdl2</span><span class="p">::</span><span class="nn">event</span><span class="p">::</span><span class="nn">WindowEvent</span><span class="p">::</span><span class="nf">Resized</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">h</span><span class="p">),</span>
+            <span class="o">..</span>
+        <span class="p">}</span> <span class="k">=&gt;</span> <span class="p">{</span>
+            <span class="n">viewport</span><span class="nf">.update_size</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">h</span><span class="p">);</span>
+            <span class="n">viewport</span><span class="nf">.set_used</span><span class="p">(</span><span class="o">&amp;</span><span class="n">gl</span><span class="p">);</span>
+        <span class="p">},</span>
+        <span class="mi">_</span> <span class="k">=&gt;</span> <span class="p">{},</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>This should run, and the triangle will now adjust its size on a window resize.</p>
+
+<h2 id="color-buffer">Color Buffer</h2>
+
+<p>For the color buffer, we might store 4 floats inside a <code class="language-plaintext highlighter-rouge">ColorBuffer</code> struct:</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">pub</span> <span class="k">struct</span> <span class="n">ColorBuffer</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="n">r</span><span class="p">:</span> <span class="nb">f32</span><span class="p">,</span>
+    <span class="k">pub</span> <span class="n">g</span><span class="p">:</span> <span class="nb">f32</span><span class="p">,</span>
+    <span class="k">pub</span> <span class="n">b</span><span class="p">:</span> <span class="nb">f32</span><span class="p">,</span>
+    <span class="k">pub</span> <span class="n">a</span><span class="p">:</span> <span class="nb">f32</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Or, we may bring in a <code class="language-plaintext highlighter-rouge">Vector4</code> type from some linear algebra crate that is also
+suitable for games. There are quite a few of those to choose from.
+In my first OpenGL renderer, I was using <code class="language-plaintext highlighter-rouge">cgmath</code> together with <code class="language-plaintext highlighter-rouge">collision</code>,
+and had very few issues.</p>
+
+<p>I have avoided other crates because of their excessive use of generics,
+which makes auto-generated Rust documentation hard to understand, and harder if
+we are new to Rust. Compared to that, <code class="language-plaintext highlighter-rouge">cgmath</code> is very straightforward,
+and I still recommend it.</p>
+
+<p>However, one other crate has caught my eye: <code class="language-plaintext highlighter-rouge">nalgebra</code>, together with
+the crate that is build on it, <code class="language-plaintext highlighter-rouge">ncollide</code>. Looking further down the road,
+there is also <code class="language-plaintext highlighter-rouge">nphysics</code>, that builds on both, a physics engine written
+entirely in Rust!</p>
+
+<p>While the reference documentation of <code class="language-plaintext highlighter-rouge">nalgebra</code> and <code class="language-plaintext highlighter-rouge">ncollide</code> is
+a bit hard to navigate, the online documentation hands-down wins the contest.
+Check out <a href="http://nalgebra.org/">nalgebra.org</a>, <a href="http://ncollide.org/">ncollide.org</a> and
+<a href="http://nphysics.org/">nphysics.org</a>!</p>
+
+<p>An assurance that these lower-level functions are suitable for a
+physics engine contributed the most for decision to bite
+the bullet (no pun intended) and pick <code class="language-plaintext highlighter-rouge">nalgebra</code> for this and further lessons.</p>
+
+<p>Let’s include <code class="language-plaintext highlighter-rouge">nalgebra</code> in our project:</p>
+
+<p>(Cargo.toml, added dependency)</p>
+
+<div class="language-toml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">nalgebra</span> <span class="p">=</span> <span class="s">"0.16"</span>
+</code></pre></div></div>
+
+<p>(src/main.rs, added crate reference)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">extern</span> <span class="n">crate</span> <span class="n">nalgebra</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>We can then use ‘nalgebra’s <code class="language-plaintext highlighter-rouge">Vector4</code> type in our <code class="language-plaintext highlighter-rouge">ColorBuffer</code> struct:</p>
+
+<p>(src/render_gl/mod.rs, added)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">mod</span> <span class="n">color_buffer</span><span class="p">;</span>
+<span class="k">pub</span> <span class="k">use</span> <span class="k">self</span><span class="p">::</span><span class="nn">color_buffer</span><span class="p">::</span><span class="n">ColorBuffer</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>(src/render_gl/color_buffer.rs)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="n">nalgebra</span> <span class="k">as</span> <span class="n">na</span><span class="p">;</span>
+<span class="k">use</span> <span class="n">gl</span><span class="p">;</span>
+
+<span class="k">pub</span> <span class="k">struct</span> <span class="n">ColorBuffer</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="n">color</span><span class="p">:</span> <span class="nn">na</span><span class="p">::</span><span class="n">Vector4</span><span class="o">&lt;</span><span class="nb">f32</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span> <span class="n">ColorBuffer</span> <span class="p">{</span>
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">from_color</span><span class="p">(</span><span class="n">color</span><span class="p">:</span> <span class="nn">na</span><span class="p">::</span><span class="n">Vector3</span><span class="o">&lt;</span><span class="nb">f32</span><span class="o">&gt;</span><span class="p">)</span> <span class="k">-&gt;</span> <span class="n">ColorBuffer</span> <span class="p">{</span>
+        <span class="n">ColorBuffer</span> <span class="p">{</span>
+            <span class="n">color</span><span class="p">:</span> <span class="n">color</span><span class="py">.fixed_resize</span><span class="p">::</span><span class="o">&lt;</span><span class="nn">na</span><span class="p">::</span><span class="n">U4</span><span class="p">,</span> <span class="nn">na</span><span class="p">::</span><span class="n">U1</span><span class="o">&gt;</span><span class="p">(</span><span class="mf">1.0</span><span class="p">),</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">update_color</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span> <span class="k">self</span><span class="p">,</span> <span class="n">color</span><span class="p">:</span> <span class="nn">na</span><span class="p">::</span><span class="n">Vector3</span><span class="o">&lt;</span><span class="nb">f32</span><span class="o">&gt;</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">self</span><span class="py">.color</span> <span class="o">=</span> <span class="n">color</span><span class="py">.fixed_resize</span><span class="p">::</span><span class="o">&lt;</span><span class="nn">na</span><span class="p">::</span><span class="n">U4</span><span class="p">,</span> <span class="nn">na</span><span class="p">::</span><span class="n">U1</span><span class="o">&gt;</span><span class="p">(</span><span class="mf">1.0</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">set_used</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">unsafe</span> <span class="p">{</span>
+            <span class="n">gl</span><span class="nf">.ClearColor</span><span class="p">(</span><span class="k">self</span><span class="py">.color.x</span><span class="p">,</span> <span class="k">self</span><span class="py">.color.y</span><span class="p">,</span> <span class="k">self</span><span class="py">.color.z</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="k">pub</span> <span class="k">fn</span> <span class="nf">clear</span><span class="p">(</span><span class="o">&amp;</span><span class="k">self</span><span class="p">,</span> <span class="n">gl</span><span class="p">:</span> <span class="o">&amp;</span><span class="nn">gl</span><span class="p">::</span><span class="n">Gl</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">unsafe</span> <span class="p">{</span>
+            <span class="n">gl</span><span class="nf">.Clear</span><span class="p">(</span><span class="nn">gl</span><span class="p">::</span><span class="n">COLOR_BUFFER_BIT</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>However, I have chosen to go with a simpler constructor that does
+not specify an alpha, and uses <code class="language-plaintext highlighter-rouge">Vector3</code>, while there is <code class="language-plaintext highlighter-rouge">Vector4</code> in the struct.
+That means we have to convert <code class="language-plaintext highlighter-rouge">Vector3</code> to <code class="language-plaintext highlighter-rouge">Vector4</code>.</p>
+
+<p>We could simply construct it:</p>
+
+<p>(example)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">ColorBuffer</span> <span class="p">{</span>
+    <span class="n">color</span><span class="p">:</span> <span class="nn">na</span><span class="p">::</span><span class="nn">Vector4</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="n">color</span><span class="py">.x</span><span class="p">,</span> <span class="n">color</span><span class="py">.y</span><span class="p">,</span> <span class="n">color</span><span class="py">.z</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>However, there is a way to extend the vector and add one dimension:</p>
+
+<p>(sample, used in code above)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">ColorBuffer</span> <span class="p">{</span>
+    <span class="n">color</span><span class="p">:</span> <span class="n">color</span><span class="py">.fixed_resize</span><span class="p">::</span><span class="o">&lt;</span><span class="nn">na</span><span class="p">::</span><span class="n">U4</span><span class="p">,</span> <span class="nn">na</span><span class="p">::</span><span class="n">U1</span><span class="o">&gt;</span><span class="p">(</span><span class="mf">1.0</span><span class="p">),</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>What is going on? Well, almost all the types in <code class="language-plaintext highlighter-rouge">nalgebra</code> are aliases
+to the <em>very</em> generic <code class="language-plaintext highlighter-rouge">Matrix</code> type (we have created a few
+aliases ourselves in the previous lesson).</p>
+
+<p>Vector is simply a Matrix with one column. To resize, we use <a href="http://nalgebra.org/vectors_and_matrices/#matrix-resizing">matrix resize</a>
+function <code class="language-plaintext highlighter-rouge">fixed_resize</code> with generic parameters <code class="language-plaintext highlighter-rouge">na::U4</code> and <code class="language-plaintext highlighter-rouge">na::U1</code>, which mean
+<code class="language-plaintext highlighter-rouge">4</code> rows and <code class="language-plaintext highlighter-rouge">1</code> column, respectively. Because Rust does not yet support parametrization over 
+integer values, these types are used as a workaround. This is the same approach that we have used
+in the previous lesson, for our <code class="language-plaintext highlighter-rouge">Buffer&lt;BufferTypeArray&gt;</code> and
+<code class="language-plaintext highlighter-rouge">Buffer&lt;BufferTypeElementArray&gt;</code> aliases.</p>
+
+<p>The resized matrix will be bigger, so the function has an argument for
+a value to fill in these new cells, here we pass <code class="language-plaintext highlighter-rouge">1.0</code> for alpha.</p>
+
+<p>Now we can initialize color buffer with a color we want:</p>
+
+<p>(src/main.rs)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">use</span> <span class="n">nalgebra</span> <span class="k">as</span> <span class="n">na</span><span class="p">;</span>
+<span class="o">...</span>
+<span class="k">let</span> <span class="n">color_buffer</span> <span class="o">=</span> <span class="nn">render_gl</span><span class="p">::</span><span class="nn">ColorBuffer</span><span class="p">::</span><span class="nf">from_color</span><span class="p">(</span><span class="nn">na</span><span class="p">::</span><span class="nn">Vector3</span><span class="p">::</span><span class="nf">new</span><span class="p">(</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">));</span>
+</code></pre></div></div>
+
+<p>Then, call the <code class="language-plaintext highlighter-rouge">set_used</code> on this <code class="language-plaintext highlighter-rouge">ColorBuffer</code>, to change the clear color:</p>
+
+<p>(src/main.rs)</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">color_buffer</span><span class="nf">.set_used</span><span class="p">(</span><span class="o">&amp;</span><span class="n">gl</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>And use the <code class="language-plaintext highlighter-rouge">clear</code> to clear the color:</p>
+
+<div class="language-rust highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">color_buffer</span><span class="nf">.clear</span><span class="p">(</span><span class="o">&amp;</span><span class="n">gl</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>This should compile and run.</p>
+
+<p>We have finally created some breathing space inside our main function.
+Next time, we will try to explore a bit more than triangle!</p>
+
+<p><a href="https://github.com/Nercury/rust-and-opengl-lessons/tree/master/lesson-13">Full source code is available on github</a>.</p>
+
+  </article>
+
+</div>
+
+      </div>
+    </div>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col  footer-col-1">
+        <ul class="contact-list">
+          <li>Nerijus Arlauskas</li>
+          <li><a href="mailto:nercury@gmail.com">nercury@gmail.com</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-2">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/Nercury">
+              <span class="icon  icon--github">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/>
+                </svg>
+              </span>
+
+              <span class="username">Nercury</span>
+            </a>
+          </li>
+          
+
+          
+          <li>
+            <a href="https://twitter.com/nercury">
+              <span class="icon  icon--twitter">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809
+                  c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/>
+                </svg>
+              </span>
+
+              <span class="username">nercury</span>
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-3">
+        <p class="text">Articles and tutorials about Rust, Embedded development and Computer Graphics.
+</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>

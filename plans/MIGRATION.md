@@ -39,7 +39,7 @@ GitHub Actions → Pages.
 | D4 | Highlighting in two passes: parity first (same wrappers, plain escaped code, keep highlight.js), then Phase 8 moves to pure server-side (`syntect`) and removes hljs/jQuery. | Rouge token spans cannot be reproduced exactly in Rust. Risk: slight color shift in pass 1 (currently pygments CSS + hljs CSS merge). |
 | D5 | Keep Liquid templates via the `liquid` crate | Layouts/includes port nearly verbatim. Risk: filter/whitespace differences vs Ruby Liquid. |
 | D6 | Input changes minimal: front matter and filenames untouched. Divergence resolution order: generator fix → minimal input edit → allowlist entry. | |
-| D7 | Drop Google Analytics | Believed never emitted (`site.GH_ENV` gate); verify in Phase 1, allowlist if it was. |
+| D7 | Drop Google Analytics | Phase 1 showed the snippet **is** emitted on every live page; its removal is an allowlisted diff. |
 | D8 | Deploy with GitHub Actions (`upload-pages-artifact` + `deploy-pages`); no `gh-pages` branch | Requires manual switch of Pages source in repo settings. |
 | D9 | "Nearly the same" is defined by an explicit allowlist file, never fuzzy thresholds | Auditable. |
 | D10 | Rust nightly, edition 2024, **no feature gates**: only features already stabilized but not yet in beta/stable. Enforced by `unstable_features = "forbid"` workspace lint. Interesting uses logged in `plans/DEV_BRIEF.md`. Floating `nightly` locally, pinned dated nightly before Phase 7. | Low risk: code is at most ~12 weeks ahead of stable. Lint does not cover dependencies. |
@@ -78,13 +78,13 @@ Phase 7 PR gate only becomes useful after the first push.
 
 ## Phase 1 — Reference snapshot
 
-- [ ] Script (`archive/mirror.sh` or a `sitediff mirror` subcommand) that fetches: every URL derived
+- [x] Script (`archive/mirror.sh` or a `sitediff mirror` subcommand) that fetches: every URL derived
       from source (posts, pages, `index.html`, `feed.xml`, rendered `resources/**/*.md`) **and** all
       static assets from `git ls-files`, plus a link crawl to catch anything unexpected.
-- [ ] Commit result to `archive/reference-site/`.
-- [ ] Drift check: static assets byte-identical to the working tree; every expected URL returned 200;
+- [x] Commit result to `archive/reference-site/`.
+- [x] Drift check: static assets byte-identical to the working tree; every expected URL returned 200;
       no crawled URL lacks a source file.
-- [ ] Record facts needed later: `C++` category URL form, `site.pages` order (nav loop), whether GA
+- [x] Record facts needed later: `C++` category URL form, `site.pages` order (nav loop), whether GA
       snippet is present, how `cortex-m-basics` and `css/main.css` are emitted.
 
 **Exit:** URL inventory written into Notes; drift verdict recorded.
@@ -92,6 +92,31 @@ Phase 7 PR gate only becomes useful after the first push.
 build the source in Docker, and use that output as reference for the drifting pages only.
 
 **Notes:**
+
+- Done 2026-09-18 with `archive/mirror.sh` (curl; fetches tracked static files + entry points + link crawl).
+- **Drift verdict: none.** All 178 static files are byte-identical to the working tree; all 25 posts,
+  `index.html`, `about/`, `feed.xml`, `css/main.css`, `resources/mcu-02/cortex-m-basics.html` fetched
+  with 200. D3 (Docker Jekyll) is **not** triggered.
+- Snapshot is pruned: identical static files are deleted after the check (they were 76MB of
+  duplicates). Committed: 30 generated files (2.0MB) + `reference-site.manifest` (sha256 of all 208
+  mirrored files) + `reference-site.report`. Consequence for Phase 2: `sitediff` compares static
+  files against the manifest hashes, not against files in the reference tree.
+- `.gitattributes` marks the snapshot `-text` so line endings are never converted.
+- Facts:
+  - `C++` category → URL segment `c++` (lowercased, `+` kept): `/c++/interesting/2016/02/22/weak_ptr-and-event-cleanup.html`.
+  - **GA snippet IS present on all 28 live pages** — the D7 assumption was wrong (Ruby Liquid
+    evaluated the parenthesized condition as truthy). Dropping GA is therefore a real diff → first
+    `sitediff.allow.toml` entry.
+  - Nav loop: only one page has a title (About Me); the rest of `site.pages` emits whitespace only,
+    so page order is irrelevant after whitespace normalization.
+  - `cortex-m-basics.md` (no front matter) renders with the `page` layout and an **empty**
+    `<h1 class="post-title"></h1>`; `<title>` falls back to the site title (jekyll-default-layout behavior).
+  - `css/main.css` is compressed single-line output (Sass `compressed` style).
+  - `/di-rs/*` on the same host belongs to another repo's project site; excluded from the crawl.
+  - An extensionless link to `/resources/mcu-02/cortex-m-basics` exists (Pages serves the `.html`); crawl maps it to the `.html` file.
+- Pre-existing broken links on the live site (content bugs, reproduced faithfully for parity; fix in Phase 9):
+  - `/rust/opengl/tutorial/2018/02/11/docs.gl` (link written without scheme)
+  - `/rust/pointers/2014/10/30/Nercury/ccc99ec11f49043c14ed` (gist link written without host)
 
 ## Phase 2 — `sitediff`
 
@@ -102,7 +127,7 @@ build the source in Docker, and use that output as reference for the drifting pa
 - [ ] `feed.xml`: structural compare; ignore `pubDate`/`lastBuildDate`/`generator`; item
       `description` is unescaped and compared as normalized HTML.
 - [ ] CSS: byte compare, falling back to normalized compare (whitespace, trailing semicolons, color case).
-- [ ] Other assets: byte compare.
+- [ ] Other assets: compare candidate file hashes against `archive/reference-site.manifest` (static files are pruned from the snapshot).
 - [ ] `sitediff.allow.toml`: entries = path glob + selector/pattern + mandatory `reason`.
       Report unused allowlist entries.
 - [ ] Output: per-file summary, readable unified diff of normalized DOM, non-zero exit on differences.
@@ -199,6 +224,7 @@ add `.sublime-syntax` files.
 ## Phase 9 — Cleanup
 
 - [ ] `site.url` → `https`.
+- [ ] Fix the two broken links recorded in Phase 1 notes (then allowlist or re-baseline).
 - [ ] Remove dead assets; decide whether `archive/reference-site/` stays in the repo (it is the CI gate — if kept, freeze the allowlist; if removed, drop the gate).
 - [ ] README: how to write a post, build, preview, run sitediff.
 - [ ] Optional: `blog serve` with file watching.
