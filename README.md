@@ -61,4 +61,9 @@ build against it structurally (normalized DOM, code compared as text, static fil
 It is a manual tool, not a CI gate. Run it after changing `crates/blog` or updating dependencies
 (`cargo update`): expected output is only content you added or edited on purpose, reported as `EXTRA` /
 `DIFFERENT`. Accepted differences live in `sitediff.allow.toml`, each with a reason.
-`archive/mirror.sh [url] [dir]` snapshots a deployed site for the same kind of comparison.
+To check that a deployment matches a local build (both sides current, so no allowlist):
+
+    KEEP_STATIC=1 bash archive/mirror.sh https://nercury.github.io /tmp/live
+    cargo run -p sitediff -- /tmp/live _site --no-manifest --no-allow
+
+Expected: everything `same` except `feed.xml` (build timestamps).

@@ -70,7 +70,7 @@ extract_links() {
 }
 
 while IFS= read -r p; do fetch "$p"; done < "$work/static"
-for p in "" "about/" "feed.xml" "css/main.css" "resources/mcu-02/cortex-m-basics.html"; do fetch "$p"; done
+for p in "" "about/" "feed.xml" "css/main.css" "css/syntax.css" "resources/mcu-02/cortex-m-basics.html"; do fetch "$p"; done
 
 # Crawl until the queue stops producing new paths.
 while :; do
@@ -88,7 +88,7 @@ done < "$work/static"
 
 # Crawled files that are neither static sources nor HTML/feed/css output: unexpected.
 ( cd "$OUT" && find . -type f | sed 's|^\./||' | sort ) > "$work/files"
-grep -vxF -f "$work/static" "$work/files" | grep -v -E '(\.html|^feed\.xml|^css/main\.css)$' \
+grep -vxF -f "$work/static" "$work/files" | grep -v -E '(\.html|^feed\.xml|^css/(main|syntax)\.css)$' \
   | sed 's|^|UNEXPECTED /|' >> "$REPORT"
 
 ( cd "$OUT" && xargs -d '\n' sha256sum < "$work/files" ) > "$MANIFEST"

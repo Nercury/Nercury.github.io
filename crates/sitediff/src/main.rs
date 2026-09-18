@@ -23,6 +23,10 @@ struct Args {
     /// Allowlist file [default: sitediff.allow.toml if present]
     #[arg(long)]
     allow: Option<PathBuf>,
+    /// Ignore the allowlist. Use when both trees are current builds (e.g. deployed vs local): the
+    /// default rules are written for "2020 reference vs new site" and are side-specific.
+    #[arg(long)]
+    no_allow: bool,
     /// Only compare paths matching this glob (e.g. 'rust/opengl/**')
     #[arg(long)]
     only: Option<String>,
@@ -49,7 +53,8 @@ fn main() -> Result<ExitCode> {
             Some(PathBuf::from(default)).filter(|p| p.is_file())
         })
     };
-    let allow = match args.allow.or_else(|| Some(PathBuf::from("sitediff.allow.toml")).filter(|p| p.is_file())) {
+    let allow_path = if args.no_allow { None } else { args.allow.or_else(|| Some(PathBuf::from("sitediff.allow.toml")).filter(|p| p.is_file())) };
+    let allow = match allow_path {
         Some(path) => AllowList::load(&path)?,
         None => AllowList::default(),
     };
