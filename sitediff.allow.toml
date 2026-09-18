@@ -23,3 +23,8 @@ reason = "site build time"
 path = "feed.xml"
 pattern = '^rss/channel/generator:'
 reason = "generator is no longer Jekyll"
+
+[[line]]
+path = "css/main.css"
+pattern = '^\s*color:(black|#000)$'
+reason = "grass emits the named color `black` as #000; same color"

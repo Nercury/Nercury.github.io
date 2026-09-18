@@ -6,3 +6,18 @@ baseurl = ""
 url = "http://nercury.github.io"
 twitter_username = "nercury"
 github_username = "Nercury"
+
+# Build settings
+# Paths (relative to the repository root) that are not part of the site. Names starting with
+# `_`, `.`, `#` or ending with `~` are always skipped, like Jekyll does.
+exclude = [
+    "archive",
+    "crates",
+    "plans",
+    "target",
+    "Cargo.toml",
+    "Cargo.lock",
+    "rust-toolchain.toml",
+    "site.toml",
+    "sitediff.allow.toml",
+]

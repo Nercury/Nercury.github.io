@@ -15,8 +15,7 @@ GitHub Actions → Pages.
   (github-pages ≈ 207, kramdown 2.x, rouge 3.x), 5 minutes after HEAD `211770a`. The live site is
   the reference. `Gemfile.lock` (github-pages 202 / Jekyll 3.8.5 / kramdown 1.17) is **not** what
   produced it.
-- Content: 25 posts, 9 drafts, `about.md`, `resources/mcu-02/cortex-m-basics.md` (rendered as a
-  page via jekyll-optional-front-matter), `index.html`, `feed.xml` (hand-written RSS), no sitemap.
+- Content: 25 posts, 9 drafts, `about.md`, `resources/mcu-02/cortex-m-basics.md` (a page with an extensionless permalink), `index.html`, `feed.xml` (hand-written RSS), no sitemap.
 - Front matter keys in use: `layout`, `title`, `date`, `categories`, `permalink`.
 - Post URL scheme: `/:categories/:year/:month/:day/:title.html`; date from front matter, not the
   filename (hack-the-crab: filename 11-09, URL 11-11). Category `C++` URL form: verify in Phase 1.
@@ -109,8 +108,9 @@ build the source in Docker, and use that output as reference for the drifting pa
     `sitediff.allow.toml` entry.
   - Nav loop: only one page has a title (About Me); the rest of `site.pages` emits whitespace only,
     so page order is irrelevant after whitespace normalization.
-  - `cortex-m-basics.md` (no front matter) renders with the `page` layout and an **empty**
-    `<h1 class="post-title"></h1>`; `<title>` falls back to the site title (jekyll-default-layout behavior).
+  - `cortex-m-basics.md` renders with the `page` layout and an **empty**
+    `<h1 class="post-title"></h1>`; `<title>` falls back to the site title. (It has front matter
+    without a title — see the correction in Phase 3 notes.)
   - `css/main.css` is compressed single-line output (Sass `compressed` style).
   - `/di-rs/*` on the same host belongs to another repo's project site; excluded from the crawl.
   - An extensionless link to `/resources/mcu-02/cortex-m-basics` exists (Pages serves the `.html`); crawl maps it to the `.html` file.
@@ -165,17 +165,42 @@ change, attribute change, element reorder, missing file, changed code text.
 
 ## Phase 3 — Generator skeleton
 
-- [ ] Load `site.toml`; discover posts, drafts, pages, static files (Jekyll's exclusion rules:
+- [x] Load `site.toml`; discover posts, drafts, pages, static files (Jekyll's exclusion rules:
       `_*`, `.*`, plus `archive/`, `crates/`, `plans/`, `target/`, cargo files).
-- [ ] YAML front matter parsing; files without front matter are static, except `.md` (optional-front-matter behavior).
-- [ ] URL computation: categories, front matter date, `permalink`, `C++` form per Phase 1 notes.
-- [ ] Static copy; SCSS via `grass` (compressed/expanded style matching the reference).
-- [ ] Emit placeholder HTML at the right paths.
+- [x] YAML front matter parsing; files without front matter are static, except `.md` (optional-front-matter behavior).
+- [x] URL computation: categories, front matter date, `permalink`, `C++` form per Phase 1 notes.
+- [x] Static copy; SCSS via `grass` (compressed/expanded style matching the reference).
+- [x] Emit placeholder HTML at the right paths.
 
 **Exit:** `sitediff` reports zero file-set differences and CSS passes.
 **Risk:** `grass` vs Ruby Sass formatting (`lighten()`/`darken()` rounding, number precision).
 
 **Notes:**
+
+- Done 2026-09-18. `crates/blog`: `config.rs` (site.toml), `front_matter.rs`, `site.rs` (discovery,
+  classification, URLs), `build.rs` (static copy, SCSS, placeholder documents), `main.rs`
+  (`blog build [--out _site] [--drafts]`, `blog urls [--drafts]`).
+- Exit criteria met: `sitediff archive/reference-site _site` → 208 files, **0 missing, 0 extra**,
+  178 static files hash-identical, `css/main.css` passes. The 29 remaining DIFFERENT are the
+  placeholder HTML pages and the feed (Phases 4-6).
+- Discovery walks the filesystem like Jekyll (not `git ls-files`): skips names starting with
+  `_`, `.`, `#` or ending in `~`, plus `exclude` from `site.toml`. Untracked junk in the working
+  tree would therefore be published; sitediff reports it as EXTRA.
+- **Correction to Phase 1:** `cortex-m-basics.md` *does* have front matter (`layout: page`,
+  `permalink: /resources/mcu-02/cortex-m-basics`, no title). It is not a default-layout case. The
+  extensionless permalink is written to `<permalink>.html`; the URL itself stays extensionless.
+  Markdown files without front matter are still treated as pages (optional-front-matter), but no
+  current file needs that.
+- Post URL rule verified against all 25 reference paths: categories lowercased, de-duplicated,
+  not slugified; date from front matter, falling back to the file name.
+- Drafts: `build --drafts` renders all 9 (39 documents). Draft URLs use the front matter date.
+- YAML via `serde_yaml_ng` (maintained fork of the archived `serde_yaml`).
+- CSS: `grass` (compressed) vs Ruby Sass differ only in notation. Handled in sitediff's CSS
+  normalizer: BOM, `0.2em`/`.2em`, `"C"`/`"“"`, selector order within a list (`@extend`
+  output order differs). One allowlist entry: `color:black` → `color:#000`. grass output starts
+  with a UTF-8 BOM because it emits the literal `“`; harmless, kept.
+- safety: `build` refuses to clear an output directory containing `.git`, `site.toml` or `Cargo.toml`.
+- Expected dead-code warnings in `blog` (config fields, `layout`, `tags`) until Phase 4 uses them.
 
 ## Phase 4 — Templates
 
