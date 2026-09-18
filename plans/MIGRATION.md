@@ -286,12 +286,23 @@ generator code to serve one occurrence, edit the input instead.
 
 ## Phase 6 — Feed and drafts
 
-- [ ] `feed.xml` via the same Liquid pipeline (`layout: null`), last 10 posts.
-- [ ] `--drafts` flag; all 9 drafts render without error (no reference to diff against unless D3 was triggered).
+- [x] `feed.xml` via the same Liquid pipeline (`layout: null`), last 10 posts.
+- [x] `--drafts` flag; all 9 drafts render without error (no reference to diff against unless D3 was triggered).
 
 **Exit:** feed diffs clean; `build --drafts` succeeds.
 
 **Notes:**
+
+- Done 2026-09-18; no code changes were needed — Phases 4-5 already delivered this.
+- Feed: 10 items and 30 `<category>` elements, same as the reference; diffs clean (allowlisted:
+  channel `pubDate`/`lastBuildDate`, `generator`, and the `Buffer<B>` source fix from Phase 5).
+- Drafts: `blog build --drafts` renders all 9 (39 documents). Checked: no Liquid/placeholder
+  leftovers in output, balanced code fences, no bare generic-like tags (`<T>`, `<B>`) in prose of
+  any post or draft, every draft page has title and footer. No reference exists for drafts, so
+  this is a smoke test, not parity. Visual check of the site by the owner: OK (2026-09-18).
+- Like Jekyll, `--drafts` adds drafts to `site.posts`, so they show up in the index and feed of
+  that build. Draft URLs use the front matter date, which differs from the file name date for
+  several drafts (e.g. `2017-08-28-rust-multiple-inheritance` → `/2017/09/01/`).
 
 ## Phase 7 — Deployment
 
