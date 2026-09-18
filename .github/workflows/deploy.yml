@@ -1,0 +1,66 @@
+name: Build and deploy
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+# One deployment at a time; a newer push supersedes a queued one but never kills a running deploy.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  # CI builds with a fixed nightly so a bad nightly cannot break deploys. This overrides the
+  # floating `nightly` in rust-toolchain.toml. Bump deliberately (see plans/DEV_BRIEF.md).
+  RUSTUP_TOOLCHAIN: nightly-2026-09-18
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --no-self-update
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Test
+        run: cargo test --release --workspace
+
+      - name: Build site
+        run: cargo run --release -p blog -- build
+
+      # Drafts are never deployed, but they must keep rendering.
+      - name: Build drafts (smoke test)
+        run: cargo run --release -p blog -- build --drafts --out "$RUNNER_TEMP/site-with-drafts"
+
+      - name: Compare with reference snapshot
+        run: cargo run --release -p sitediff -- archive/reference-site _site --limit 20
+
+      - uses: actions/configure-pages@v6
+        if: github.event_name != 'pull_request'
+
+      - uses: actions/upload-pages-artifact@v5
+        if: github.event_name != 'pull_request'
+        with:
+          path: _site
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

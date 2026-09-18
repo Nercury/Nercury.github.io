@@ -41,7 +41,7 @@ GitHub Actions → Pages.
 | D7 | Drop Google Analytics | Phase 1 showed the snippet **is** emitted on every live page; its removal is an allowlisted diff. |
 | D8 | Deploy with GitHub Actions (`upload-pages-artifact` + `deploy-pages`); no `gh-pages` branch | Requires manual switch of Pages source in repo settings. |
 | D9 | "Nearly the same" is defined by an explicit allowlist file, never fuzzy thresholds | Auditable. |
-| D10 | Rust nightly, edition 2024, **no feature gates**: only features already stabilized but not yet in beta/stable. Enforced by `unstable_features = "forbid"` workspace lint. Interesting uses logged in `plans/DEV_BRIEF.md`. Floating `nightly` locally, pinned dated nightly before Phase 7. | Low risk: code is at most ~12 weeks ahead of stable. Lint does not cover dependencies. |
+| D10 | Rust nightly, edition 2024, **no feature gates**: only features already stabilized but not yet in beta/stable. Enforced by `unstable_features = "forbid"` workspace lint. Interesting uses logged in `plans/DEV_BRIEF.md`. Floating `nightly` locally; CI pins a dated nightly in the workflow (see Phase 7 notes). | Low risk: code is at most ~12 weeks ahead of stable. Lint does not cover dependencies. |
 
 ## Target layout
 
@@ -306,8 +306,8 @@ generator code to serve one occurrence, edit the input instead.
 
 ## Phase 7 — Deployment
 
-- [ ] `.github/workflows/deploy.yml`: checkout → pinned nightly toolchain (from `rust-toolchain.toml`) + cache → `cargo run --release -p blog -- build` → `upload-pages-artifact` → `deploy-pages` (on push to master).
-- [ ] PR/branch job: build + `sitediff archive/reference-site _site` as a gate.
+- [x] `.github/workflows/deploy.yml`: checkout → pinned nightly toolchain (from `rust-toolchain.toml`) + cache → `cargo run --release -p blog -- build` → `upload-pages-artifact` → `deploy-pages` (on push to master).
+- [x] PR/branch job: build + `sitediff archive/reference-site _site` as a gate.
 - [ ] **Manual (owner):** Settings → Pages → Source = GitHub Actions.
 - [ ] First push of master (workflow included); after deploy, run the mirror script against live and `sitediff` it against `_site`.
 - [ ] Close/delete stale dependabot bundler branches.
@@ -319,6 +319,35 @@ Order: switch Pages source to GitHub Actions **first** (legacy build stops, old 
 served), then push, then confirm the workflow deployed.
 
 **Notes:**
+
+- Prepared 2026-09-18; **go-live steps below are the owner's** (push + repo settings).
+- `.github/workflows/deploy.yml`: one `build` job (tests → `blog build` → drafts smoke build →
+  `sitediff` gate → Pages artifact) and a `deploy` job (`deploy-pages`), skipped on pull requests.
+  Triggers: push to `master`, PRs, manual dispatch. Actions pinned to current majors
+  (checkout v7, configure-pages v6, upload-pages-artifact v5, deploy-pages v5, rust-cache v2).
+- Toolchain pin lives in the workflow (`RUSTUP_TOOLCHAIN: nightly-2026-09-18`), **not** in
+  `rust-toolchain.toml` as D10 originally said: pinning the file would make rustup download a
+  second, identical nightly on the dev machine. `nightly-2026-09-18` is exactly the local compiler
+  (`330d31712`). Trade-off: two places to look; local nightly may run ahead of CI.
+- `.gitattributes` is now `* -text`: the manifest check is byte-exact, so no checkout may convert
+  line endings. (All tracked files already had identical index/worktree endings.)
+- Verified locally: the workflow's commands in `--release` → 204 same, 4 allowed, exit 0. **Not
+  verifiable locally:** the workflow itself (YAML/action inputs, Linux runner). First run is the test.
+- Go-live, in this order:
+  1. GitHub → repo Settings → Pages → Build and deployment → Source: **GitHub Actions**.
+     (Stops the legacy Jekyll build; the currently deployed site stays up.)
+  2. `git push origin master`.
+  3. Watch the run: `gh run watch` or the Actions tab. If `build` fails, nothing is deployed and the
+     old site stays.
+  4. After deploy: `bash archive/mirror.sh https://nercury.github.io "$TEMP/live-after"` with
+     `KEEP_STATIC=1`, then `cargo run -p sitediff -- "$TEMP/live-after" _site --no-manifest`
+     → expect all same. (First end-to-end run of mirror.sh's pruning path if KEEP_STATIC is unset.)
+  5. Delete the stale remote branches `dependabot/bundler/*`.
+- Follow-up worth doing at go-live: `archive/Gemfile.lock` keeps Dependabot raising Ruby security
+  alerts/PRs for a lockfile nobody uses. Either disable Dependabot for the repo or rename the
+  archived file (e.g. `Gemfile.lock.txt`).
+- Rollback: set Pages Source back to "Deploy from a branch" *and* restore `_config.yml`/`Gemfile`
+  to the root (`git revert` of the Phase 0 commit) — without them the legacy build uses defaults.
 
 ## Phase 8 — Pure server-side highlighting
 

@@ -13,9 +13,11 @@ of noteworthy uses of new Rust features.
   "this will compile on stable by release X".
 - `rust-toolchain.toml` tracks floating `nightly`. Baseline when the project started:
   `rustc 1.100.0-nightly (330d31712 2026-09-17)`.
-- Before the first CI deploy (MIGRATION Phase 7), pin a dated nightly (`nightly-YYYY-MM-DD`) so CI
-  and local builds agree; once everything used has reached stable, switching the pin to `stable`
-  is an option.
+- CI pins a dated nightly via `RUSTUP_TOOLCHAIN` in `.github/workflows/deploy.yml` (currently
+  `nightly-2026-09-18`, identical to the project baseline). The pin is deliberately not in
+  `rust-toolchain.toml`, so the dev machine does not download a duplicate toolchain. Bump the pin
+  when adopting something newly stabilized; once everything used has reached stable, switching
+  both to `stable` is an option.
 - Caveat: the lint cannot distinguish "stabilized on nightly" from "stable for years"; it only
   blocks gates. Whether an API is newly stabilized is visible in its docs (`Stable since 1.xx.0`).
   Dependencies are not covered by the lint — avoid crates that require nightly gates.
