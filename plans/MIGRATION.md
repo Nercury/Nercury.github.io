@@ -34,7 +34,7 @@ GitHub Actions → Pages.
 |---|----------|------------------|
 | D1 | Custom Rust binary: `pulldown-cmark` + `liquid` + `grass` | Full control of emitted HTML. Risk: we own the code; kramdown≠CommonMark divergences. |
 | D2 | Reference = mirror of live site, committed under `archive/reference-site/` | Zero toolchain; it is what readers see. Cannot be regenerated — acceptable, it is a frozen snapshot. |
-| D3 | Docker Jekyll is a **fallback**, used only if Phase 1 finds source↔site drift (or to render drafts if wanted). Pin `github-pages` 207 (Jekyll 3.9.0) in a separate `archive/Gemfile`; keep the original lockfile archived untouched. No Ruby on the host, ever. | Using the 202 lockfile would itself introduce drift. Risk: exact 2020 rouge patch version unknown. |
+| D3 | ~~Docker Jekyll as a fallback if Phase 1 finds source↔site drift.~~ **Retired 2026-09-21 (D12):** never triggered (Phase 1 found no drift), and the Ruby build is no longer supported in any form. | Historical. |
 | D4 | Highlighting in two passes: parity first (same wrappers, plain escaped code, keep highlight.js), then Phase 8 moves to pure server-side (`syntect`) and removes hljs/jQuery. | Rouge token spans cannot be reproduced exactly in Rust. Risk: slight color shift in pass 1 (currently pygments CSS + hljs CSS merge). |
 | D5 | Keep Liquid templates via the `liquid` crate | Layouts/includes port nearly verbatim. Risk: filter/whitespace differences vs Ruby Liquid. |
 | D6 | Input changes minimal: front matter and filenames untouched. Divergence resolution order: generator fix → minimal input edit → allowlist entry. | |
@@ -42,6 +42,7 @@ GitHub Actions → Pages.
 | D8 | Deploy with GitHub Actions (`upload-pages-artifact` + `deploy-pages`); no `gh-pages` branch | Requires manual switch of Pages source in repo settings. |
 | D9 | "Nearly the same" is defined by an explicit allowlist file, never fuzzy thresholds | Auditable. |
 | D11 | `sitediff` is a **manual tool, not a deploy gate** (owner decision after go-live). The 2020 snapshot stays in the repo as a fixed baseline. | New posts and edits to old ones (e.g. a paragraph added at the top) would fail a gate forever; content will drift from 2020 by design. Risk: a generator regression is only caught if someone runs sitediff — run it after any change to `crates/blog` or a dependency bump, and read the diff (expected: new/edited content only). |
+| D12 | **The Ruby/Jekyll version is not supported anymore** (owner decision, 2026-09-21). `Gemfile`, `Gemfile.lock` and `_config.yml` are deleted from `archive/`; there is no rollback to the legacy Pages build. Only the rendered 2020 snapshot (`archive/reference-site*`) and `mirror.sh` remain, because `sitediff` uses them. | Removes Dependabot noise at the source and an untested "rollback" that would have rotted. Risk: if the Rust generator ever had to be abandoned, the fallback is "serve the last built `_site`" (any static host), not Jekyll. The old files stay recoverable from git history (`git show 211770a:_config.yml`). |
 | D10 | Rust nightly, edition 2024, **no feature gates**: only features already stabilized but not yet in beta/stable. Enforced by `unstable_features = "forbid"` workspace lint. Interesting uses logged in `plans/DEV_BRIEF.md`. Floating `nightly` locally; CI pins a dated nightly in the workflow (see Phase 7 notes). | Low risk: code is at most ~12 weeks ahead of stable. Lint does not cover dependencies. |
 
 ## Target layout
@@ -53,7 +54,7 @@ crates/sitediff/           comparison tool      → `cargo run -p sitediff -- <r
 site.toml                  site config (replaces _config.yml)
 sitediff.allow.toml        tolerated differences, each with a reason
 _posts/ _drafts/ _layouts/ _includes/ _sass/ css/ js/ images/ ...   (unchanged for now)
-archive/                   Gemfile, Gemfile.lock, _config.yml, reference-site/, (Dockerfile if D3 triggers)
+archive/                   reference-site/ (+ .manifest, .report), mirror.sh   (Jekyll files deleted, D12)
 plans/MIGRATION.md
 _site/                     build output (gitignored)
 ```
@@ -352,11 +353,13 @@ served), then push, then confirm the workflow deployed.
 - **Gate removed after go-live (D11).** The workflow now runs tests, the site build and the drafts
   smoke build, then deploys. `cargo test` still exercises sitediff against the snapshot itself
   (reference vs reference, mutations), which does not depend on site content.
-- Follow-up worth doing at go-live: `archive/Gemfile.lock` keeps Dependabot raising Ruby security
-  alerts/PRs for a lockfile nobody uses. Either disable Dependabot for the repo or rename the
-  archived file (e.g. `Gemfile.lock.txt`).
-- Rollback: set Pages Source back to "Deploy from a branch" *and* restore `_config.yml`/`Gemfile`
-  to the root (`git revert` of the Phase 0 commit) — without them the legacy build uses defaults.
+- **Ruby files deleted 2026-09-21 (D12)** instead of the earlier idea of renaming the lockfile:
+  `archive/Gemfile`, `archive/Gemfile.lock`, `archive/_config.yml` are gone, so GitHub's dependency
+  graph has no Bundler manifest left to raise Dependabot alerts/PRs for. Alerts already open may
+  need to be dismissed once by hand; the stale `dependabot/bundler/*` branches still need deleting.
+- Rollback to the legacy Jekyll build is **not supported** (D12). If a deploy goes wrong: the
+  previous Pages deployment stays up when `build` fails; otherwise revert the offending commit and
+  push, or re-run the last good workflow run.
 
 ## Phase 8 — Pure server-side highlighting
 
@@ -440,8 +443,8 @@ add `.sublime-syntax` files.
 ## Status
 
 Migration complete. Open items, none blocking:
-- Owner: delete stale remote branches `dependabot/bundler/*`; decide about Dependabot vs
-  `archive/Gemfile.lock` (Phase 7 notes); decide about the 34 unreferenced assets (above).
+- Owner: delete stale remote branches `dependabot/bundler/*`. (Dependabot noise: handled by deleting the archived Ruby files, D12. The 34 unreferenced
+  assets and the drafts are the owner's manual work — not to be touched by tooling work.)
 - When everything used has reached stable Rust, consider switching `rust-toolchain.toml` and the
   workflow pin to `stable` (DEV_BRIEF).
 - D11 habit: run `sitediff` after generator or dependency changes.
